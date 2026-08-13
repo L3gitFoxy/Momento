@@ -35,7 +35,7 @@ no build step. no node_modules. that's the whole app.
 
 **just open it:**
 ```bash
-git clone <repo-url>
+git clone https://github.com/l3gitfoxy/momento.git
 cd momento
 open index.html
 ```
