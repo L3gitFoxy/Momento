@@ -1,4 +1,4 @@
-# FlowDay
+# Momento
 
 weekly time-block planner + daily check-in, runs entirely in the browser. no backend, no accounts, no tracking just localStorage and vanilla JS.
 
@@ -9,7 +9,7 @@ weekly time-block planner + daily check-in, runs entirely in the browser. no bac
 
 ## why
 
-most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. FlowDay is ~3 files, opens instantly, and keeps everything on your machine.
+most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is ~3 files, opens instantly, and keeps everything on your machine.
 
 ## what it does
 
@@ -36,7 +36,7 @@ no build step. no node_modules. that's the whole app.
 **just open it:**
 ```bash
 git clone <repo-url>
-cd flowday
+cd momento
 open index.html
 ```
 
