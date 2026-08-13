@@ -22,385 +22,222 @@ const CATEGORY_KEYWORDS = {
 };
 
 const BUILT_IN_PRESETS = {
-
-    "Study Week": {
+    "Student Daily Routine": {
         Monday: [
-            { start: "06:00", end: "14:30", activity: "School (including travel)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "16:00", activity: "Relax time" },
-            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
-            { start: "17:30", end: "18:30", activity: "Play Minecraft" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "07:00", end: "08:00", activity: "Wake up & Breakfast" },
+            { start: "08:00", end: "15:00", activity: "School / College Classes" },
+            { start: "15:00", end: "16:00", activity: "Lunch & Relaxation" },
+            { start: "16:00", end: "18:00", activity: "Study & Homework" },
+            { start: "18:00", end: "19:30", activity: "Exercise & Outdoor Activity" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Gaming / Free Time & Read" }
         ],
-
         Tuesday: [
-            { start: "06:00", end: "14:30", activity: "School (including travel)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "17:00", activity: "Play / relax" },
-            { start: "17:00", end: "18:30", activity: "Football class" },
-            { start: "18:30", end: "19:00", activity: "Wind down" },
-            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "07:00", end: "08:00", activity: "Wake up & Breakfast" },
+            { start: "08:00", end: "15:00", activity: "School / College Classes" },
+            { start: "15:00", end: "16:00", activity: "Lunch & Relaxation" },
+            { start: "16:00", end: "18:00", activity: "Study & Homework" },
+            { start: "18:00", end: "19:30", activity: "Exercise & Outdoor Activity" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Gaming / Free Time & Read" }
         ],
-
         Wednesday: [
-            { start: "06:00", end: "14:30", activity: "School (including travel)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "17:00", activity: "Relax time / play" },
-            { start: "17:00", end: "18:00", activity: "Hindi class" },
-            { start: "18:00", end: "18:30", activity: "Wind down" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "07:00", end: "08:00", activity: "Wake up & Breakfast" },
+            { start: "08:00", end: "15:00", activity: "School / College Classes" },
+            { start: "15:00", end: "16:00", activity: "Lunch & Relaxation" },
+            { start: "16:00", end: "18:00", activity: "Study & Homework" },
+            { start: "18:00", end: "19:30", activity: "Exercise & Outdoor Activity" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Gaming / Free Time & Read" }
         ],
-
         Thursday: [
-            { start: "06:00", end: "14:30", activity: "School (including travel)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "17:00", activity: "Play / relax" },
-            { start: "17:00", end: "18:30", activity: "Football class" },
-            { start: "18:30", end: "19:00", activity: "Wind down" },
-            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "07:00", end: "08:00", activity: "Wake up & Breakfast" },
+            { start: "08:00", end: "15:00", activity: "School / College Classes" },
+            { start: "15:00", end: "16:00", activity: "Lunch & Relaxation" },
+            { start: "16:00", end: "18:00", activity: "Study & Homework" },
+            { start: "18:00", end: "19:30", activity: "Exercise & Outdoor Activity" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Gaming / Free Time & Read" }
         ],
-
         Friday: [
-            { start: "06:00", end: "14:30", activity: "School (including travel)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "16:00", activity: "Relax time" },
-            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
-            { start: "17:30", end: "18:30", activity: "Play Minecraft" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "07:00", end: "08:00", activity: "Wake up & Breakfast" },
+            { start: "08:00", end: "15:00", activity: "School / College Classes" },
+            { start: "15:00", end: "16:00", activity: "Lunch & Relaxation" },
+            { start: "16:00", end: "18:00", activity: "Study & Homework" },
+            { start: "18:00", end: "19:30", activity: "Exercise & Outdoor Activity" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Weekend Movie / Gaming" }
         ],
-
         Saturday: [
-            { start: "06:00", end: "14:30", activity: "School (including travel)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "17:00", activity: "Relax time / play" },
-            { start: "17:00", end: "18:30", activity: "Study homework / school work" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "21:00", activity: "Go to play down, exercise" },
-            { start: "21:00", end: "21:45", activity: "Dinner" },
-            { start: "21:45", end: "22:00", activity: "Read a book 🤓" }
+            { start: "08:30", end: "09:30", activity: "Breakfast" },
+            { start: "09:30", end: "12:00", activity: "Study & Revision" },
+            { start: "12:00", end: "13:00", activity: "Lunch" },
+            { start: "13:00", end: "17:00", activity: "Gaming / Personal Time" },
+            { start: "17:00", end: "19:00", activity: "Sports & Exercise" },
+            { start: "19:00", end: "20:30", activity: "Dinner & Relax" },
+            { start: "20:30", end: "22:30", activity: "Free Time" }
         ],
-
         Sunday: [
-            { start: "08:00", end: "09:30", activity: "Get ready & breakfast" },
-            { start: "09:30", end: "11:00", activity: "Class" },
-            { start: "11:00", end: "12:00", activity: "Relax, do whatever" },
-            { start: "12:00", end: "13:30", activity: "Study from school" },
-            { start: "13:30", end: "14:30", activity: "Lunch" },
-            { start: "14:30", end: "15:30", activity: "Relax, play whatever" },
-            { start: "15:30", end: "16:30", activity: "Study a bit more" },
-            { start: "16:30", end: "19:00", activity: "Do whatever" },
-            { start: "19:00", end: "20:30", activity: "Go to play down / exercise" },
-            { start: "20:30", end: "21:30", activity: "Eat dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "09:00", end: "10:00", activity: "Late Breakfast" },
+            { start: "10:00", end: "12:30", activity: "Free Time & Hobbies" },
+            { start: "12:30", end: "13:30", activity: "Lunch" },
+            { start: "13:30", end: "15:30", activity: "Light Study & Prep for Week" },
+            { start: "15:30", end: "18:00", activity: "Relax & Wind Down" },
+            { start: "18:00", end: "19:30", activity: "Exercise / Walk" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Read & Sleep Early" }
         ]
     },
 
-    "Holiday Week": {
+    "9-to-5 Work & Productivity": {
         Monday: [
-            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
-            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
-            { start: "12:00", end: "13:30", activity: "Study from school" },
-            { start: "13:30", end: "14:30", activity: "Lunch" },
-            { start: "14:30", end: "16:00", activity: "Relax, play whatever" },
-            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
-            { start: "17:30", end: "18:30", activity: "Study a bit more" },
-            { start: "18:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+            { start: "07:00", end: "08:00", activity: "Morning Exercise & Breakfast" },
+            { start: "08:00", end: "09:00", activity: "Commute / Prep Workday" },
+            { start: "09:00", end: "12:00", activity: "Deep Work / Focus Blocks" },
+            { start: "12:00", end: "13:00", activity: "Lunch Break" },
+            { start: "13:00", end: "17:00", activity: "Meetings & Collaborative Work" },
+            { start: "17:00", end: "18:30", activity: "Exercise & Unwind" },
+            { start: "18:30", end: "19:30", activity: "Dinner" },
+            { start: "19:30", end: "22:00", activity: "Relax & Personal Projects" }
         ],
-
         Tuesday: [
-            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
-            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
-            { start: "12:00", end: "13:30", activity: "Study from school" },
-            { start: "13:30", end: "14:30", activity: "Lunch" },
-            { start: "14:30", end: "17:00", activity: "Relax, play whatever" },
-            { start: "17:00", end: "18:30", activity: "Football class" },
-            { start: "18:30", end: "19:00", activity: "Wind down" },
-            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+            { start: "07:00", end: "08:00", activity: "Morning Exercise & Breakfast" },
+            { start: "08:00", end: "09:00", activity: "Commute / Prep Workday" },
+            { start: "09:00", end: "12:00", activity: "Deep Work / Focus Blocks" },
+            { start: "12:00", end: "13:00", activity: "Lunch Break" },
+            { start: "13:00", end: "17:00", activity: "Meetings & Collaborative Work" },
+            { start: "17:00", end: "18:30", activity: "Exercise & Unwind" },
+            { start: "18:30", end: "19:30", activity: "Dinner" },
+            { start: "19:30", end: "22:00", activity: "Relax & Personal Projects" }
         ],
-
         Wednesday: [
-            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
-            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
-            { start: "12:00", end: "13:30", activity: "Study from school" },
-            { start: "13:30", end: "14:30", activity: "Lunch" },
-            { start: "14:30", end: "17:00", activity: "Relax time / play" },
-            { start: "17:00", end: "18:00", activity: "Hindi class" },
-            { start: "18:00", end: "18:30", activity: "Wind down" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+            { start: "07:00", end: "08:00", activity: "Morning Exercise & Breakfast" },
+            { start: "08:00", end: "09:00", activity: "Commute / Prep Workday" },
+            { start: "09:00", end: "12:00", activity: "Deep Work / Focus Blocks" },
+            { start: "12:00", end: "13:00", activity: "Lunch Break" },
+            { start: "13:00", end: "17:00", activity: "Meetings & Collaborative Work" },
+            { start: "17:00", end: "18:30", activity: "Exercise & Unwind" },
+            { start: "18:30", end: "19:30", activity: "Dinner" },
+            { start: "19:30", end: "22:00", activity: "Relax & Personal Projects" }
         ],
-
         Thursday: [
-            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
-            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
-            { start: "12:00", end: "13:30", activity: "Study from school" },
-            { start: "13:30", end: "14:30", activity: "Lunch" },
-            { start: "14:30", end: "17:00", activity: "Relax / play" },
-            { start: "17:00", end: "18:30", activity: "Football class" },
-            { start: "18:30", end: "19:00", activity: "Wind down" },
-            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+            { start: "07:00", end: "08:00", activity: "Morning Exercise & Breakfast" },
+            { start: "08:00", end: "09:00", activity: "Commute / Prep Workday" },
+            { start: "09:00", end: "12:00", activity: "Deep Work / Focus Blocks" },
+            { start: "12:00", end: "13:00", activity: "Lunch Break" },
+            { start: "13:00", end: "17:00", activity: "Meetings & Collaborative Work" },
+            { start: "17:00", end: "18:30", activity: "Exercise & Unwind" },
+            { start: "18:30", end: "19:30", activity: "Dinner" },
+            { start: "19:30", end: "22:00", activity: "Relax & Personal Projects" }
         ],
-
         Friday: [
-            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
-            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
-            { start: "12:00", end: "13:30", activity: "Study from school" },
-            { start: "13:30", end: "14:30", activity: "Lunch" },
-            { start: "14:30", end: "16:00", activity: "Relax time" },
-            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
-            { start: "17:30", end: "18:30", activity: "Play Minecraft" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+            { start: "07:00", end: "08:00", activity: "Morning Exercise & Breakfast" },
+            { start: "08:00", end: "09:00", activity: "Commute / Prep Workday" },
+            { start: "09:00", end: "12:00", activity: "Deep Work / Focus Blocks" },
+            { start: "12:00", end: "13:00", activity: "Lunch Break" },
+            { start: "13:00", end: "17:00", activity: "Wrap Up Weekly Tasks" },
+            { start: "17:00", end: "18:30", activity: "Exercise & Unwind" },
+            { start: "18:30", end: "20:00", activity: "Dinner" },
+            { start: "20:00", end: "23:00", activity: "Weekend Social & Chill" }
         ],
-
         Saturday: [
-            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
-            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
-            { start: "12:00", end: "13:30", activity: "Study from school" },
-            { start: "13:30", end: "14:30", activity: "Lunch" },
-            { start: "14:30", end: "17:00", activity: "Relax time / play" },
-            { start: "17:00", end: "18:30", activity: "Study homework / school work" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "21:00", activity: "Go to play down, exercise" },
-            { start: "21:00", end: "21:45", activity: "Dinner" },
-            { start: "21:45", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+            { start: "08:30", end: "09:30", activity: "Breakfast" },
+            { start: "09:30", end: "12:30", activity: "Hobbies & Side Projects" },
+            { start: "12:30", end: "13:30", activity: "Lunch" },
+            { start: "13:30", end: "18:00", activity: "Free Time & Outings" },
+            { start: "18:00", end: "19:30", activity: "Physical Activity" },
+            { start: "19:30", end: "21:00", activity: "Dinner" }
         ],
-
         Sunday: [
-            { start: "08:00", end: "09:30", activity: "Wake up, get ready & breakfast" },
-            { start: "09:30", end: "11:00", activity: "Class" },
-            { start: "11:00", end: "12:00", activity: "Relax, do whatever" },
-            { start: "12:00", end: "13:30", activity: "Study from school" },
-            { start: "13:30", end: "14:30", activity: "Lunch" },
-            { start: "14:30", end: "15:30", activity: "Relax, play whatever" },
-            { start: "15:30", end: "16:30", activity: "Study a bit more" },
-            { start: "16:30", end: "19:00", activity: "Do whatever" },
-            { start: "19:00", end: "20:30", activity: "Go to play down / exercise" },
-            { start: "20:30", end: "21:30", activity: "Eat dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep zzzzz" }
+            { start: "09:00", end: "10:00", activity: "Breakfast" },
+            { start: "10:00", end: "13:00", activity: "Relax & Media" },
+            { start: "13:00", end: "14:00", activity: "Lunch" },
+            { start: "14:00", end: "17:00", activity: "Personal Errand / Planning" },
+            { start: "17:00", end: "18:30", activity: "Exercise / Walk" },
+            { start: "18:30", end: "20:00", activity: "Dinner" },
+            { start: "20:00", end: "22:00", activity: "Read & Wind Down" }
         ]
     },
 
-    "Exam - School Week": {
+    "Intensive Exam Prep": {
         Monday: [
-            { start: "06:00", end: "14:30", activity: "School (Morning)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "16:00", activity: "Relax time" },
-            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
-            { start: "17:30", end: "18:30", activity: "Study (revise school)" },
-            { start: "18:30", end: "19:30", activity: "Play Minecraft" },
-            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "07:30", end: "08:30", activity: "Breakfast & Morning Prep" },
+            { start: "08:30", end: "11:30", activity: "Study Block 1 (Core Subject)" },
+            { start: "11:30", end: "12:00", activity: "Break / Walk" },
+            { start: "12:00", end: "13:30", activity: "Study Block 2 (Revision)" },
+            { start: "13:30", end: "14:30", activity: "Lunch Break" },
+            { start: "14:30", end: "17:00", activity: "Study Block 3 (Practice Tests)" },
+            { start: "17:00", end: "18:30", activity: "Exercise & Outdoor Break" },
+            { start: "18:30", end: "19:30", activity: "Study Block 4 (Light Review)" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Relax & Read" }
         ],
-
         Tuesday: [
-            { start: "06:00", end: "14:30", activity: "School (Morning)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "17:00", activity: "Play / relax" },
-            { start: "17:00", end: "18:30", activity: "Football class" },
-            { start: "18:30", end: "19:00", activity: "Wind down" },
-            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "07:30", end: "08:30", activity: "Breakfast & Morning Prep" },
+            { start: "08:30", end: "11:30", activity: "Study Block 1 (Core Subject)" },
+            { start: "11:30", end: "12:00", activity: "Break / Walk" },
+            { start: "12:00", end: "13:30", activity: "Study Block 2 (Revision)" },
+            { start: "13:30", end: "14:30", activity: "Lunch Break" },
+            { start: "14:30", end: "17:00", activity: "Study Block 3 (Practice Tests)" },
+            { start: "17:00", end: "18:30", activity: "Exercise & Outdoor Break" },
+            { start: "18:30", end: "19:30", activity: "Study Block 4 (Light Review)" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Relax & Read" }
         ],
-
         Wednesday: [
-            { start: "06:00", end: "14:30", activity: "School (Morning)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "17:00", activity: "Relax time / play" },
-            { start: "17:00", end: "18:00", activity: "Hindi class" },
-            { start: "18:00", end: "18:30", activity: "Wind down" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "07:30", end: "08:30", activity: "Breakfast & Morning Prep" },
+            { start: "08:30", end: "11:30", activity: "Study Block 1 (Core Subject)" },
+            { start: "11:30", end: "12:00", activity: "Break / Walk" },
+            { start: "12:00", end: "13:30", activity: "Study Block 2 (Revision)" },
+            { start: "13:30", end: "14:30", activity: "Lunch Break" },
+            { start: "14:30", end: "17:00", activity: "Study Block 3 (Practice Tests)" },
+            { start: "17:00", end: "18:30", activity: "Exercise & Outdoor Break" },
+            { start: "18:30", end: "19:30", activity: "Study Block 4 (Light Review)" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Relax & Read" }
         ],
-
         Thursday: [
-            { start: "06:00", end: "14:30", activity: "School (Morning)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "17:00", activity: "Play / relax" },
-            { start: "17:00", end: "18:30", activity: "Football class" },
-            { start: "18:30", end: "19:00", activity: "Wind down" },
-            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "07:30", end: "08:30", activity: "Breakfast & Morning Prep" },
+            { start: "08:30", end: "11:30", activity: "Study Block 1 (Core Subject)" },
+            { start: "11:30", end: "12:00", activity: "Break / Walk" },
+            { start: "12:00", end: "13:30", activity: "Study Block 2 (Revision)" },
+            { start: "13:30", end: "14:30", activity: "Lunch Break" },
+            { start: "14:30", end: "17:00", activity: "Study Block 3 (Practice Tests)" },
+            { start: "17:00", end: "18:30", activity: "Exercise & Outdoor Break" },
+            { start: "18:30", end: "19:30", activity: "Study Block 4 (Light Review)" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Relax & Read" }
         ],
-
         Friday: [
-            { start: "06:00", end: "14:30", activity: "School (Morning)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "16:00", activity: "Relax time" },
-            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
-            { start: "17:30", end: "18:30", activity: "Play Minecraft" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+            { start: "07:30", end: "08:30", activity: "Breakfast & Morning Prep" },
+            { start: "08:30", end: "11:30", activity: "Study Block 1 (Core Subject)" },
+            { start: "11:30", end: "12:00", activity: "Break / Walk" },
+            { start: "12:00", end: "13:30", activity: "Study Block 2 (Revision)" },
+            { start: "13:30", end: "14:30", activity: "Lunch Break" },
+            { start: "14:30", end: "17:00", activity: "Study Block 3 (Practice Tests)" },
+            { start: "17:00", end: "18:30", activity: "Exercise & Outdoor Break" },
+            { start: "18:30", end: "19:30", activity: "Study Block 4 (Light Review)" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Relax & Read" }
         ],
-
         Saturday: [
-            { start: "06:00", end: "14:30", activity: "School (Morning)" },
-            { start: "14:30", end: "15:30", activity: "Food" },
-            { start: "15:30", end: "17:00", activity: "Relax time / play" },
-            { start: "17:00", end: "18:30", activity: "Study homework / school work" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "21:00", activity: "Go to play down, exercise" },
-            { start: "21:00", end: "21:45", activity: "Dinner" },
-            { start: "21:45", end: "22:00", activity: "Read a book 🤓" }
+            { start: "08:00", end: "09:00", activity: "Breakfast" },
+            { start: "09:00", end: "12:00", activity: "Study Mock Exam" },
+            { start: "12:00", end: "13:00", activity: "Lunch" },
+            { start: "13:00", end: "16:00", activity: "Gaming / Free Time Break" },
+            { start: "16:00", end: "18:00", activity: "Light Study & Review Errors" },
+            { start: "18:00", end: "19:30", activity: "Exercise & Walk" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Relax" }
         ],
-
         Sunday: [
-            { start: "08:00", end: "09:30", activity: "Get ready & breakfast" },
-            { start: "09:30", end: "11:00", activity: "Class" },
-            { start: "11:00", end: "12:00", activity: "Relax, do whatever" },
-            { start: "12:00", end: "13:30", activity: "Study from school" },
-            { start: "13:30", end: "14:30", activity: "Lunch" },
-            { start: "14:30", end: "15:30", activity: "Relax, play whatever" },
-            { start: "15:30", end: "16:30", activity: "Study a bit more" },
-            { start: "16:30", end: "19:00", activity: "Do whatever" },
-            { start: "19:00", end: "20:30", activity: "Go to play down / exercise" },
-            { start: "20:30", end: "21:30", activity: "Eat dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
-        ]
-    },
-
-    "Exam - No School Week": {
-        Monday: [
-            { start: "08:00", end: "10:30", activity: "Get ready & breakfast" },
-            { start: "10:30", end: "12:00", activity: "Study for exam" },
-            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
-            { start: "13:00", end: "14:30", activity: "Study for exam" },
-            { start: "14:30", end: "15:30", activity: "Lunch" },
-            { start: "15:30", end: "17:00", activity: "Gaming Time 🎮" },
-            { start: "17:00", end: "18:30", activity: "Science / Maths class" },
-            { start: "18:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
-        ],
-
-        Tuesday: [
-            { start: "08:00", end: "10:30", activity: "Get ready & breakfast" },
-            { start: "10:30", end: "12:00", activity: "Study for exam" },
-            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
-            { start: "13:00", end: "14:30", activity: "Study for exam" },
-            { start: "14:30", end: "15:30", activity: "Lunch" },
-            { start: "15:30", end: "17:00", activity: "Gaming Time 🎮" },
-            { start: "17:00", end: "18:30", activity: "Football class" },
-            { start: "18:30", end: "19:00", activity: "Wind down" },
-            { start: "19:00", end: "20:30", activity: "Study for exam" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
-        ],
-
-        Wednesday: [
-            { start: "08:00", end: "10:30", activity: "Get ready & breakfast" },
-            { start: "10:30", end: "12:00", activity: "Study for exam" },
-            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
-            { start: "13:00", end: "14:30", activity: "Study for exam" },
-            { start: "14:30", end: "15:30", activity: "Lunch" },
-            { start: "15:30", end: "17:00", activity: "Gaming Time 🎮" },
-            { start: "17:00", end: "18:00", activity: "Hindi class" },
-            { start: "18:00", end: "18:30", activity: "Wind down" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
-        ],
-
-        Thursday: [
-            { start: "08:00", end: "10:30", activity: "Get up, get ready & breakfast" },
-            { start: "10:30", end: "12:00", activity: "Study for exam" },
-            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
-            { start: "13:00", end: "14:30", activity: "Study for exam" },
-            { start: "14:30", end: "15:30", activity: "Lunch" },
-            { start: "15:30", end: "17:00", activity: "Gaming Time 🎮" },
-            { start: "17:00", end: "18:30", activity: "Football class" },
-            { start: "18:30", end: "19:00", activity: "Wind down" },
-            { start: "19:00", end: "20:30", activity: "Study for exam" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
-        ],
-
-        Friday: [
-            { start: "08:00", end: "10:30", activity: "Get ready & breakfast" },
-            { start: "10:30", end: "12:00", activity: "Study for exam" },
-            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
-            { start: "13:00", end: "14:30", activity: "Study for exam" },
-            { start: "14:30", end: "15:30", activity: "Lunch" },
-            { start: "15:30", end: "16:00", activity: "Gaming Time 🎮" },
-            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
-            { start: "17:30", end: "18:30", activity: "Play Minecraft" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
-            { start: "20:30", end: "21:30", activity: "Dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
-        ],
-
-        Saturday: [
-            { start: "08:00", end: "10:30", activity: "Get ready & breakfast" },
-            { start: "10:30", end: "12:00", activity: "Study for exam" },
-            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
-            { start: "13:00", end: "14:30", activity: "Study for exam" },
-            { start: "14:30", end: "15:30", activity: "Lunch" },
-            { start: "15:30", end: "17:00", activity: "Gaming Time 🎮" },
-            { start: "17:00", end: "18:30", activity: "Study for exam" },
-            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
-            { start: "19:30", end: "21:00", activity: "Go to play down, exercise" },
-            { start: "21:00", end: "21:45", activity: "Dinner" },
-            { start: "21:45", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
-        ],
-
-        Sunday: [
-            { start: "08:00", end: "09:30", activity: "Get ready & breakfast" },
-            { start: "09:30", end: "11:00", activity: "Class" },
-            { start: "11:00", end: "12:00", activity: "TV Time 📺" },
-            { start: "12:00", end: "13:30", activity: "Study for exam" },
-            { start: "13:30", end: "14:30", activity: "Lunch" },
-            { start: "14:30", end: "15:30", activity: "Gaming Time 🎮" },
-            { start: "15:30", end: "16:30", activity: "Study a bit more" },
-            { start: "16:30", end: "19:00", activity: "Free time" },
-            { start: "19:00", end: "20:30", activity: "Go to play down / exercise" },
-            { start: "20:30", end: "21:30", activity: "Eat dinner" },
-            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
-            { start: "22:00", end: "23:00", activity: "Sleep zzzzz" }
+            { start: "08:30", end: "09:30", activity: "Breakfast" },
+            { start: "09:30", end: "12:00", activity: "Study Summary & Prep for Next Week" },
+            { start: "12:00", end: "13:00", activity: "Lunch" },
+            { start: "13:00", end: "18:00", activity: "Rest & Recovery (Do whatever)" },
+            { start: "18:00", end: "19:30", activity: "Light Physical Activity / Walk" },
+            { start: "19:30", end: "20:30", activity: "Dinner" },
+            { start: "20:30", end: "22:00", activity: "Read & Sleep Early" }
         ]
     }
 };
