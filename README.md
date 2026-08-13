@@ -55,4 +55,4 @@ it's a single-page app, poke around `script.js`, send a PR. issues/feature ideas
 
 ## license
 
-MIT
+[Apache License 2.0](LICENSE)
