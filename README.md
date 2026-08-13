@@ -33,6 +33,9 @@ no build step. no node_modules. that's the whole app.
 
 ## running it
 
+**just vist the website:**
+http://momento-silk.vercel.app
+
 **just open it:**
 ```bash
 git clone https://github.com/l3gitfoxy/momento.git
