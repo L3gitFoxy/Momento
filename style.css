@@ -1,0 +1,606 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 40px 20px;
+    background: #120f1d;
+    color: #e2def8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.card {
+    background: #1a1528;
+    border: 1px solid #2d2444;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 650px;
+    box-sizing: border-box;
+}
+
+h2,
+h3 {
+    color: #d1baff;
+    margin-top: 0;
+}
+
+/* Day Navigation Tabs */
+.day-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+    margin-bottom: 20px;
+}
+
+.day-tab {
+    background: #231b36;
+    border: 1px solid #3d315f;
+    color: #b1a7d8;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+    flex: 1;
+    text-align: center;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.day-tab:hover {
+    background: #2d2444;
+    color: #f0ecff;
+}
+
+.day-tab.active {
+    background: #6c5ce7;
+    border-color: #8c7ae6;
+    color: white;
+    box-shadow: 0 0 10px rgba(108, 92, 231, 0.4);
+}
+
+/* Nav Arrows & Schedule Meta Header */
+.nav-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.nav-btn {
+    background: #231b36;
+    border: 1px solid #3d315f;
+    color: #d1baff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.nav-btn:hover {
+    background: #2d2444;
+}
+
+.schedule-info-banner {
+    background: #171223;
+    border: 1px solid #2d2444;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 13px;
+    color: #a29bfe;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Presets & Actions Toolbar */
+.toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+    background: #171223;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #2d2444;
+}
+
+.toolbar select {
+    flex-grow: 1;
+    min-width: 200px;
+}
+
+/* Task Row Styling */
+.task-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    align-items: center;
+    background: #231b36;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #352a53;
+    transition: all 0.2s;
+}
+
+.task-row.active-now {
+    border-color: #00cec9;
+    box-shadow: 0 0 12px rgba(0, 206, 201, 0.25);
+    background: #1c2636;
+}
+
+.task-row.completed input[type="text"] {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+input,
+select {
+    padding: 10px;
+    background: #120f1d;
+    border: 1px solid #3d315f;
+    border-radius: 6px;
+    color: #f0ecff;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+input[type="text"] {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+/* Checkbox styling */
+input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #6c5ce7;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+button {
+    background: #6c5ce7;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #5b4cdb;
+}
+
+.delete-btn {
+    background: #ff4757;
+    padding: 8px 12px;
+}
+
+.delete-btn:hover {
+    background: #ff6b81;
+}
+
+#checkin-card {
+    background: #1f1733;
+    border-left: 6px solid #a29bfe;
+}
+
+.save-master-btn {
+    background: #00b894;
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    margin-top: 10px;
+}
+
+.save-master-btn:hover {
+    background: #00cec9;
+}
+
+/* Save Status Animation Text */
+.save-status {
+    text-align: center;
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #00cec9;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+}
+
+.save-status.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Daily Notes Section */
+.notes-section {
+    margin-top: 20px;
+}
+
+/* Category Badges on Task Rows */
+.category-badge {
+    background: rgba(162, 155, 254, 0.15);
+    color: #a29bfe;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    margin: 0 4px;
+}
+
+/* Live Header Banner & Status Badges */
+#next-task-badge {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 500;
+}
+
+.chip-now {
+    background: rgba(108, 92, 231, 0.25);
+    border: 1px solid rgba(108, 92, 231, 0.5);
+    color: #a29bfe;
+}
+
+.chip-next {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #dfe6e9;
+}
+
+.chip-idle {
+    background: rgba(255, 255, 255, 0.04);
+    color: #8f87ae;
+}
+
+.chip-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.chip-now .chip-label {
+    background: #6c5ce7;
+    color: #ffffff;
+}
+
+/* =========================================================
+   COLLAPSIBLE SIDEBAR DRAWER
+   ========================================================= */
+
+/* DYNAMIC HOVER SIDEBAR DRAWER */
+.preset-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 320px;
+    height: 100vh;
+    background: #181528;
+    box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    
+    /* Off-screen by default */
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.preset-sidebar.open {
+    right: 0; /* Slides in smoothly when active */
+}
+
+/* Tab Button that sticks out on edge of screen */
+/* Handle sticking out on the right edge of screen */
+.sidebar-toggle-btn {
+    position: absolute;
+    top: 25px;
+    left: -78px; /* Tab sticks out to catch the cursor */
+    background: var(--accent-color, #6c5ce7);
+    color: #ffffff;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 8px 0 0 8px;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: -4px 2px 12px rgba(0, 0, 0, 0.3);
+    transition: background 0.2s ease;
+}
+
+.sidebar-toggle-btn:hover {
+    background: #5b4cc4;
+}
+
+/* Slide out automatically on hover (or click override) */
+.preset-sidebar:hover,
+.preset-sidebar.open {
+    transform: translateX(0);
+}
+
+.sidebar-content {
+    padding: 24px 20px;
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.sidebar-content h3 {
+    margin: 0 0 4px 0;
+    color: #ffffff;
+    font-size: 1.1rem;
+}
+
+.sidebar-group {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 14px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sidebar-group label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #a29bfe;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-group select,
+.sidebar-group input {
+    width: 100%;
+    padding: 10px 12px;
+    background: #110e1c;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    box-sizing: border-box;
+}
+
+.sidebar-group button {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: transform 0.1s ease, opacity 0.2s ease;
+}
+
+.sidebar-group button:hover {
+    opacity: 0.9;
+}
+
+/* Preset Action Colors */
+.btn-primary { background: #6c5ce7; color: white; }
+.btn-warning { background: #e17055; color: white; }
+.btn-info    { background: #0984e3; color: white; }
+.btn-danger  { background: #d63031; color: white; }
+
+.chip-next .chip-label {
+    background: rgba(255, 255, 255, 0.15);
+    color: #b2bec3;
+}
+
+.chip-time {
+    opacity: 0.75;
+    font-size: 0.82rem;
+}
+
+:root {
+    --accent-color: #6c5ce7;
+    --accent-hover: #5b4cc4;
+    --accent-light: rgba(108, 92, 231, 0.25);
+}
+
+/* Dynamic Accent Applied to Primary Buttons & Badges */
+.btn-primary, .sidebar-toggle-btn, .day-tab.active {
+    background: var(--accent-color) !important;
+}
+
+.btn-primary:hover, .sidebar-toggle-btn:hover {
+    background: var(--accent-hover) !important;
+}
+
+.chip-now {
+    background: var(--accent-light) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+}
+
+.chip-now .chip-label {
+    background: var(--accent-color) !important;
+}
+
+/* Theme Swatches */
+.theme-swatches {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+}
+
+.swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.swatch:hover {
+    transform: scale(1.15);
+    border-color: #ffffff;
+}
+
+/* Drag and Drop Task Handles */
+.drag-handle {
+    cursor: grab;
+    user-select: none;
+    font-size: 1.1rem;
+    color: #8f87ae;
+    padding: 0 4px;
+}
+
+.task-row.dragging {
+    opacity: 0.4;
+    border: 2px dashed var(--accent-color);
+}
+
+/* Weekly Category Analytics Bars */
+.analytics-bar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.analytics-bar-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: #dfe6e9;
+}
+
+.analytics-bar-track {
+    height: 8px;
+    background: #110e1c;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.analytics-bar-fill {
+    height: 100%;
+    background: var(--accent-color);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* Daily Progress Tracker Badge */
+#progress-tracker-badge {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 6px 12px;
+    border-radius: 8px;
+    display: inline-block;
+    border: 1px solid rgba(162, 155, 254, 0.2);
+}
+
+.notes-section textarea {
+    width: 100%;
+    height: 70px;
+    resize: vertical;
+    background: #120f1d;
+    border: 1px solid #3d315f;
+    border-radius: 6px;
+    color: #f0ecff;
+    padding: 10px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+/* Backup & Data Actions Toolbar */
+.data-toolbar {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.data-toolbar button {
+    background: #2d2444;
+    color: #d1baff;
+    font-size: 13px;
+    flex: 1;
+}
+
+.data-toolbar button:hover {
+    background: #3d315f;
+    color: white;
+}
+
+label {
+    color: #b1a7d8;
+}
+
+/* Live Banner */
+.live-banner {
+    background: #171223;
+    border: 1px solid #2d2444;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #00cec9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    body {
+        padding: 20px 10px;
+    }
+
+    .card {
+        padding: 18px;
+    }
+
+    .task-row {
+        flex-wrap: wrap;
+    }
+
+    .task-row input[type="text"] {
+        width: 100%;
+        order: 5;
+    }
+
+    .schedule-info-banner,
+    .live-banner {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .nav-header {
+        gap: 8px;
+    }
+
+    .nav-btn {
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+}

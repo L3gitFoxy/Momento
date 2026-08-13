@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncDay - Ultimate Time Block Scheduler</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+
+    <!-- Live Status Banner -->
+    <div class="card" style="padding: 15px 25px; margin-bottom: 15px;">
+        <div class="live-banner" style="margin-bottom: 0;">
+            <span id="live-clock">🕒 Loading clock...</span>
+            <span id="next-task-badge">Next: None</span>
+        </div>
+    </div>
+
+    <!-- Daily Check-in -->
+    <div class="card" id="checkin-card" style="display: none;">
+        <h3>🔔 Weekly & Daily Reset Check-in</h3>
+        <p id="today-prompt"></p>
+        <button onclick="goToToday()">Open Today's Schedule</button>
+    </div>
+
+    <!-- Main Planner -->
+    <div class="card">
+
+        <h2>Weekly Time-Block Planner</h2>
+
+        <!-- Day Navigation Tabs -->
+        <div class="day-tabs" id="day-tabs-container"></div>
+
+        <!-- Quick Back/Forward Controls -->
+        <div class="nav-header">
+            <button class="nav-btn" onclick="changeDay(-1)">
+                ◀ Prev Day
+            </button>
+
+            <span id="current-day-label"
+                style="font-size: 18px; font-weight: bold; color: #d1baff;">
+                Monday
+            </span>
+
+            <button class="nav-btn" onclick="changeDay(1)">
+                Next Day ▶
+            </button>
+            <button type="button" onclick="copyCurrentDayTo()">📋 Copy Day To...</button>
+        </div>
+
+        <!-- Schedule Applied Info -->
+        <div class="schedule-info-banner">
+            <span id="applied-routine-label">
+                Routine: Custom / Standard
+            </span>
+
+            <span id="applied-date-label">
+                Date: --
+            </span>
+        </div>
+
+        
+
+        <hr style="
+            margin: 20px 0;
+            border: 0;
+            border-top: 1px solid #2d2444;
+        ">
+
+        <!-- Tasks -->
+        <div id="task-container"></div>
+
+        <button onclick="addTaskRow()">
+            + Add Time Block
+        </button>
+
+        <!-- Daily Notes -->
+        <div class="notes-section">
+            <label for="daily-notes">
+                <strong>Daily Notes / Focus:</strong>
+            </label>
+
+            <textarea
+                id="daily-notes"
+                placeholder="e.g., Bring gym clothes, buy groceries, focus on math chapter 4..."></textarea>
+        </div>
+
+        <!-- Save -->
+        <button
+            class="save-master-btn"
+            onclick="saveSchedule()">
+
+            Save Master Schedule
+        </button>
+
+        <div id="save-status" class="save-status">
+            ✓ Saved & Sorted Successfully!
+        </div>
+
+        <!-- Backup / Restore -->
+        <div class="data-toolbar">
+
+            <button onclick="exportData()">
+                📥 Export JSON Backup
+            </button>
+
+            <button onclick="document.getElementById('import-file').click()">
+                📤 Import JSON Backup
+            </button>
+
+            <input
+                type="file"
+                id="import-file"
+                style="display: none;"
+                accept=".json"
+                onchange="importData(event)">
+        </div>
+
+    </div>
+
+
+    <!-- COLLAPSIBLE SIDEBAR DRAWER -->
+<div id="preset-sidebar" class="preset-sidebar">
+    <button type="button" id="sidebar-toggle-btn" class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Presets">
+        <span id="sidebar-arrow">◀</span> Tools
+    </button>
+    
+    <div class="sidebar-content">
+        <h3>⚙️ SyncDay Control Panel</h3>
+
+        <!-- Theme Accent Picker -->
+        <div class="sidebar-group">
+            <label>🎨 Accent Theme</label>
+            <div class="theme-swatches">
+                <button type="button" class="swatch" style="background: #6c5ce7;" onclick="setAccentColor('#6c5ce7', '#5b4cc4', 'rgba(108, 92, 231, 0.25)')" title="Purple (Default)"></button>
+                <button type="button" class="swatch" style="background: #00cec9;" onclick="setAccentColor('#00cec9', '#00b894', 'rgba(0, 206, 201, 0.25)')" title="Cyber Cyan"></button>
+                <button type="button" class="swatch" style="background: #ff7675;" onclick="setAccentColor('#ff7675', '#d63031', 'rgba(255, 118, 117, 0.25)')" title="Sunset Coral"></button>
+                <button type="button" class="swatch" style="background: #fdcb6e;" onclick="setAccentColor('#fdcb6e', '#e17055', 'rgba(253, 203, 110, 0.25)')" title="Warm Amber"></button>
+                <button type="button" class="swatch" style="background: #00b894;" onclick="setAccentColor('#00b894', '#009432', 'rgba(0, 184, 148, 0.25)')" title="Emerald Green"></button>
+            </div>
+        </div>
+
+        <!-- Audio & Browser Notifications -->
+        <div class="sidebar-group">
+            <label>🔔 Transition Alerts</label>
+            <button type="button" id="notif-toggle-btn" class="btn-info" onclick="toggleNotifications()">
+                Enable Audio & Desktop Alerts
+            </button>
+        </div>
+
+        <!-- Weekly Time Analytics -->
+        <div class="sidebar-group">
+            <label>📊 Weekly Category Breakdown</label>
+            <div id="weekly-analytics-container">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+
+        <!-- Master Preset -->
+        <div class="sidebar-group">
+            <label>Master Preset (Full Week)</label>
+            <select id="preset-select"></select>
+            <button type="button" class="btn-primary" onclick="applyPreset()">Apply Preset</button>
+        </div>
+
+        <!-- Single Day Preset -->
+        <div class="sidebar-group">
+            <label>Single Day Template</label>
+            <select id="single-day-preset-select"></select>
+            <button type="button" class="btn-warning" onclick="applySingleDayPreset()">
+                Apply to <span id="override-day-name">Today</span>
+            </button>
+        </div>
+
+        <!-- Create Preset -->
+        <div class="sidebar-group">
+            <label>Save Week as New Preset</label>
+            <input type="text" id="new-preset-name" placeholder="Preset Name (e.g., Exams)...">
+            <button type="button" class="btn-info" onclick="createNewPreset()">💾 Save Current as Preset</button>
+        </div>
+
+        <!-- Delete Preset -->
+        <div class="sidebar-group">
+            <label>Delete Custom Preset</label>
+            <select id="delete-preset-select"></select>
+            <button type="button" class="btn-danger" onclick="deleteSelectedPreset()">🗑️ Delete Preset</button>
+        </div>
+    </div>
+</div>
+
+    <script src="./script.js"></script>
+
+</body>
+
+</html>
