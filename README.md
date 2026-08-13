@@ -34,7 +34,7 @@ no build step. no node_modules. that's the whole app.
 ## running it
 
 **just vist the website:**
-http://momento-silk.vercel.app
+https://momento-silk.vercel.app
 
 **just open it:**
 ```bash
