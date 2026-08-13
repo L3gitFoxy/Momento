@@ -1,6 +1,4 @@
-![momento](https://socialify.git.ci/l3gitfoxy/momento/image?custom_description=A+cool+scheduler+app+to+sync+your+days%21&custom_language=JavaScript&description=1&font=Source+Code+Pro&issues=1&language=1&name=1&pattern=Transparent&pulls=1&stargazers=1&theme=Dark)
-
-# Momento
+![momento](https://socialify.git.ci/l3gitfoxy/momento/image?custom_language=JavaScript&font=Source+Code+Pro&issues=1&language=1&name=1&pattern=Transparent&pulls=1&stargazers=1&theme=Dark)
 
 weekly time-block planner + daily check-in, runs entirely in the browser. no backend, no accounts, no tracking just localStorage and vanilla JS.
 
