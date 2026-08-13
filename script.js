@@ -1,5 +1,5 @@
 /* =========================================================
-   FlowDay - ULTIMATE TIME BLOCK SCHEDULER (V5 COMPLETE)
+   Momento - ULTIMATE TIME BLOCK SCHEDULER (V5 COMPLETE)
    ========================================================= */
 
 const DAYS = [
@@ -12,7 +12,7 @@ const DAYS = [
     "Sunday"
 ];
 
-const STORAGE_KEY = "flowday_data_v5";
+const STORAGE_KEY = "Momento_data_v5";
 
 const CATEGORY_KEYWORDS = {
     "📚 Study": ["school", "study", "revise", "class", "hw", "homework", "science", "maths", "hindi","exam", "read"],
@@ -395,7 +395,7 @@ function loadData() {
             data.theme = parsed.theme || data.theme;
         }
     } catch (error) {
-        console.error("Could not load FlowDay data:", error);
+        console.error("Could not load Momento data:", error);
     }
 
     Object.entries(BUILT_IN_PRESETS).forEach(([name, preset]) => {
@@ -412,7 +412,7 @@ function saveData() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
-        console.error("Could not save FlowDay data:", error);
+        console.error("Could not save Momento data:", error);
     }
 }
 
