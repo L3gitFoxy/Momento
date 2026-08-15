@@ -1,4 +1,4 @@
-# Momento
+![momento](https://socialify.git.ci/l3gitfoxy/momento/image?custom_language=JavaScript&font=Source+Code+Pro&issues=1&language=1&name=1&pattern=Transparent&pulls=1&stargazers=1&theme=Dark)
 
 weekly time-block planner + daily check-in, runs entirely in the browser. no backend, no accounts, no tracking just localStorage and vanilla JS.
 
@@ -33,9 +33,12 @@ no build step. no node_modules. that's the whole app.
 
 ## running it
 
+**just vist the website:**
+https://momento-silk.vercel.app
+
 **just open it:**
 ```bash
-git clone <repo-url>
+git clone https://github.com/l3gitfoxy/momento.git
 cd momento
 open index.html
 ```
@@ -52,4 +55,4 @@ it's a single-page app, poke around `script.js`, send a PR. issues/feature ideas
 
 ## license
 
-MIT
+[Apache License 2.0](LICENSE)
