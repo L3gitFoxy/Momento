@@ -1,5 +1,5 @@
 /* =========================================================
-   SYNCDAY LOCAL AI ENGINE & DATABASE NLP LIBRARY
+   SYNCDAY AI CHATBOT ENGINE
    ========================================================= */
 
 // Comprehensive AI Knowledge Base & NLP Dictionary
