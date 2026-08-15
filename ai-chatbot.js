@@ -2,565 +2,658 @@
    SYNCDAY AI CHATBOT ENGINE
    ========================================================= */
 
-// Comprehensive AI Knowledge Base & NLP Dictionary
-
-/**
- * Advanced Multi-Phase Intent Analysis & Schedule Generation Engine
- * Handles user intent extraction, category weighting, cognitive pacing, and 7-day schedule synthesis.
- */
-
 // ---------------------------------------------------------------------------
-// CONFIGURATION & DICTIONARIES
+// SEEDED RNG
 // ---------------------------------------------------------------------------
 
-const INTENT_DICTIONARY = {
+let _seed = Math.floor(Math.random() * 1e9);
+function seededRand() {
+    _seed ^= _seed << 13;
+    _seed ^= _seed >> 17;
+    _seed ^= _seed << 5;
+    return ((_seed >>> 0) / 4294967296);
+}
+function reseed(s) { _seed = s || Math.floor(Math.random() * 1e9); }
+function pick(arr) { return arr[Math.floor(seededRand() * arr.length)]; }
+
+// ---------------------------------------------------------------------------
+// TIME UTILITIES
+// ---------------------------------------------------------------------------
+
+function parseTimeToMinutes(t) {
+    if (!t || typeof t !== "string") return 0;
+    t = t.trim();
+    const ampm = /([ap]m)/i.exec(t);
+    t = t.replace(/[apm]/gi, "").trim();
+    let [h, m] = t.split(":").map(Number);
+    if (isNaN(m)) m = 0;
+    if (ampm) {
+        const suffix = ampm[1].toLowerCase();
+        if (suffix === "pm" && h !== 12) h += 12;
+        if (suffix === "am" && h === 12) h = 0;
+    }
+    return h * 60 + m;
+}
+
+function formatMinutesToTime(mins) {
+    mins = ((mins % 1440) + 1440) % 1440;
+    return String(Math.floor(mins / 60)).padStart(2, "0") + ":" + String(mins % 60).padStart(2, "0");
+}
+
+function snap(mins, g) {
+    g = g || 15;
+    return Math.round(mins / g) * g;
+}
+
+// ---------------------------------------------------------------------------
+// INTENT DICTIONARY — expanded keywords for better matching
+// ---------------------------------------------------------------------------
+
+const INTENT_DICT = {
     exam: {
-        keywords: ["exam", "study", "revision", "midterm", "final", "test", "cram", "gpa", "school", "college", "university", "sat", "act", "gre"],
-        primaryCategory: "DEEP_STUDY",
-        secondaryCategory: "RECALL_PRACTICE",
-        intensityMultiplier: 1.4,
-        preferredStartTime: "07:30"
-    },
-    fitness: {
-        keywords: ["gym", "workout", "fitness", "cardio", "weights", "marathon", "training", "cut", "bulk", "shred", "health", "physique", "run"],
-        primaryCategory: "WORKOUT",
-        secondaryCategory: "ACTIVE_RECOVERY",
-        intensityMultiplier: 1.2,
-        preferredStartTime: "06:30"
+        keywords: ["exam","exams","test","tests","study","studying","revision","revise","revising",
+                   "midterm","finals","final","cram","cramming","gpa","school","college","university",
+                   "sat","act","gre","gcse","alevel","a-level","homework","hw","assignment","quiz",
+                   "lecture","notes","flashcard","anki","past paper","mock","syllabus","subject"],
+        tag: "STUDY",
+        intensity: 1.5,
+        wake: "07:00",
+        sleep: "22:30"
     },
     work: {
-        keywords: ["sprint", "hustle", "work", "client", "deadline", "startup", "launch", "coding", "dev", "project", "business", "freelance"],
-        primaryCategory: "DEEP_WORK",
-        secondaryCategory: "EXECUTION",
-        intensityMultiplier: 1.3,
-        preferredStartTime: "08:00"
+        keywords: ["work","working","job","office","client","deadline","project","sprint","coding",
+                   "code","dev","developer","development","startup","launch","freelance","business",
+                   "meeting","meetings","email","emails","task","tasks","productivity","hustle",
+                   "grind","career","professional","manager","boss","report","presentation","deploy"],
+        tag: "WORK",
+        intensity: 1.3,
+        wake: "07:00",
+        sleep: "23:00"
     },
-    relaxation: {
-        keywords: ["chill", "lazy", "relax", "vacation", "rest", "detox", "burnout", "unwind", "light", "easy", "low key"],
-        primaryCategory: "LEISURE",
-        secondaryCategory: "MINDFULNESS",
-        intensityMultiplier: 0.7,
-        preferredStartTime: "09:00"
+    fitness: {
+        keywords: ["gym","workout","workouts","fitness","cardio","weights","lifting","run","running",
+                   "marathon","training","train","cut","bulk","shred","health","physique","exercise",
+                   "exercising","hiit","crossfit","cycling","swim","swimming","sport","sports","yoga",
+                   "pilates","gains","muscle","lean","athletic","athlete","jog","jogging","walk"],
+        tag: "FITNESS",
+        intensity: 1.2,
+        wake: "06:00",
+        sleep: "22:00"
+    },
+    relax: {
+        keywords: ["relax","relaxing","chill","chilling","lazy","rest","resting","vacation","holiday",
+                   "detox","burnout","unwind","easy","light","low key","lowkey","free","freedom",
+                   "break","breaks","recover","recovery","recharge","slow","calm","peace","peaceful",
+                   "weekend","fun","enjoy","enjoying","hobby","hobbies","leisure","casual"],
+        tag: "RELAX",
+        intensity: 0.7,
+        wake: "09:00",
+        sleep: "23:30"
     }
 };
 
-const TASK_DATABASE = {
-    MORNING_ROUTINE: [
-        { name: "Hydration, Electrolytes & Sunlight Exposure ☀️", duration: 30, category: "Health" },
-        { name: "Mobility Flow & Light Dynamic Stretching 🧘", duration: 30, category: "Health" },
-        { name: "Protein Breakfast & Cold Shower 🍳", duration: 45, category: "Health" },
-        { name: "Daily Intent Setting & Goal Alignment 🎯", duration: 15, category: "Planning" }
+// ---------------------------------------------------------------------------
+// TASK POOLS — large variety per category
+// ---------------------------------------------------------------------------
+
+// Each task: { label, tag, window: [startMin, endMin] }  (window = allowed time range)
+const TASKS = {
+    STUDY: [
+        { label: "Study 📚",    tag: "study",   window: [360,  1320] },
+        { label: "Revision 📝", tag: "study",   window: [360,  1320] },
+        { label: "Homework ✏️", tag: "homework", window: [840,  1320] }
     ],
-    DEEP_STUDY: [
-        { name: "High-Cognitive Focus: Active Recall & Spaced Repetition 🧠", duration: 90, category: "Study" },
-        { name: "Textbook Deep Read & Synthesis Notes 📖", duration: 75, category: "Study" },
-        { name: "Past Exam Paper Simulation & Error Analysis ✍️", duration: 105, category: "Study" },
-        { name: "Weak Concept Remediation & Problem Sets 🔬", duration: 90, category: "Study" }
+    WORK: [
+        { label: "Work 💻",       tag: "work",   window: [360,  1260] },
+        { label: "Deep Work 🎯",  tag: "work",   window: [360,  1200] },
+        { label: "Focus Block 🔒",tag: "work",   window: [480,  1260] }
     ],
-    RECALL_PRACTICE: [
-        { name: "Anki Flashcard Deck Clearance 🎴", duration: 45, category: "Study" },
-        { name: "Peer Quiz Session & Concept Teaching 🗣️", duration: 60, category: "Study" },
-        { name: "Formula & Vocabulary Speed Drills ⚡", duration: 30, category: "Study" }
+    FITNESS: [
+        { label: "Workout 🏋️",  tag: "fitness", window: [300,  1200] },
+        { label: "Exercise 🏃",  tag: "fitness", window: [300,  1200] },
+        { label: "Run 🏃",       tag: "fitness", window: [300,  1080] }
     ],
-    DEEP_WORK: [
-        { name: "Deep Work: High-Value Architecture & Problem Solving 💻", duration: 120, category: "Work" },
-        { name: "Sprint Execution: Core Deliverable Development 🚀", duration: 90, category: "Work" },
-        { name: "Strategic Planning & Roadmap Optimization 🗺️", duration: 60, category: "Work" },
-        { name: "Code Review / Technical Documentation Writing 📝", duration: 75, category: "Work" }
+    RELAX: [
+        { label: "You Time 😌",  tag: "relax",  window: [480,  1320] },
+        { label: "Relax 😌",     tag: "relax",  window: [480,  1320] },
+        { label: "Free Time 🎮", tag: "gaming", window: [600,  1320] }
     ],
-    EXECUTION: [
-        { name: "Async Communication & Inbox Zero Sweep 📥", duration: 30, category: "Admin" },
-        { name: "Client Alignment & Standup Meetings 🤝", duration: 45, category: "Work" },
-        { name: "Administrative Overhead Clearance 🗂️", duration: 30, category: "Admin" }
+    MORNING: [
+        { label: "Morning Routine ☀️", tag: "routine", window: [240, 660] }
     ],
-    WORKOUT: [
-        { name: "Heavy Compound Lifting (Hypertrophy/Strength) 🏋️‍♂️", duration: 75, category: "Fitness" },
-        { name: "Zone 2 Endurance Cardio & Pace Tracking 🏃", duration: 60, category: "Fitness" },
-        { name: "High-Intensity Interval Training (HIIT) ⚡", duration: 45, category: "Fitness" },
-        { name: "Functional Core & Kettlebell Conditioning 💪", duration: 50, category: "Fitness" }
+    EVENING: [
+        { label: "Wind Down 🌙", tag: "relax",   window: [1080, 1440] },
+        { label: "Relax 😌",     tag: "relax",   window: [1080, 1440] },
+        { label: "Nap 😴",       tag: "rest",    window: [1140, 1380] }
     ],
-    ACTIVE_RECOVERY: [
-        { name: "Full Body Myofascial Release & Foam Rolling 🧘", duration: 40, category: "Recovery" },
-        { name: "Brisk Outdoor Walk & Podcast Listening 🎧", duration: 45, category: "Recovery" },
-        { name: "Sauna / Hydrotherapy Recovery Protocol ♨️", duration: 30, category: "Recovery" }
-    ],
-    LEISURE: [
-        { name: "Unstructured Creative Time & Hobbies 🎨", duration: 90, category: "Personal" },
-        { name: "Fiction Reading & Narrative Consumption 📚", duration: 60, category: "Personal" },
-        { name: "Social Connection & Quality Time 👥", duration: 120, category: "Personal" }
-    ],
-    MINDFULNESS: [
-        { name: "Guided Breathwork & Meditation Practice 🧘‍♀️", duration: 20, category: "Mental" },
-        { name: "Reflective Journaling & Evening Brain Dump ✍️", duration: 25, category: "Mental" }
-    ],
-    EVENING_ROUTINE: [
-        { name: "Nutrition Prep & Dinner 🥗", duration: 60, category: "Health" },
-        { name: "Screen-Free Wind Down & Sleep Hygiene Protocol 🌙", duration: 45, category: "Health" }
+    FOOD: [
+        { label: "Breakfast 🍳", tag: "food", window: [300,  660]  },
+        { label: "Lunch 🥗",     tag: "food", window: [660,  840]  },
+        { label: "Dinner 🍽️",   tag: "food", window: [1020, 1320] },
+        { label: "Snack 🍎",     tag: "food", window: [540,  1200] }
     ]
 };
 
 // ---------------------------------------------------------------------------
-// HELPER FUNCTIONS & TIME MATH
+// SCHEDULE GENERATOR — no gaps, 8+ blocks, fills wake→sleep
 // ---------------------------------------------------------------------------
 
-function parseTimeToMinutes(timeStr) {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    return hours * 60 + minutes;
-}
+function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
+    const isWknd = (dayName === "Saturday" || dayName === "Sunday");
+    const blocks = [];
+    let cur = wakeMin;
+    const LUNCH = 12 * 60;   // 12:00
+    const DINNER = 19 * 60;  // 19:00
 
-function formatMinutesToTime(totalMinutes) {
-    const hours = Math.floor(totalMinutes / 60) % 24;
-    const mins = totalMinutes % 60;
-    return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-}
-
-function getRandomTask(category) {
-    const pool = TASK_DATABASE[category] || TASK_DATABASE["DEEP_WORK"];
-    return pool[Math.floor(Math.random() * pool.length)];
-}
-
-function deepClone(obj) {
-    return JSON.parse(JSON.stringify(obj));
-}
-
-// ---------------------------------------------------------------------------
-// INTENT ANALYSIS PARSER
-// ---------------------------------------------------------------------------
-
-function analyzeUserIntent(rawPrompt) {
-    const promptLower = rawPrompt.toLowerCase();
-    const scores = { exam: 0, fitness: 0, work: 0, relaxation: 0 };
-
-    // Score matching
-    Object.keys(INTENT_DICTIONARY).forEach(intentKey => {
-        const config = INTENT_DICTIONARY[intentKey];
-        config.keywords.forEach(keyword => {
-            if (promptLower.includes(keyword)) {
-                scores[intentKey] += 1;
-            }
+    function pushBlock(taskName, dur) {
+        const end = cur + dur;
+        blocks.push({
+            start: formatMinutesToTime(cur),
+            end: formatMinutesToTime(end),
+            task: taskName,
+            completed: false
         });
-    });
+        cur = end;
+    }
 
-    // Find dominant intent
-    let primaryIntent = "work";
-    let maxScore = 0;
-
-    Object.keys(scores).forEach(key => {
-        if (scores[key] > maxScore) {
-            maxScore = scores[key];
-            primaryIntent = key;
+    function fillTo(targetMin, pool) {
+        // Fill time up to targetMin with blocks from pool, no gaps
+        while (cur < targetMin - 20) {
+            const remaining = targetMin - cur;
+            const dur = remaining >= 60 ? 60 : remaining >= 30 ? 30 : remaining;
+            pushBlock(pickUnused(pool), dur);
         }
-    });
+        // If small gap left, extend last block to target
+        if (cur < targetMin) cur = targetMin;
+    }
 
-    // Determine secondary focus
-    let secondaryIntent = "relaxation";
-    let secondaryMax = -1;
-    Object.keys(scores).forEach(key => {
-        if (key !== primaryIntent && scores[key] > secondaryMax) {
-            secondaryMax = scores[key];
-            secondaryIntent = key;
+    function pickUnused(pool) {
+        // Filter by time window first, then by unused
+        const inWindow = pool.filter(t => cur >= t.window[0] && cur < t.window[1]);
+        const eligible = inWindow.length > 0 ? inWindow : pool;
+        const unused = eligible.filter(t => !usedNames.has(t.label));
+        const chosen = unused.length > 0 ? pick(unused) : pick(eligible);
+        usedNames.add(chosen.label);
+        return chosen.label;
+    }
+
+    // 1. Morning routine (30 min)
+    pushBlock(pickUnused(TASKS.MORNING), 30);
+
+    // 2. Breakfast (30 min)
+    pushBlock("Breakfast 🍳", 30);
+
+    // 3. Fill morning with focus blocks up to 12:00
+    fillTo(LUNCH, TASKS[tag] || TASKS.WORK);
+
+    // 4. Lunch anchored at 12:00 (45 min)
+    cur = LUNCH;
+    pushBlock("Lunch 🥗", 45);
+
+    // 5. Afternoon blocks until 19:00
+    const crossTag = tag === "STUDY" ? "RELAX" : tag === "WORK" ? "FITNESS" : tag === "FITNESS" ? "RELAX" : "STUDY";
+    pushBlock(pickUnused(TASKS[tag] || TASKS.WORK), 90);
+    pushBlock(pickUnused(TASKS[crossTag]), 45);
+    if (tag !== "FITNESS") {
+        pushBlock(pickUnused(TASKS.FITNESS), 45);
+    } else {
+        pushBlock(pickUnused(TASKS.RELAX), 45);
+    }
+    fillTo(DINNER, TASKS[tag] || TASKS.WORK);
+
+    // 6. Dinner anchored at 19:00 (45 min)
+    cur = DINNER;
+    pushBlock("Dinner 🍽️", 45);
+
+    // 7. Evening blocks until sleep
+    pushBlock(pickUnused(TASKS.EVENING), 45);
+    const remaining = sleepMin - cur;
+    if (remaining >= 20) {
+        pushBlock(pickUnused(TASKS.EVENING), Math.min(remaining, 60));
+    }
+
+    const filtered = blocks.filter(b => parseTimeToMinutes(b.start) < sleepMin);
+
+    // Merge consecutive blocks with the same task name
+    const merged = [];
+    for (const b of filtered) {
+        const prev = merged[merged.length - 1];
+        if (prev && prev.task === b.task && prev.end === b.start) {
+            prev.end = b.end;
+        } else {
+            merged.push({ ...b });
         }
-    });
-
-    return {
-        primary: INTENT_DICTIONARY[primaryIntent],
-        secondary: INTENT_DICTIONARY[secondaryIntent],
-        rawPrompt
-    };
+    }
+    return merged;
 }
-
-// ---------------------------------------------------------------------------
-// CORE SCHEDULE SYNTHESIZER
-// ---------------------------------------------------------------------------
 
 function generateSmartWeekFromIntent(intentRaw) {
-    const intentAnalysis = analyzeUserIntent(intentRaw);
-    const newWeek = {};
+    const prompt = (intentRaw || "").toLowerCase();
 
-    DAYS.forEach((day, dayIndex) => {
-        const isWeekend = (day === "Saturday" || day === "Sunday");
-        const daySchedule = [];
-        
-        let currentMinutes = parseTimeToMinutes(intentAnalysis.primary.preferredStartTime);
-
-        // 1. MORNING BLOCK
-        const morningTask = TASK_DATABASE.MORNING_ROUTINE[dayIndex % TASK_DATABASE.MORNING_ROUTINE.length];
-        daySchedule.push({
-            start: formatMinutesToTime(currentMinutes),
-            end: formatMinutesToTime(currentMinutes + morningTask.duration),
-            task: morningTask.name,
-            completed: false
+    // Score each intent
+    const scores = { exam: 0, work: 0, fitness: 0, relax: 0 };
+    Object.entries(INTENT_DICT).forEach(([key, cfg]) => {
+        cfg.keywords.forEach(kw => {
+            if (prompt.includes(kw)) scores[key]++;
         });
-        currentMinutes += morningTask.duration + 15; // 15 min buffer
-
-        // 2. PRIMARY FOCUS BLOCK 1 (Morning High-Energy)
-        const primaryTask1 = getRandomTask(intentAnalysis.primary.primaryCategory);
-        daySchedule.push({
-            start: formatMinutesToTime(currentMinutes),
-            end: formatMinutesToTime(currentMinutes + primaryTask1.duration),
-            task: `${day} Priority: ${primaryTask1.name}`,
-            completed: false
-        });
-        currentMinutes += primaryTask1.duration + 15;
-
-        // 3. MID-MORNING SECONDARY TASK
-        const secondaryTask1 = getRandomTask(intentAnalysis.primary.secondaryCategory);
-        daySchedule.push({
-            start: formatMinutesToTime(currentMinutes),
-            end: formatMinutesToTime(currentMinutes + secondaryTask1.duration),
-            task: secondaryTask1.name,
-            completed: false
-        });
-        currentMinutes += secondaryTask1.duration + 20;
-
-        // 4. LUNCH & RECOVERY
-        daySchedule.push({
-            start: formatMinutesToTime(currentMinutes),
-            end: formatMinutesToTime(currentMinutes + 60),
-            task: "Nutritional Lunch & Cognitive Reset 🥗",
-            completed: false
-        });
-        currentMinutes += 60;
-
-        // 5. AFTERNOON FOCUS BLOCK 2
-        if (!isWeekend || intentAnalysis.primary.intensityMultiplier > 1.2) {
-            const primaryTask2 = getRandomTask(intentAnalysis.primary.primaryCategory);
-            daySchedule.push({
-                start: formatMinutesToTime(currentMinutes),
-                end: formatMinutesToTime(currentMinutes + primaryTask2.duration),
-                task: primaryTask2.name,
-                completed: false
-            });
-            currentMinutes += primaryTask2.duration + 15;
-        } else {
-            const leisureTask = getRandomTask("LEISURE");
-            daySchedule.push({
-                start: formatMinutesToTime(currentMinutes),
-                end: formatMinutesToTime(currentMinutes + leisureTask.duration),
-                task: leisureTask.name,
-                completed: false
-            });
-            currentMinutes += leisureTask.duration + 15;
-        }
-
-        // 6. LATE AFTERNOON / HEALTH & FITNESS
-        const healthCategory = (intentAnalysis.primary.primaryCategory === "WORKOUT") ? "WORKOUT" : "ACTIVE_RECOVERY";
-        const healthTask = getRandomTask(healthCategory);
-        daySchedule.push({
-            start: formatMinutesToTime(currentMinutes),
-            end: formatMinutesToTime(currentMinutes + healthTask.duration),
-            task: healthTask.name,
-            completed: false
-        });
-        currentMinutes += healthTask.duration + 30;
-
-        // 7. EVENING ROUTINE
-        const dinnerTask = TASK_DATABASE.EVENING_ROUTINE[0];
-        daySchedule.push({
-            start: formatMinutesToTime(currentMinutes),
-            end: formatMinutesToTime(currentMinutes + dinnerTask.duration),
-            task: dinnerTask.name,
-            completed: false
-        });
-        currentMinutes += dinnerTask.duration + 15;
-
-        // 8. WIND DOWN / MINDFULNESS
-        const windDownTask = TASK_DATABASE.EVENING_ROUTINE[1];
-        daySchedule.push({
-            start: formatMinutesToTime(currentMinutes),
-            end: formatMinutesToTime(currentMinutes + windDownTask.duration),
-            task: windDownTask.name,
-            completed: false
-        });
-
-        newWeek[day] = daySchedule;
     });
 
-    return newWeek;
+    // Pick best match, default to work
+    let best = "work";
+    let bestScore = -1;
+    Object.entries(scores).forEach(([k, v]) => {
+        if (v > bestScore) { bestScore = v; best = k; }
+    });
+
+    const cfg = INTENT_DICT[best];
+    const tag = cfg.tag;
+    const intensity = cfg.intensity;
+    const wakeMin = parseTimeToMinutes(cfg.wake);
+    const sleepMin = parseTimeToMinutes(cfg.sleep);
+
+    reseed(Math.floor(Math.random() * 1e9));
+
+    const week = {};
+    const usedNames = new Set();
+
+    DAYS.forEach(day => {
+        week[day] = buildDay(tag, intensity, wakeMin, sleepMin, day, usedNames);
+    });
+
+    return week;
 }
 
+// ---------------------------------------------------------------------------
+// COLOR MAP
+// ---------------------------------------------------------------------------
+
+const COLOR_MAP = {
+    red:    { color: "#e74c3c", hover: "#c0392b", alpha: "rgba(231,76,60,0.25)" },
+    blue:   { color: "#3498db", hover: "#2980b9", alpha: "rgba(52,152,219,0.25)" },
+    green:  { color: "#2ecc71", hover: "#27ae60", alpha: "rgba(46,204,113,0.25)" },
+    orange: { color: "#e67e22", hover: "#d35400", alpha: "rgba(230,126,34,0.25)" },
+    pink:   { color: "#e84393", hover: "#c0306e", alpha: "rgba(232,67,147,0.25)" },
+    purple: { color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108,92,231,0.25)" },
+    cyan:   { color: "#00cec9", hover: "#00b894", alpha: "rgba(0,206,201,0.25)" },
+    yellow: { color: "#f9ca24", hover: "#f0932b", alpha: "rgba(249,202,36,0.25)" }
+};
+
+// ---------------------------------------------------------------------------
+// AI DATABASE — intents with patterns + keywords
+// ---------------------------------------------------------------------------
 
 const AI_DATABASE = {
-    knowledgeBase: {
-        botName: "SyncDay AI Assistant",
-        version: "1.0-NLP",
-        greetings: [
-            "Hey there! Ready to optimize your schedule today?",
-            "Hello! I can add tasks, switch themes, load presets, or summarize your day. What's on your mind?",
-            "Hi! Ask me anything about your time blocks or presets."
-        ],
-        farewells: [
-            "Catch you later! Keep crushing your routine.",
-            "Goodbye! Stay focused!",
-            "See you! Don't forget to check off your completed tasks."
-        ],
-        colorMap: {
-            red: { color: "#e74c3c", hover: "#c0392b", alpha: "rgba(231, 76, 60, 0.25)" },
-            blue: { color: "#3498db", hover: "#2980b9", alpha: "rgba(52, 152, 219, 0.25)" },
-            green: { color: "#2ecc71", hover: "#27ae60", alpha: "rgba(46, 204, 113, 0.25)" },
-            orange: { color: "#e67e22", hover: "#d35400", alpha: "rgba(230, 126, 34, 0.25)" },
-            pink: { color: "#e84393", hover: "#d63031", alpha: "rgba(232, 67, 147, 0.25)" },
-            purple: { color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108, 92, 231, 0.25)" },
-            cyan: { color: "#00cec9", hover: "#00b894", alpha: "rgba(0, 206, 201, 0.25)" }
-        }
-    },
-
-    // Intent Classifiers & Action Parsers
     intents: [
+
+        // GREETING
         {
             id: "greeting",
-            keywords: ["hello", "hi", "hey", "greetings", "sup"],
-            handler: () => {
-                const choices = AI_DATABASE.knowledgeBase.greetings;
-                return choices[Math.floor(Math.random() * choices.length)];
-            }
+            keywords: ["hello","hi","hey","sup","yo","greetings","howdy","hiya"],
+            handler: () => pick([
+                "Hey! Tell me what kind of week you want and I'll build it — study, work, fitness, or chill.",
+                "Hi! I can generate a full week, add/delete tasks, change themes, or apply presets. What do you need?",
+                "Hey there! Ask me to generate a week, add a task, or change your theme.",
+                "Yo! Ready to build your schedule. What's the vibe this week?"
+            ])
         },
+
+        // FAREWELL
         {
-            id: "add_task_full",
-            patterns: [
-                /add\s+(.+?)\s+from\s+(\d{1,2}:\d{2}(?:\s*[ap]m)?)\s+to\s+(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i,
-                /add\s+(.+?)\s+(\d{1,2}:\d{2}(?:\s*[ap]m)?)\s+(\d{1,2}:\d{2}(?:\s*[ap]m)?)/i
-            ],
-            handler: (match) => {
-                const title = match[1].trim();
-                const start = match[2].trim();
-                const end = match[3].trim();
-                const currentDayName = DAYS[data.currentDay];
-
-                if (!data.schedules[currentDayName]) data.schedules[currentDayName] = [];
-
-                data.schedules[currentDayName].push({
-                    start: start,
-                    end: end,
-                    task: title,
-                    completed: false
-                });
-
-                data.schedules[currentDayName].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-                saveData();
-                renderCurrentDay();
-                return `Added **${title}** (${start} - ${end}) to **${currentDayName}**! ⏱️`;
-            }
+            id: "farewell",
+            keywords: ["bye","goodbye","see you","later","cya","peace","ttyl"],
+            handler: () => pick([
+                "Later! Go crush your schedule 💪",
+                "Bye! Don't forget to check off your tasks.",
+                "See you! Stay focused.",
+                "Peace ✌️ Come back when you need a new week built."
+            ])
         },
-        {
-            id: "delete_task_by_index",
-            patterns: [
-                /(?:delete|remove)\s+(?:block|task)\s+(\d+)/i
-            ],
-            handler: (match) => {
-                const index = parseInt(match[1], 10) - 1;
-                const currentDayName = DAYS[data.currentDay];
-                const dayBlocks = data.schedules[currentDayName] || [];
 
-                if (index >= 0 && index < dayBlocks.length) {
-                    const removed = dayBlocks.splice(index, 1)[0];
-                    saveData();
-                    renderCurrentDay();
-                    return `Removed task #${index + 1} (**${removed.task || "Task"}**) from ${currentDayName}. 🗑️`;
-                }
-                return `Task #${index + 1} doesn't exist on ${currentDayName}.`;
-            }
-        },
+        // GENERATE WEEK
         {
-            id: "delete_task_by_name",
+            id: "generate_week",
             patterns: [
-                /(?:delete|remove)\s+task\s+(.+)/i,
-                /(?:delete|remove)\s+(.+)/i
-            ],
-            handler: (match) => {
-                const targetTitle = match[1].trim().toLowerCase();
-                if (targetTitle.includes("preset")) return null; // Pass through to preset intent
-
-                const currentDayName = DAYS[data.currentDay];
-                const dayBlocks = data.schedules[currentDayName] || [];
-                const foundIndex = dayBlocks.findIndex(b => b.task && b.task.toLowerCase().includes(targetTitle));
-
-                if (foundIndex !== -1) {
-                    const removed = dayBlocks.splice(foundIndex, 1)[0];
-                    saveData();
-                    renderCurrentDay();
-                    return `Deleted task "**${removed.task}**" from ${currentDayName}. 🗑️`;
-                }
-                return `Could not find a task matching "**${match[1]}**" on ${currentDayName}.`;
-            }
-        },
-        {
-            id: "create_or_save_preset",
-            patterns: [
-                /(?:create|new)\s+(?:week|preset)\s+(.+)/i,
-                /save\s+preset\s+(.+)/i
+                /(?:generate|create|build|make|give me|gimme|set up|setup)\s+(?:a|an|my)?\s*(.+?)\s*(?:week|schedule|routine|plan)?$/i,
+                /(?:i need|i want|plan)\s+(?:a|an)?\s*(.+?)\s*(?:week|schedule|routine)/i
             ],
             handler: (match, rawInput) => {
-                const presetName = match[1].trim();
-                data.presets = data.presets || {};
-
-                if (rawInput.toLowerCase().includes("save")) {
-                    data.presets[presetName] = deepClone(data.schedules);
-                    data.appliedRoutine = presetName;
-                    saveData();
-                    populatePresetMenus();
-                    renderPresetsManager();
-                    return `Saved current schedule as new preset "**${presetName}**"! 💾`;
-                } else {
-                    const filledWeek = generateFilledWeek();
-                    data.presets[presetName] = filledWeek;
-                    data.schedules = deepClone(filledWeek);
-                    data.appliedRoutine = presetName;
-
-                    saveData();
-                    renderCurrentDay();
-                    populatePresetMenus();
-                    renderPresetsManager();
-                    return `Created brand new preset "**${presetName}**" packed with default schedule blocks! 📅⚡`;
-                }
+                const intent = match && match[1] ? match[1].trim() : rawInput;
+                const week = generateSmartWeekFromIntent(intent);
+                DAYS.forEach(day => {
+                    data.schedules[day] = week[day] ? JSON.parse(JSON.stringify(week[day])) : [];
+                });
+                data.appliedRoutine = `AI: ${intent.substring(0, 30)}`;
+                try { saveData(); } catch(e) {}
+                try { renderCurrentDay(); populatePresetMenus(); } catch(e) {}
+                const blockCount = week[DAYS[0]] ? week[DAYS[0]].length : 0;
+                return `✅ Built a full 7-day **${intent}** schedule — ${blockCount} blocks per day, zero gaps, wake to sleep. Use "regenerate" for a fresh version or "save preset <name>" to keep it.`;
             }
         },
+
+        // REGENERATE
+        {
+            id: "regenerate",
+            keywords: ["regenerate","redo","again","retry","different","new version","reshuffle"],
+            patterns: [/^(?:regenerate|redo|retry|again|reshuffle|new version)/i],
+            handler: (match, rawInput) => {
+                const lastRoutine = (data.appliedRoutine || "").replace(/^AI:\s*/, "").trim() || "work";
+                const week = generateSmartWeekFromIntent(lastRoutine);
+                DAYS.forEach(day => {
+                    data.schedules[day] = week[day] ? JSON.parse(JSON.stringify(week[day])) : [];
+                });
+                data.appliedRoutine = `AI: ${lastRoutine.substring(0, 30)}`;
+                try { saveData(); renderCurrentDay(); populatePresetMenus(); } catch(e) {}
+                return `🔄 Regenerated a fresh **${lastRoutine}** week with different task variety. Zero gaps, 8+ blocks per day.`;
+            }
+        },
+
+        // ADD TASK — "add <task> from HH:MM to HH:MM"
+        {
+            id: "add_task",
+            patterns: [
+                /add\s+(.+?)\s+from\s+(\d{1,2}:\d{2}(?:\s*[apm]{2})?)\s+to\s+(\d{1,2}:\d{2}(?:\s*[apm]{2})?)/i,
+                /add\s+(.+?)\s+(\d{1,2}:\d{2}(?:\s*[apm]{2})?)\s+(?:to|-)\s+(\d{1,2}:\d{2}(?:\s*[apm]{2})?)/i,
+                /add\s+(.+?)\s+at\s+(\d{1,2}:\d{2}(?:\s*[apm]{2})?)\s+(?:for\s+)?(\d+)\s*(?:hour|hr|min|minute)s?/i
+            ],
+            handler: (match, rawInput) => {
+                let taskName = match[1].trim();
+                let startStr = match[2].trim();
+                let endStr = match[3].trim();
+
+                // Handle "at X:XX for N hours/mins" pattern
+                if (/hour|hr|min/i.test(endStr)) {
+                    const dur = parseInt(endStr) * (/hour|hr/i.test(rawInput) ? 60 : 1);
+                    endStr = formatMinutesToTime(parseTimeToMinutes(startStr) + dur);
+                }
+
+                const day = DAYS[data.currentDay];
+                if (!data.schedules[day]) data.schedules[day] = [];
+                data.schedules[day].push({ start: startStr, end: endStr, task: taskName, completed: false });
+                data.schedules[day].sort((a, b) => parseTimeToMinutes(a.start) - parseTimeToMinutes(b.start));
+                try { saveData(); renderCurrentDay(); } catch(e) {}
+                return `➕ Added **${taskName}** (${startStr} → ${endStr}) to **${day}**.`;
+            }
+        },
+
+        // ADD TASK TO SPECIFIC DAY — "add <task> on Monday from..."
+        {
+            id: "add_task_day",
+            patterns: [
+                /add\s+(.+?)\s+on\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+from\s+(\d{1,2}:\d{2}(?:\s*[apm]{2})?)\s+to\s+(\d{1,2}:\d{2}(?:\s*[apm]{2})?)/i
+            ],
+            handler: (match) => {
+                const taskName = match[1].trim();
+                const dayName = match[2].charAt(0).toUpperCase() + match[2].slice(1).toLowerCase();
+                const startStr = match[3].trim();
+                const endStr = match[4].trim();
+                if (!data.schedules[dayName]) data.schedules[dayName] = [];
+                data.schedules[dayName].push({ start: startStr, end: endStr, task: taskName, completed: false });
+                data.schedules[dayName].sort((a, b) => parseTimeToMinutes(a.start) - parseTimeToMinutes(b.start));
+                try { saveData(); renderCurrentDay(); } catch(e) {}
+                return `➕ Added **${taskName}** (${startStr} → ${endStr}) to **${dayName}**.`;
+            }
+        },
+
+        // DELETE TASK BY NUMBER
+        {
+            id: "delete_task_number",
+            patterns: [
+                /(?:delete|remove)\s+(?:block|task|#|number)?\s*(\d+)/i
+            ],
+            handler: (match) => {
+                const idx = parseInt(match[1], 10) - 1;
+                const day = DAYS[data.currentDay];
+                const tasks = data.schedules[day] || [];
+                if (idx >= 0 && idx < tasks.length) {
+                    const removed = tasks.splice(idx, 1)[0];
+                    try { saveData(); renderCurrentDay(); } catch(e) {}
+                    return `🗑️ Removed task #${idx + 1} (**${removed.task || "Untitled"}**) from **${day}**.`;
+                }
+                return `❌ No task #${idx + 1} found on **${day}**. You have ${tasks.length} task(s).`;
+            }
+        },
+
+        // DELETE TASK BY NAME
+        {
+            id: "delete_task_name",
+            patterns: [
+                /(?:delete|remove)\s+(?:task\s+)?["']?(.+?)["']?\s*$/i
+            ],
+            handler: (match, rawInput) => {
+                const target = match[1].trim().toLowerCase();
+                if (/preset/i.test(target)) return null;
+                const day = DAYS[data.currentDay];
+                const tasks = data.schedules[day] || [];
+                const idx = tasks.findIndex(t => t.task && t.task.toLowerCase().includes(target));
+                if (idx !== -1) {
+                    const removed = tasks.splice(idx, 1)[0];
+                    try { saveData(); renderCurrentDay(); } catch(e) {}
+                    return `🗑️ Deleted **${removed.task}** from **${day}**.`;
+                }
+                return `❌ Couldn't find a task matching "**${match[1]}**" on **${day}**.`;
+            }
+        },
+
+        // CLEAR DAY (uncheck all)
+        {
+            id: "clear_day",
+            patterns: [/(?:clear|reset|uncheck)\s+(?:day|today|all|checkboxes?|tasks?)/i],
+            keywords: ["clear day","reset day","uncheck all","reset checkboxes"],
+            handler: () => {
+                const day = DAYS[data.currentDay];
+                const tasks = data.schedules[day] || [];
+                let count = 0;
+                tasks.forEach(t => { if (t.completed) { t.completed = false; count++; } });
+                try { saveData(); renderCurrentDay(); } catch(e) {}
+                return count > 0
+                    ? `🧹 Unchecked ${count} task(s) on **${day}**. Blocks are still there.`
+                    : `Nothing was checked on **${day}** anyway.`;
+            }
+        },
+
+        // CLEAR ALL DAYS
+        {
+            id: "clear_week",
+            patterns: [/(?:clear|reset|wipe)\s+(?:week|all days|everything)/i],
+            handler: () => {
+                DAYS.forEach(d => { (data.schedules[d] || []).forEach(t => t.completed = false); });
+                try { saveData(); renderCurrentDay(); } catch(e) {}
+                return `🧹 Unchecked all tasks across the entire week.`;
+            }
+        },
+
+        // WIPE DAY SCHEDULE
+        {
+            id: "wipe_day",
+            patterns: [/(?:wipe|empty|delete all|remove all)\s+(?:tasks?|blocks?|schedule)?\s*(?:for|on|from)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday|today)?/i],
+            handler: (match) => {
+                let dayName = match && match[1] ? match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase() : DAYS[data.currentDay];
+                if (!DAYS.includes(dayName)) dayName = DAYS[data.currentDay];
+                const count = (data.schedules[dayName] || []).length;
+                data.schedules[dayName] = [];
+                try { saveData(); renderCurrentDay(); } catch(e) {}
+                return `🗑️ Wiped all ${count} block(s) from **${dayName}**.`;
+            }
+        },
+
+        // SAVE PRESET
+        {
+            id: "save_preset",
+            patterns: [
+                /save\s+(?:preset|routine|schedule)\s+(?:as\s+)?["']?(.+?)["']?\s*$/i,
+                /(?:create|new)\s+preset\s+(?:called\s+)?["']?(.+?)["']?\s*$/i
+            ],
+            handler: (match) => {
+                const name = match[1].trim();
+                data.presets = data.presets || {};
+                data.presets[name] = JSON.parse(JSON.stringify(data.schedules));
+                data.appliedRoutine = name;
+                try { saveData(); populatePresetMenus(); renderPresetsManager(); } catch(e) {}
+                return `💾 Saved current schedule as preset **"${name}"**.`;
+            }
+        },
+
+        // APPLY PRESET
+        {
+            id: "apply_preset",
+            patterns: [
+                /(?:apply|load|use|switch to)\s+(?:preset\s+)?["']?(.+?)["']?\s*(?:preset|routine|schedule)?$/i
+            ],
+            keywords: ["apply","load preset","use preset","switch to"],
+            handler: (match, rawInput) => {
+                const presets = Object.keys(data.presets || {});
+                const query = match && match[1] ? match[1].trim().toLowerCase() : rawInput.toLowerCase();
+                const found = presets.find(p => p.toLowerCase() === query) ||
+                              presets.find(p => p.toLowerCase().includes(query)) ||
+                              presets.find(p => query.includes(p.toLowerCase()));
+                if (found) {
+                    DAYS.forEach(d => data.schedules[d] = JSON.parse(JSON.stringify(data.presets[found][d] || [])));
+                    data.appliedRoutine = found;
+                    try { saveData(); renderCurrentDay(); } catch(e) {}
+                    return `✅ Applied preset **"${found}"** to your full week.`;
+                }
+                const list = presets.length ? presets.join(", ") : "none saved yet";
+                return `❌ Couldn't find that preset. Available: ${list}`;
+            }
+        },
+
+        // DELETE PRESET
         {
             id: "delete_preset",
             patterns: [
-                /(?:delete|remove)\s+preset\s+(.+)/i
+                /(?:delete|remove)\s+preset\s+["']?(.+?)["']?\s*$/i
             ],
             handler: (match) => {
-                const targetPreset = match[1].trim();
-                const availablePresets = Object.keys(data.presets || {});
-                const matchedKey = availablePresets.find(p => p.toLowerCase() === targetPreset.toLowerCase());
-
-                if (matchedKey) {
-                    if (Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, matchedKey)) {
-                        return `Built-in preset "**${matchedKey}**" cannot be deleted.`;
-                    }
-                    delete data.presets[matchedKey];
-                    saveData();
-                    populatePresetMenus();
-                    renderPresetsManager();
-                    return `Deleted preset "**${matchedKey}**". 🗑️`;
+                const name = match[1].trim();
+                const presets = data.presets || {};
+                const found = Object.keys(presets).find(p => p.toLowerCase() === name.toLowerCase());
+                if (!found) return `❌ Preset "**${name}**" not found.`;
+                if (Object.prototype.hasOwnProperty.call(typeof BUILT_IN_PRESETS !== "undefined" ? BUILT_IN_PRESETS : {}, found)) {
+                    return `❌ Can't delete built-in preset "**${found}**".`;
                 }
-                return `Preset "**${targetPreset}**" not found. Existing: ${availablePresets.join(", ") || "None"}`;
+                delete presets[found];
+                try { saveData(); populatePresetMenus(); renderPresetsManager(); } catch(e) {}
+                return `🗑️ Deleted preset **"${found}"**.`;
             }
         },
-        {
-            id: "apply_preset",
-            keywords: ["apply", "load", "preset", "routine"],
-            handler: (match, rawInput) => {
-                const availablePresets = Object.keys(data.presets || {});
-                const inputLower = rawInput.toLowerCase();
-                const matched = availablePresets.find(p => inputLower.includes(p.toLowerCase()));
 
-                if (matched) {
-                    DAYS.forEach(day => data.schedules[day] = deepClone(data.presets[matched][day] || []));
-                    data.appliedRoutine = matched;
-                    saveData();
-                    renderCurrentDay();
-                    return `Successfully applied the "**${matched}**" routine to your week! 🎉`;
-                }
-                return null; // Fallthrough
+        // LIST PRESETS
+        {
+            id: "list_presets",
+            keywords: ["list presets","show presets","what presets","my presets","available presets"],
+            patterns: [/(?:list|show|what are|see)\s+(?:my\s+)?presets?/i],
+            handler: () => {
+                const names = Object.keys(data.presets || {});
+                if (!names.length) return "You have no presets saved yet. Try: **save preset My Week**";
+                return `📋 Your presets:\n${names.map((n, i) => `${i + 1}. ${n}`).join("\n")}`;
             }
         },
-        {
-            id: "theme_change",
-            keywords: ["theme", "color", "red", "blue", "green", "orange", "pink", "purple", "cyan"],
-            handler: (match, rawInput) => {
-                const inputLower = rawInput.toLowerCase();
-                const colorMap = AI_DATABASE.knowledgeBase.colorMap;
 
-                for (const [key, themeObj] of Object.entries(colorMap)) {
-                    if (inputLower.includes(key)) {
-                        setAccentColor(themeObj.color, themeObj.hover, themeObj.alpha);
-                        return `Updated accent theme color to **${key}**! 🎨`;
+        // THEME CHANGE
+        {
+            id: "theme",
+            keywords: ["theme","color","colour","red","blue","green","orange","pink","purple","cyan","yellow"],
+            patterns: [/(?:change|set|switch|make it|use)\s+(?:theme|color|colour)?\s*(?:to\s+)?(\w+)/i],
+            handler: (match, rawInput) => {
+                const input = rawInput.toLowerCase();
+                for (const [name, vals] of Object.entries(COLOR_MAP)) {
+                    if (input.includes(name)) {
+                        try { setAccentColor(vals.color, vals.hover, vals.alpha); } catch(e){}
+                        return `🎨 Theme changed to **${name}**!`;
                     }
                 }
-                return null;
+                return `❌ Unknown color. Try: ${Object.keys(COLOR_MAP).join(", ")}`;
             }
         },
+
+        // QUERY SCHEDULE
         {
             id: "query_schedule",
-            keywords: ["what", "today", "schedule", "summary", "next"],
+            keywords: ["what","today","schedule","summary","show me","my day","what's on","whats on"],
+            patterns: [/(?:what(?:'s|s| is)?|show me?)\s+(?:my\s+)?(?:schedule|tasks?|blocks?|day)\s*(?:for\s+)?(today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)?/i],
             handler: (match, rawInput) => {
-                const inputLower = rawInput.toLowerCase();
-                const currentDayName = DAYS[data.currentDay];
-                const tasks = data.schedules[currentDayName] || [];
-
-                if (inputLower.includes("next")) {
-                    const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
-                    const upcoming = tasks.find(t => timeToMinutes(t.start) > currentMins);
-                    if (upcoming) {
-                        return `Your next task on ${currentDayName} is **${upcoming.task}** at **${upcoming.start}**.`;
-                    }
-                    return `No upcoming tasks left for today! ☕`;
+                let dayName = DAYS[data.currentDay];
+                if (match && match[1] && match[1].toLowerCase() !== "today") {
+                    const d = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+                    if (DAYS.includes(d)) dayName = d;
                 }
-
-                if (tasks.length === 0) {
-                    return `Your schedule for **${currentDayName}** is currently empty.`;
-                }
-
-                const taskList = tasks.map((t, idx) => `${idx + 1}. **${t.start} - ${t.end}**: ${t.task || "Untitled"}`).join("\n");
-                return `Here is your schedule for **${currentDayName}**:\n${taskList}`;
+                const tasks = data.schedules[dayName] || [];
+                if (!tasks.length) return `📭 **${dayName}** is empty. Try: "generate study week"`;
+                return `📅 **${dayName}** (${tasks.length} blocks):\n` +
+                    tasks.map((t, i) => `${i + 1}. ${t.start}–${t.end}: ${t.task || "Untitled"}`).join("\n");
             }
         },
+
+        // NEXT TASK
         {
-            id: "sound_toggle",
-            keywords: ["notification", "sound", "chime", "mute", "unmute", "alert"],
+            id: "next_task",
+            keywords: ["next task","what's next","whats next","next up","coming up"],
+            patterns: [/what(?:'s|s| is)?\s+(?:my\s+)?next\s+(?:task|block)?/i],
             handler: () => {
-                toggleNotifications();
-                const status = data.notificationsEnabled ? "ON 🔔" : "OFF 🔕";
-                return `Sound and transition alerts are now turned **${status}**.`;
+                const now = new Date().getHours() * 60 + new Date().getMinutes();
+                const day = DAYS[getTodayIndex ? getTodayIndex() : data.currentDay];
+                const tasks = (data.schedules[day] || []).filter(t => !t.completed);
+                const next = tasks.find(t => parseTimeToMinutes(t.start) > now);
+                const active = tasks.find(t => parseTimeToMinutes(t.start) <= now && parseTimeToMinutes(t.end) > now);
+                let reply = "";
+                if (active) reply += `⚡ **Now:** ${active.task} (${active.start}–${active.end})\n`;
+                if (next) reply += `⏭️ **Next:** ${next.task} at ${next.start} (in ${parseTimeToMinutes(next.start) - now}m)`;
+                return reply || `☕ No more tasks left for today!`;
             }
         },
-                {
-    id: "clear_day",
-    keywords: ["clear day", "reset day", "uncheck day", "reset checkboxes"],
-    handler: () => {
-        const currentDayName = DAYS[data.currentDay];
-        const dayTasks = data.schedules[currentDayName] || [];
 
-        if (dayTasks.length === 0) {
-            return `No tasks to uncheck for **${currentDayName}**!`;
-        }
-
-        // Keep all tasks intact; uncheck all checkboxes
-        let clearedCount = 0;
-        dayTasks.forEach(task => {
-            if (task.completed) {
-                task.completed = false;
-                clearedCount++;
-            }
-        });
-
-        saveData();
-        renderCurrentDay();
-        return `Reset ${clearedCount} checked task(s) for **${currentDayName}**! Time blocks remain intact. 🧹`;
-    }
-},
-
+        // PROGRESS
         {
-    id: "generate_full_intent_week",
-    patterns: [
-        /(?:generate|create|build|make)\s+(?:a|an)?\s*(.+?)\s*(?:week|routine|schedule)/i
-    ],
-    keywords: ["build my week", "create week for", "generate schedule"],
-    handler: (match, rawInput) => {
-        const userIntent = (match && match[1]) ? match[1] : rawInput;
-        
-        // Dynamic schedule generator based on intent keywords
-        const generatedWeek = generateSmartWeekFromIntent(userIntent);
+            id: "progress",
+            keywords: ["progress","how many","done","completed","how am i doing","stats"],
+            patterns: [/(?:progress|how many|how am i doing|stats?|completed?)/i],
+            handler: () => {
+                const day = DAYS[data.currentDay];
+                const tasks = data.schedules[day] || [];
+                if (!tasks.length) return `📭 No tasks on **${day}** yet.`;
+                const done = tasks.filter(t => t.completed).length;
+                const pct = Math.round((done / tasks.length) * 100);
+                const bar = "█".repeat(Math.round(pct / 10)) + "░".repeat(10 - Math.round(pct / 10));
+                return `📊 **${day}** progress:\n${bar} ${pct}%\n${done}/${tasks.length} tasks completed.`;
+            }
+        },
 
-        // Apply generated week across all 7 days
-        DAYS.forEach(day => {
-            data.schedules[day] = deepClone(generatedWeek[day]);
-        });
+        // SOUND TOGGLE
+        {
+            id: "sound",
+            keywords: ["sound","notification","chime","mute","unmute","alert","notifications"],
+            handler: () => {
+                try { toggleNotifications(); } catch(e) {}
+                const status = data.notificationsEnabled ? "ON 🔔" : "OFF 🔕";
+                return `Sound alerts are now **${status}**.`;
+            }
+        },
 
-        data.appliedRoutine = `AI: ${userIntent.substring(0, 20)}...`;
-        saveData();
-        renderCurrentDay();
-        populatePresetMenus();
-
-        return `⚡ **Generated full 7-day schedule based on:** *"${userIntent}"*\n\nAll tasks have been scheduled with specific times and titles!`;
-    }
-}
+        // HELP
+        {
+            id: "help",
+            keywords: ["help","what can you do","commands","options","how do i","what do you do"],
+            patterns: [/(?:help|what can you do|commands?|options?)/i],
+            handler: () =>
+                `Here's what I can do:\n\n` +
+                `🗓️ **Generate:** "generate study week" / "build me a fitness week"\n` +
+                `🔄 **Regenerate:** "regenerate" / "redo"\n` +
+                `➕ **Add task:** "add Gym from 07:00 to 08:00"\n` +
+                `🗑️ **Delete task:** "delete task 3" / "delete Gym"\n` +
+                `💾 **Save preset:** "save preset Finals Week"\n` +
+                `▶️ **Apply preset:** "apply Study Week"\n` +
+                `📋 **List presets:** "list presets"\n` +
+                `🎨 **Theme:** "change theme to red"\n` +
+                `📅 **Schedule:** "show my schedule" / "what's next?"\n` +
+                `📊 **Progress:** "progress" / "how am I doing?"\n` +
+                `🧹 **Clear:** "clear day" / "wipe Monday"`
+        }
     ]
 };
 
-/* AI CHATBOT ENGINE LOGIC */
+// ---------------------------------------------------------------------------
+// CHAT ENGINE
+// ---------------------------------------------------------------------------
 
 function toggleChatWindow() {
     const win = document.getElementById("ai-chat-window");
@@ -569,16 +662,11 @@ function toggleChatWindow() {
 
 function sendChatMessage() {
     const input = document.getElementById("chat-input");
-    const text = input.value.trim();
-
+    const text = input ? input.value.trim() : "";
     if (!text) return;
-
     appendMessage(text, "user-msg");
-    input.value = "";
-
-    setTimeout(() => {
-        processNLPIntent(text);
-    }, 150);
+    if (input) input.value = "";
+    setTimeout(() => processNLPIntent(text), 150);
 }
 
 function appendMessage(msg, className) {
@@ -586,57 +674,71 @@ function appendMessage(msg, className) {
     if (!container) return;
     const div = document.createElement("div");
     div.className = `chat-msg ${className}`;
-    
     div.innerHTML = msg.replace(/\n/g, "<br>").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
     return div;
 }
 
 function processNLPIntent(rawInput) {
-    const input = rawInput.toLowerCase().trim();
+    if (!rawInput || !rawInput.trim()) return;
+    const input = rawInput.trim();
+    const lower = input.toLowerCase();
 
-    // 1. Regex Pattern Matching Strategy
+    // 1. Pattern matching — most specific first
     for (const intent of AI_DATABASE.intents) {
-        if (intent.patterns) {
-            for (const pattern of intent.patterns) {
-                const match = rawInput.match(pattern);
-                if (match) {
-                    const result = intent.handler(match, rawInput);
-                    if (result) {
+        if (!intent.patterns) continue;
+        for (const pattern of intent.patterns) {
+            const m = input.match(pattern);
+            if (m) {
+                try {
+                    const result = intent.handler(m, input);
+                    if (result !== null && result !== undefined) {
                         appendMessage(result, "bot-msg");
                         return;
                     }
-                }
+                } catch(e) { console.error(intent.id, e); }
             }
         }
     }
 
-    // 2. Keyword Classification Strategy
+    // 2. Keyword matching
     for (const intent of AI_DATABASE.intents) {
-        if (intent.keywords) {
-            const hasKeyword = intent.keywords.some(kw => input.includes(kw));
-            if (hasKeyword) {
-                const result = intent.handler(null, rawInput);
-                if (result) {
+        if (!intent.keywords) continue;
+        const hit = intent.keywords.some(kw => lower.includes(kw));
+        if (hit) {
+            try {
+                const result = intent.handler(null, input);
+                if (result !== null && result !== undefined) {
                     appendMessage(result, "bot-msg");
                     return;
                 }
-            }
+            } catch(e) { console.error(intent.id, e); }
         }
     }
 
-    // 3. Fallback / Helpful Directory
+    // 3. Fuzzy fallback — try to detect generate intent from loose phrasing
+    if (/week|schedule|routine|plan|day/i.test(lower)) {
+        try {
+            const week = generateSmartWeekFromIntent(input);
+            DAYS.forEach(day => {
+                data.schedules[day] = JSON.parse(JSON.stringify(week[day] || []));
+            });
+            data.appliedRoutine = `AI: ${input.substring(0, 30)}`;
+            try { saveData(); renderCurrentDay(); populatePresetMenus(); } catch(e) {}
+            appendMessage(`✅ Generated a week based on: **"${input}"**. ${week[DAYS[0]].length} blocks per day, no gaps.`, "bot-msg");
+            return;
+        } catch(e) {}
+    }
+
+    // 4. Final fallback
     appendMessage(
-        `I didn't quite recognize that command. Here are things you can ask me:\n\n` +
-        `• **Add block**: "add Science Homework 14:00 15:30"\n` +
-        `• **Delete block**: "delete task 1" or "delete Math"\n` +
-        `• **Summary**: "what is my schedule today?" or "what's next?"\n` +
-        `• **Presets**: "apply Study Week" or "save preset Spring Term"\n` +
-        `• **Presets**: "delete preset Spring Term"\n` +
-        `• **Themes**: "change theme to green" or "red"\n` +
-        `• **Settings**: "turn off sound" / "clear day"`,
+        `🤔 I didn't get that. Try:\n` +
+        `• "generate study week"\n` +
+        `• "add Gym from 07:00 to 08:00"\n` +
+        `• "delete task 2"\n` +
+        `• "change theme to blue"\n` +
+        `• "help" for the full list`,
         "bot-msg"
     );
 }

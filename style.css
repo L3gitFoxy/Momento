@@ -184,9 +184,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 input[type="text"] {
-    flex-grow: 2;
+    flex: 1 1 0;
     min-width: 0;
 }
+
 
 input[type="checkbox"] {
     width: 18px;
@@ -272,14 +273,7 @@ button:hover {
     box-sizing: border-box;
 }
 
-.category-badge {
-    background: rgba(162, 155, 254, 0.15);
-    color: #a29bfe;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-weight: 600;
-    margin: 0 4px;
-}
+.category-badge { display: none; }
 
 #progress-tracker-badge {
     background: rgba(255, 255, 255, 0.05);

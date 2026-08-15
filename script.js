@@ -1,6 +1,6 @@
-/* =========================================================
-   SYNCDAY - ULTIMATE TIME BLOCK SCHEDULER (V5 COMPLETE)
-   ========================================================= */
+/* =========================================
+   SYNCDAY - ULTIMATE TIME BLOCK SCHEDULER 
+   ========================================== */
 
 const BUILT_IN_PRESETS = {
     "Student Daily Routine": {
@@ -236,10 +236,40 @@ const DAYS = [
 const STORAGE_KEY = "SyncDay_data_v5";
 
 const CATEGORY_KEYWORDS = {
-    "📚 Study": ["school", "study", "revise", "class", "hw", "homework", "science", "maths", "hindi", "exam", "read"],
-    "🏃 Exercise": ["football", "exercise", "physical", "play down", "sport"],
-    "🎮 Gaming/Relax": ["minecraft", "gaming", "game", "relax", "tv", "do whatever", "free time", "wind down"],
-    "🍔 Food": ["food", "dinner", "lunch", "breakfast", "eat"]
+    "📚 Study/Work": [
+        "school", "study", "revise", "revision", "class", "hw", "homework",
+        "science", "maths", "math", "hindi", "exam", "read", "reading",
+        "lecture", "notes", "flashcard", "anki", "assignment", "quiz",
+        "mock", "past paper", "syllabus", "subject", "tutor", "tutorial",
+        "deep work", "focus block", "focus",
+        "work", "job", "office", "meeting", "email", "client", "project",
+        "sprint", "coding", "code", "dev", "deploy", "deadline", "report",
+        "presentation", "freelance", "business", "startup", "manager"
+    ],
+    "🏃 Exercise": [
+        "football", "exercise", "physical", "play down", "sport", "sports",
+        "gym", "workout", "fitness", "cardio", "run", "running", "jog",
+        "jogging", "walk", "walking", "swim", "swimming", "cycling",
+        "yoga", "pilates", "hiit", "crossfit", "training", "weights",
+        "lifting", "stretch", "stretching", "basketball", "tennis"
+    ],
+    "🎮 Gaming/Relax": [
+        "minecraft", "gaming", "game", "games", "relax", "relaxing", "tv",
+        "do whatever", "free time", "wind down", "chill", "chilling",
+        "you time", "hobby", "hobbies", "leisure", "nap", "rest",
+        "youtube", "netflix", "movie", "music", "podcast", "reading for fun"
+    ],
+    "🍔 Food": [
+        "food", "dinner", "lunch", "breakfast", "eat", "eating", "snack",
+        "meal", "cook", "cooking", "brunch", "supper", "takeaway", "takeout"
+    ],
+    "🌅 Morning/Routine": [
+        "morning routine", "morning", "wake up", "get ready", "shower",
+        "brush", "routine", "get up", "prepare"
+    ],
+    "😴 Rest": [
+        "sleep", "nap", "rest", "bed", "bedtime", "zzz"
+    ]
 };
 
 /* APP STATE */
@@ -700,7 +730,6 @@ function createTaskRow(task, index) {
     row.appendChild(start);
     row.appendChild(end);
     row.appendChild(activity);
-    row.appendChild(categoryBadge);
     row.appendChild(deleteBtn);
 
     if (task.completed) row.classList.add("completed");
@@ -736,7 +765,7 @@ function renderWeeklyAnalytics() {
     const container = document.getElementById("weekly-analytics-container");
     if (!container) return;
 
-    let totals = { "📚 Study": 0, "🏃 Exercise": 0, "🎮 Gaming/Relax": 0, "🍔 Food": 0, "📌 General": 0 };
+    let totals = { "📚 Study/Work": 0, "🏃 Exercise": 0, "🎮 Gaming/Relax": 0, "🍔 Food": 0, "📌 General": 0 };
     let totalWeekMinutes = 0;
 
     DAYS.forEach(day => {
