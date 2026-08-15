@@ -313,8 +313,8 @@ const AI_DATABASE = {
         {
             id: "generate_week",
             patterns: [
-                /(?:generate|create|build|make|give me|gimme|set up|setup)\s+(?:a|an|my)?\s*(.+?)\s*(?:week|schedule|routine|plan)?$/i,
-                /(?:i need|i want|plan)\s+(?:a|an)?\s*(.+?)\s*(?:week|schedule|routine)/i
+                /(?:generate|create|build|make|give me|gimme|set up|setup)\s+(?:a|an|my)?\s*(.+?)\s*(?:schedule|routine|plan)?$/i,
+                /(?:i need|i want|plan)\s+(?:a|an)?\s*(.+?)\s*(?:schedule|routine)/i
             ],
             handler: (match, rawInput) => {
                 const intent = match && match[1] ? match[1].trim() : rawInput;
@@ -493,11 +493,31 @@ const AI_DATABASE = {
             }
         },
 
+        {
+            id: "apply_single_day_preset",
+            patterns: [
+                /(?:apply|use|load)\s+["']?(.+?)["']?\s+(?:for|on|to)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i
+            ],
+            handler: (match) => {
+                const presetQuery = match[1].trim().toLowerCase();
+                const dayName = match[2].charAt(0).toUpperCase() + match[2].slice(1).toLowerCase();
+                const presets = Object.keys(data.presets || {});
+                const found = presets.find(p => p.toLowerCase() === presetQuery) ||
+                              presets.find(p => p.toLowerCase().includes(presetQuery)) ||
+                              presets.find(p => presetQuery.includes(p.toLowerCase()));
+                if (!found) {
+                    const list = presets.length ? presets.join(", ") : "none saved yet";
+                    return `❌ Preset not found. Available: ${list}`;
+                }
+                try { applyCustomDayPreset(dayName, found); } catch(e) {}
+                return `✅ Applied **"${found}"** to **${dayName}**.`;
+            }
+        },
         // APPLY PRESET
         {
             id: "apply_preset",
             patterns: [
-                /(?:apply|load|use|switch to)\s+(?:preset\s+)?["']?(.+?)["']?\s*(?:preset|routine|schedule)?$/i
+                /(?:apply|load|switch to)\s+(?:preset\s+)?["']?(.+?)["']?\s*(?:preset|routine|schedule)?$/i
             ],
             keywords: ["apply","load preset","use preset","switch to"],
             handler: (match, rawInput) => {
@@ -516,6 +536,9 @@ const AI_DATABASE = {
                 return `❌ Couldn't find that preset. Available: ${list}`;
             }
         },
+
+        //APPLY SINGLE DAY PRESET
+        
 
         // DELETE PRESET
         {
@@ -553,7 +576,7 @@ const AI_DATABASE = {
         {
             id: "theme",
             keywords: ["theme","color","colour","red","blue","green","orange","pink","purple","cyan","yellow"],
-            patterns: [/(?:change|set|switch|make it|use)\s+(?:theme|color|colour)?\s*(?:to\s+)?(\w+)/i],
+            patterns: [/(?:change|set|switch|make it)\s+(?:theme|color|colour)?\s*(?:to\s+)?(\w+)/i],
             handler: (match, rawInput) => {
                 const input = rawInput.toLowerCase();
                 for (const [name, vals] of Object.entries(COLOR_MAP)) {
@@ -721,9 +744,7 @@ function processNLPIntent(rawInput) {
     if (/week|schedule|routine|plan|day/i.test(lower)) {
         try {
             const week = generateSmartWeekFromIntent(input);
-            DAYS.forEach(day => {
-                data.schedules[day] = JSON.parse(JSON.stringify(week[day] || []));
-            });
+            DAYS.forEach(day => { data.schedules[day] = JSON.parse(JSON.stringify(week[day] || [])); });
             data.appliedRoutine = `AI: ${input.substring(0, 30)}`;
             try { saveData(); renderCurrentDay(); populatePresetMenus(); } catch(e) {}
             appendMessage(`✅ Generated a week based on: **"${input}"**. ${week[DAYS[0]].length} blocks per day, no gaps.`, "bot-msg");
@@ -735,6 +756,7 @@ function processNLPIntent(rawInput) {
     appendMessage(
         `🤔 I didn't get that. Try:\n` +
         `• "generate study week"\n` +
+        `• "apply Study Week for Monday"\n` +
         `• "add Gym from 07:00 to 08:00"\n` +
         `• "delete task 2"\n` +
         `• "change theme to blue"\n` +
@@ -742,3 +764,4 @@ function processNLPIntent(rawInput) {
         "bot-msg"
     );
 }
+

@@ -1,6 +1,6 @@
-/* =========================================
+/* =========================================================
    MOMENTO - ULTIMATE TIME BLOCK SCHEDULER 
-   ========================================== */
+   ========================================================= */
 
 const BUILT_IN_PRESETS = {
     "Student Daily Routine": {
@@ -233,16 +233,15 @@ const DAYS = [
     "Sunday"
 ];
 
-const STORAGE_KEY = "SyncDay_data_v5";
+const STORAGE_KEY = "Momento_data_v5";
 
 const CATEGORY_KEYWORDS = {
     "📚 Study/Work": [
         "school", "study", "revise", "revision", "class", "hw", "homework",
         "science", "maths", "math", "hindi", "exam", "read", "reading",
         "lecture", "notes", "flashcard", "anki", "assignment", "quiz",
-        "mock", "past paper", "syllabus", "subject", "tutor", "tutorial",
-        "deep work", "focus block", "focus",
-        "work", "job", "office", "meeting", "email", "client", "project",
+        "mock", "past paper", "syllabus", "subject", "tutor", "tutorial", "focus block", "focus",
+        "do work", "job", "office", "meeting", "email", "client", "project",
         "sprint", "coding", "code", "dev", "deploy", "deadline", "report",
         "presentation", "freelance", "business", "startup", "manager"
     ],
@@ -901,6 +900,14 @@ function applySingleDayPreset() {
     saveData();
     renderCurrentDay();
     select.value = "";
+    showSavedMessage(`✓ "${name}" applied to ${day}.`);
+}
+
+function applyCustomDayPreset(day,name){
+    data.schedules[day] = deepClone(data.presets[name][day] || []);
+    data.appliedRoutine = `${name} → ${day}`;
+    saveData();
+    renderCurrentDay();
     showSavedMessage(`✓ "${name}" applied to ${day}.`);
 }
 
