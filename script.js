@@ -1,5 +1,5 @@
 /* =========================================
-   SYNCDAY - ULTIMATE TIME BLOCK SCHEDULER 
+   MOMENTO - ULTIMATE TIME BLOCK SCHEDULER 
    ========================================== */
 
 const BUILT_IN_PRESETS = {
@@ -470,7 +470,7 @@ function loadData() {
             data.theme = parsed.theme || data.theme;
         }
     } catch (error) {
-        console.error("Could not load SyncDay data:", error);
+        console.error("Could not load Momento data:", error);
     }
 
     Object.entries(BUILT_IN_PRESETS).forEach(([name, preset]) => {
@@ -487,7 +487,7 @@ function saveData() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
-        console.error("Could not save SyncDay data:", error);
+        console.error("Could not save Momento data:", error);
     }
 }
 
