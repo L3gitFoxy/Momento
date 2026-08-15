@@ -662,14 +662,21 @@ const AI_DATABASE = {
                 `🗓️ **Generate:** "generate study week" / "build me a fitness week"\n` +
                 `🔄 **Regenerate:** "regenerate" / "redo"\n` +
                 `➕ **Add task:** "add Gym from 07:00 to 08:00"\n` +
+                `➕ **Add to day:** "add Gym on Monday from 07:00 to 08:00"\n` +
                 `🗑️ **Delete task:** "delete task 3" / "delete Gym"\n` +
+                `🧹 **Clear day:** "clear day" (unchecks all)\n` +
+                `🧹 **Clear week:** "clear week" (unchecks all days)\n` +
+                `💣 **Wipe day:** "wipe Monday" (removes all blocks)\n` +
                 `💾 **Save preset:** "save preset Finals Week"\n` +
-                `▶️ **Apply preset:** "apply Study Week"\n` +
+                `▶️ **Apply preset:** "apply Study Week" (full week)\n` +
+                `📅 **Apply to day:** "apply Study Week for Monday"\n` +
                 `📋 **List presets:** "list presets"\n` +
+                `🗑️ **Delete preset:** "delete preset Finals Week"\n` +
                 `🎨 **Theme:** "change theme to red"\n` +
-                `📅 **Schedule:** "show my schedule" / "what's next?"\n` +
+                `📅 **Schedule:** "show my schedule" / "show schedule for Monday"\n` +
+                `⏭️ **Next task:** "what's next"\n` +
                 `📊 **Progress:** "progress" / "how am I doing?"\n` +
-                `🧹 **Clear:** "clear day" / "wipe Monday"`
+                `🔔 **Sound:** "mute" / "unmute"`
         }
     ]
 };
