@@ -1,25 +1,6 @@
 /* =========================================================
-   Momento - ULTIMATE TIME BLOCK SCHEDULER (V5 COMPLETE)
+   SYNCDAY - ULTIMATE TIME BLOCK SCHEDULER (V5 COMPLETE)
    ========================================================= */
-
-const DAYS = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday"
-];
-
-const STORAGE_KEY = "Momento_data_v5";
-
-const CATEGORY_KEYWORDS = {
-    "📚 Study": ["school", "study", "revise", "class", "hw", "homework", "science", "maths", "hindi","exam", "read"],
-    "🏃 Exercise": ["football", "exercise", "physical", "play down", "sport"],
-    "🎮 Gaming/Relax": ["minecraft", "gaming", "game", "relax", "tv", "do whatever", "free time", "wind down"],
-    "🍔 Food": ["food", "dinner", "lunch", "breakfast", "eat"]
-};
 
 const BUILT_IN_PRESETS = {
     "Student Daily Routine": {
@@ -242,6 +223,25 @@ const BUILT_IN_PRESETS = {
     }
 };
 
+const DAYS = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+];
+
+const STORAGE_KEY = "SyncDay_data_v5";
+
+const CATEGORY_KEYWORDS = {
+    "📚 Study": ["school", "study", "revise", "class", "hw", "homework", "science", "maths", "hindi", "exam", "read"],
+    "🏃 Exercise": ["football", "exercise", "physical", "play down", "sport"],
+    "🎮 Gaming/Relax": ["minecraft", "gaming", "game", "relax", "tv", "do whatever", "free time", "wind down"],
+    "🍔 Food": ["food", "dinner", "lunch", "breakfast", "eat"]
+};
+
 /* APP STATE */
 let data = {
     schedules: {},
@@ -250,12 +250,14 @@ let data = {
     currentDay: getTodayIndex(),
     appliedRoutine: "Custom",
     lastResetWeek: getWeekIdentifier(),
-    notificationsEnabled: false,
+    notificationsEnabled: true,
     theme: { color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108, 92, 231, 0.25)" }
 };
 
 let currentActiveTaskName = null;
 let draggedRowIndex = null;
+let scratchPresetData = {};
+let activeBuilderDay = "Monday";
 
 /* STARTUP */
 document.addEventListener("DOMContentLoaded", () => {
@@ -265,21 +267,23 @@ document.addEventListener("DOMContentLoaded", () => {
     applySavedTheme();
     buildDayTabs();
     populatePresetMenus();
+    renderPresetsManager();
     renderCurrentDay();
     updateClock();
+
     /* SIDEBAR HOVER & TOGGLE LISTENERS */
-const sidebar = document.getElementById("preset-sidebar");
-const arrow = document.getElementById("sidebar-arrow");
+    const sidebar = document.getElementById("preset-sidebar");
+    const arrow = document.getElementById("sidebar-arrow");
 
-if (sidebar && arrow) {
-    sidebar.addEventListener("mouseenter", () => {
-        arrow.textContent = "▶";
-    });
+    if (sidebar && arrow) {
+        sidebar.addEventListener("mouseenter", () => {
+            arrow.textContent = "▶";
+        });
 
-    sidebar.addEventListener("mouseleave", () => {
-        arrow.textContent = "◀";
-    });
-}
+        sidebar.addEventListener("mouseleave", () => {
+            arrow.textContent = "◀";
+        });
+    }
 
     setInterval(() => {
         updateClock();
@@ -287,6 +291,47 @@ if (sidebar && arrow) {
         updateNextTask();
     }, 1000);
 });
+
+
+/* =========================================================
+   STARTER WEEK TEMPLATE GENERATOR
+   ========================================================= */
+
+function generateFilledWeek() {
+    const filledWeek = {};
+
+    // Standard Weekday Schedule Template
+    const weekdayTemplate = [
+        { title: "Morning Routine & Coffee", start: "08:00", end: "09:00", tag: "Health", completed: false },
+        { title: "Deep Work Focus Block", start: "09:30", end: "12:00", tag: "Work", completed: false },
+        { title: "Lunch Break", start: "12:00", end: "13:00", tag: "General", completed: false },
+        { title: "Projects & Meetings", start: "13:30", end: "16:30", tag: "Work", completed: false },
+        { title: "Evening Review & Reset", start: "18:00", end: "19:00", tag: "Personal", completed: false }
+    ];
+
+    // Relaxed Weekend Schedule Template
+    const weekendTemplate = [
+        { title: "Morning Workout & Breakfast", start: "09:00", end: "10:30", tag: "Health", completed: false },
+        { title: "Hobbies & Personal Time", start: "11:00", end: "14:00", tag: "Personal", completed: false },
+        { title: "Social & Chill Time", start: "16:00", end: "19:00", tag: "General", completed: false }
+    ];
+
+    // Build unique task objects for all 7 days
+    DAYS.forEach(day => {
+        const isWeekend = (day === "Saturday" || day === "Sunday");
+        const template = isWeekend ? weekendTemplate : weekdayTemplate;
+
+        filledWeek[day] = template.map((task, index) => ({
+            id: `block_${day.slice(0, 3)}_${Date.now()}_${index}`,
+            task: task.title,
+            start: task.start,
+            end: task.end,
+            completed: task.completed
+        }));
+    });
+
+    return filledWeek;
+}
 
 /* HELPERS */
 function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
@@ -395,7 +440,7 @@ function loadData() {
             data.theme = parsed.theme || data.theme;
         }
     } catch (error) {
-        console.error("Could not load Momento data:", error);
+        console.error("Could not load SyncDay data:", error);
     }
 
     Object.entries(BUILT_IN_PRESETS).forEach(([name, preset]) => {
@@ -412,7 +457,7 @@ function saveData() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
-        console.error("Could not save Momento data:", error);
+        console.error("Could not save SyncDay data:", error);
     }
 }
 
@@ -507,11 +552,11 @@ function renderProgressTracker() {
     let badge = document.getElementById("progress-tracker-badge");
 
     if (!badge) {
-        const header = document.querySelector(".header-section") || document.body;
+        const header = document.querySelector(".card") || document.body;
         badge = document.createElement("div");
         badge.id = "progress-tracker-badge";
         badge.style.fontWeight = "bold";
-        badge.style.marginTop = "6px";
+        badge.style.marginTop = "10px";
         badge.style.color = "#a29bfe";
         header.appendChild(badge);
     }
@@ -524,6 +569,13 @@ function renderProgressTracker() {
     const completed = tasks.filter(t => t.completed).length;
     const percent = Math.round((completed / tasks.length) * 100);
     badge.textContent = `📊 Progress: ${completed}/${tasks.length} completed (${percent}%)`;
+}
+
+/* EXPORT DATA FIX */
+function exportData() {
+    const exporting_data = [];
+    exporting_data.push(BUILT_IN_PRESETS);
+    return exporting_data;
 }
 
 /* DRAG & DROP TASK RENDERER */
@@ -725,7 +777,6 @@ function renderWeeklyAnalytics() {
     container.innerHTML = html;
 }
 
-/* AUDIO CHIME ONLY (Browser Notifications Completely Removed) */
 function playChime() {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -734,11 +785,10 @@ function playChime() {
         osc.type = "sine";
         osc.frequency.setValueAtTime(587.33, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
-        
-        // Boosted volume from 0.15 to 0.70
-        gain.gain.setValueAtTime(0.70, ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.85, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-        
+
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start();
@@ -748,7 +798,6 @@ function playChime() {
     }
 }
 
-// Directly turns sound on/off — zero browser popups or permission prompts
 function toggleNotifications() {
     data.notificationsEnabled = !data.notificationsEnabled;
     saveData();
@@ -838,6 +887,7 @@ function createNewPreset() {
     data.presets[name] = newPreset;
     saveData();
     populatePresetMenus();
+    renderPresetsManager();
     input.value = "";
     showSavedMessage(`✓ "${name}" saved as a new preset.`);
 }
@@ -853,6 +903,7 @@ function deleteSelectedPreset() {
     delete data.presets[name];
     saveData();
     populatePresetMenus();
+    renderPresetsManager();
     showSavedMessage(`✓ "${name}" deleted.`);
 }
 
@@ -860,7 +911,11 @@ function deleteSelectedPreset() {
 function updateClock() {
     const clock = document.getElementById("live-clock");
     if (clock) {
-        clock.textContent = "🕒 " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        clock.textContent = "🕒 " + new Date().toLocaleTimeString([], { hour12: false, hour: "numeric", minute: "2-digit", second: "2-digit" });
+    }
+    const datee = document.getElementById("live-date");
+    if (datee) {
+        datee.textContent = new Date().toDateString();
     }
     updateNextTask();
 }
@@ -896,7 +951,6 @@ function updateNextTask() {
     const active = tasks.find(t => current >= timeToMinutes(t.start) && current < timeToMinutes(t.end));
     const next = tasks.find(t => timeToMinutes(t.start) > current);
 
-    // Audio chime trigger (No desktop notifications)
     if (active && active.task !== currentActiveTaskName) {
         currentActiveTaskName = active.task;
         if (data.notificationsEnabled) {
@@ -949,7 +1003,156 @@ function showSavedMessage(message) {
     setTimeout(() => status.classList.remove("show"), 2200);
 }
 
-/* EVENT LISTENERS */
+/* =========================================================
+   PRESET MANAGEMENT & FROM-SCRATCH BUILDER LOGIC
+   ========================================================= */
+
+function renderPresetsManager() {
+    const listContainer = document.getElementById("presets-manager-list");
+    if (!listContainer) return;
+
+    data.presets = data.presets || {};
+    listContainer.innerHTML = "";
+
+    const names = Object.keys(data.presets);
+
+    if (names.length === 0) {
+        listContainer.innerHTML = `<p style="color:#aaa; font-size:0.8rem;">No custom presets saved.</p>`;
+        return;
+    }
+
+    names.forEach(name => {
+        const row = document.createElement("div");
+        row.className = "preset-item-row";
+        row.innerHTML = `
+            <span>${name}</span>
+            <div class="preset-item-actions">
+                <button onclick="applyNamedPreset('${name}')" class="btn-icon" title="Apply Preset">▶️</button>
+                <button onclick="deletePreset('${name}')" class="btn-icon" title="Delete Preset">🗑️</button>
+            </div>
+        `;
+        listContainer.appendChild(row);
+    });
+}
+
+function saveCurrentAsPreset() {
+    const input = document.getElementById("save-preset-input");
+    const name = input ? input.value.trim() : "";
+
+    if (!name) {
+        alert("Please enter a name for your preset.");
+        return;
+    }
+
+    data.presets[name] = deepClone(data.schedules);
+    saveData();
+    renderPresetsManager();
+    populatePresetMenus();
+    input.value = "";
+    alert(`Saved current schedule as "${name}"!`);
+}
+
+function applyNamedPreset(name) {
+    if (data.presets[name]) {
+        DAYS.forEach(day => data.schedules[day] = deepClone(data.presets[name][day] || []));
+        data.appliedRoutine = name;
+        saveData();
+        renderCurrentDay();
+        alert(`Applied preset: ${name}`);
+    }
+}
+
+function deletePreset(name) {
+    if (Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name)) return alert("Built-in presets cannot be deleted.");
+    if (confirm(`Are you sure you want to delete preset "${name}"?`)) {
+        delete data.presets[name];
+        saveData();
+        renderPresetsManager();
+        populatePresetMenus();
+    }
+}
+
+function openScratchBuilder() {
+    scratchPresetData = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: [] };
+    activeBuilderDay = "Monday";
+    
+    document.getElementById("scratch-preset-title").value = "";
+    renderBuilderTabs();
+    renderBuilderTasks();
+    document.getElementById("scratch-preset-modal").classList.remove("hidden");
+}
+
+function closeScratchBuilder() {
+    document.getElementById("scratch-preset-modal").classList.add("hidden");
+}
+
+function renderBuilderTabs() {
+    const container = document.getElementById("builder-day-tabs");
+    if (!container) return;
+    container.innerHTML = "";
+    DAYS.forEach(day => {
+        const btn = document.createElement("button");
+        btn.className = `builder-tab ${day === activeBuilderDay ? "active" : ""}`;
+        btn.textContent = day.substring(0, 3);
+        btn.onclick = () => {
+            activeBuilderDay = day;
+            renderBuilderTabs();
+            renderBuilderTasks();
+        };
+        container.appendChild(btn);
+    });
+}
+
+function addSlotToScratchBuilder() {
+    const start = document.getElementById("scratch-start").value;
+    const end = document.getElementById("scratch-end").value;
+    const task = document.getElementById("scratch-task-name").value.trim();
+
+    if (!task) return alert("Please enter a task description.");
+
+    scratchPresetData[activeBuilderDay].push({ start, end, task, completed: false });
+    scratchPresetData[activeBuilderDay].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+    document.getElementById("scratch-task-name").value = "";
+    renderBuilderTasks();
+}
+
+function removeSlotFromBuilder(index) {
+    scratchPresetData[activeBuilderDay].splice(index, 1);
+    renderBuilderTasks();
+}
+
+function renderBuilderTasks() {
+    const container = document.getElementById("builder-tasks-container");
+    if (!container) return;
+    const tasks = scratchPresetData[activeBuilderDay] || [];
+
+    if (tasks.length === 0) {
+        container.innerHTML = `<p style="color:#aaa; font-size:0.8rem;">No slots added for ${activeBuilderDay} yet.</p>`;
+        return;
+    }
+
+    container.innerHTML = tasks.map((t, idx) => `
+        <div class="preset-item-row">
+            <span><b>${t.start} - ${t.end}:</b> ${t.task}</span>
+            <button onclick="removeSlotFromBuilder(${idx})" class="btn-icon">✕</button>
+        </div>
+    `).join("");
+}
+
+function saveScratchPreset() {
+    const title = document.getElementById("scratch-preset-title").value.trim();
+    if (!title) return alert("Please give your new preset a name.");
+
+    data.presets[title] = scratchPresetData;
+    saveData();
+    renderPresetsManager();
+    populatePresetMenus();
+    closeScratchBuilder();
+    alert(`Successfully created preset "${title}"!`);
+}
+
+/* GLOBAL EVENT LISTENERS */
 document.addEventListener("input", event => {
     if (event.target.id === "daily-notes") {
         data.notes[DAYS[data.currentDay]] = event.target.value;
