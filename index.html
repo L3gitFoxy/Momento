@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Momento</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🗓️%3C/text%3E%3C/svg%3E">
     <link rel="stylesheet" href="./style.css">
 </head>
 
@@ -87,6 +88,7 @@
                 </div>
 
                 <button onclick="openScratchBuilder()" class="preset-btn btn-create-scratch">&#10024; Create Preset From Scratch</button>
+                <button onclick="openAnalyser()" class="preset-btn btn-analyse">&#128202; Analyse My Week</button>
 
                 <hr class="sidebar-divider">
 
@@ -167,6 +169,51 @@
             <div class="chat-input-area">
                 <input type="text" id="chat-input" placeholder="e.g. generate study week..." onkeydown="if(event.key === 'Enter') sendChatMessage()">
                 <button onclick="sendChatMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ANALYSER MODAL -->
+    <div id="analyser-modal" class="modal-overlay hidden">
+        <div class="modal-box analyser-box">
+            <div class="modal-header">
+                <h3>&#128202; Week Analyser</h3>
+                <button onclick="closeAnalyser()" class="close-btn">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <p class="analyser-subtitle">What kind of week is this meant to be?</p>
+                <div class="intent-pills" id="analyser-intent-pills">
+                    <button class="intent-pill" data-intent="relax" onclick="selectIntent(this)">&#127965;&#65039; Relax / Holiday</button>
+                    <button class="intent-pill" data-intent="work" onclick="selectIntent(this)">&#128188; Full Work Flow</button>
+                    <button class="intent-pill" data-intent="study" onclick="selectIntent(this)">&#128218; School / Study</button>
+                    <button class="intent-pill" data-intent="gaming" onclick="selectIntent(this)">&#127918; Gaming Week</button>
+                    <button class="intent-pill" data-intent="fitness" onclick="selectIntent(this)">&#127947; Workout Week</button>
+                </div>
+                <button onclick="runAnalysis()" class="btn-analyse-run">&#9889; Analyse</button>
+                <div id="analyser-results"></div>
+            </div>
+            <div class="modal-footer" id="analyser-footer" style="display:none">
+                <button onclick="closeAnalyser()" class="btn-cancel">Close</button>
+                <button onclick="applyAnalyserFix()" class="btn-save-final">&#9889; Regenerate to Match Intent</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PREVIEW MODAL -->
+    <div id="preview-modal" class="modal-overlay hidden">
+        <div class="modal-box analyser-box">
+            <div class="modal-header">
+                <h3>&#128065;&#65039; Preview Generated Week</h3>
+                <button onclick="closePreview()" class="close-btn">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <p class="analyser-subtitle">Edit task names if you want, then Keep or Reject.</p>
+                <div id="preview-day-tabs" class="builder-tabs"></div>
+                <div id="preview-blocks" class="builder-tasks-list" style="max-height:320px"></div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closePreview()" class="btn-cancel">&#10005; Reject</button>
+                <button onclick="keepPreview()" class="btn-save-final">&#10003; Keep This Week</button>
             </div>
         </div>
     </div>

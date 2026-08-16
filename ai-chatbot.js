@@ -212,7 +212,19 @@ function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
         pushBlock(pickUnused(TASKS.EVENING), Math.min(remaining, 60));
     }
 
-    const filtered = blocks.filter(b => parseTimeToMinutes(b.start) < sleepMin);
+    // 8. Sleep block — from sleepMin to wakeMin (next day), capped at 10h
+    if (cur < sleepMin) cur = sleepMin;
+    const rawSleepDur = (wakeMin + 1440 - sleepMin) % 1440 || 480;
+    const cappedWakeMin = rawSleepDur > 600 ? (sleepMin + 600) % 1440 : wakeMin;
+    blocks.push({
+        start: formatMinutesToTime(sleepMin),
+        end: formatMinutesToTime(cappedWakeMin),
+        task: "Sleep 😴",
+        completed: false,
+        isSleep: true
+    });
+
+    const filtered = blocks.filter(b => parseTimeToMinutes(b.start) <= sleepMin);
 
     // Merge consecutive blocks with the same task name
     const merged = [];
@@ -258,6 +270,21 @@ function generateSmartWeekFromIntent(intentRaw) {
 
     DAYS.forEach(day => {
         week[day] = buildDay(tag, intensity, wakeMin, sleepMin, day, usedNames);
+    });
+
+    // Stitch sleep blocks: each day's Sleep end = next day's first non-sleep block start, capped at 10h
+    DAYS.forEach((day, i) => {
+        const nextDay = DAYS[(i + 1) % DAYS.length];
+        const sleepBlock = week[day].find(b => b.isSleep);
+        const nextFirst = week[nextDay].find(b => !b.isSleep);
+        if (sleepBlock && nextFirst) {
+            const sleepStart = parseTimeToMinutes(sleepBlock.start);
+            const stitchedEnd = parseTimeToMinutes(nextFirst.start);
+            const dur = (stitchedEnd + 1440 - sleepStart) % 1440;
+            sleepBlock.end = dur > 600
+                ? formatMinutesToTime((sleepStart + 600) % 1440)
+                : nextFirst.start;
+        }
     });
 
     return week;
@@ -307,6 +334,133 @@ const AI_DATABASE = {
                 "See you! Stay focused.",
                 "Peace ✌️ Come back when you need a new week built."
             ])
+        },
+
+        // TOUR
+        {
+            id: "tour",
+            keywords: ["tour", "where is", "where do i", "how do i", "toolbar", "sidebar", "menu", "guide", "explain", "show me"],
+            patterns: [
+                /where is/i,
+                /where do i/i,
+                /where can i/i,
+                /how do i/i,
+                /how does/i,
+                /toolbar/i,
+                /sidebar/i,
+                /menu/i,
+                /tour/i,
+                /walkthrough/i,
+                /explain/i,
+                /show me/i
+            ],
+            handler: (...args) => {
+                // Safely extract text whether passed as string, object, or secondary argument
+                const rawMsg = args.find(a => typeof a === 'string') || args[0]?.text || args[0]?.message || "";
+                const lowerMsg = String(rawMsg).toLowerCase();
+
+                // 1. Sounds & Notifications
+                if (lowerMsg.includes("sound") || lowerMsg.includes("notification") || lowerMsg.includes("chime") || lowerMsg.includes("alert") || lowerMsg.includes("mute") || lowerMsg.includes("audio")) {
+                    return `**🔔 Sounds & Notifications**\n` +
+                    `• **Toggle:** Open the **◀ Tools sidebar** (hover on the right edge of the screen) to enable or disable sound\n` +
+                    `• **How it works:** When enabled, a chime will automatically play every time a new time block starts!`;
+                }
+
+                // 2. Tools, Themes, Analytics, Presets, Sidebar, Menu, or Toolbar
+                if (lowerMsg.includes("tool") || lowerMsg.includes("toolbar") || lowerMsg.includes("theme") || lowerMsg.includes("preset") || lowerMsg.includes("colour") || lowerMsg.includes("color") || lowerMsg.includes("analyse") || lowerMsg.includes("sidebar") || lowerMsg.includes("menu")) {
+                    return `**◀ Tools sidebar** (right edge of screen)\n` +
+                    `• Hover or click the Tools tab to open\n` +
+                    `• 🎨 Accent Theme — pick your colour\n` +
+                    `• 🔔 Sound toggle — enable/disable chimes\n` +
+                    `• 📊 Weekly Category Breakdown — hours per category\n` +
+                    `• Preset Manager — save, apply, or delete presets\n` +
+                    `• ✨ Create Preset From Scratch — build a preset day by day\n` +
+                    `• 📊 Analyse My Week — check your week against a goal`;
+                }
+
+                // 3. Tasks, Time Blocks, Adding, Deleting, or Reordering
+                if (lowerMsg.includes("task") || lowerMsg.includes("block") || lowerMsg.includes("reorder") || lowerMsg.includes("drag") || lowerMsg.includes("delete") || lowerMsg.includes("add")) {
+                    return `**📋 Task list & Blocks** (main area)\n` +
+                    `• Each row = one time block: drag ⣿, checkbox, start, end, task name, 🗑️ delete\n` +
+                    `• Tick the checkbox to mark done — it strikes through\n` +
+                    `• Drag ⣿ to reorder blocks\n` +
+                    `• Cyan glow = currently active block\n` +
+                    `• Click **+ Add Time Block** to add a blank row`;
+                }
+
+                // 4. Days, Navigation, or Copying
+                if (lowerMsg.includes("day") || lowerMsg.includes("copy") || lowerMsg.includes("prev") || lowerMsg.includes("next") || lowerMsg.includes("navigate")) {
+                    return `**📅 Days & Navigation**\n` +
+                    `• **Day Tabs (Mon–Sun):** Click any day to jump to it — active day glows\n` +
+                    `• **◀ Prev / Next ▶:** Navigate days one at a time\n` +
+                    `• **Copy To...:** Duplicates the current day's schedule to another day`;
+                }
+
+                // 5. Saving and Sorting
+                if (lowerMsg.includes("save") || lowerMsg.includes("sort")) {
+                    return `**💾 Save and Sort**\n` +
+                    `• Saves your progress and auto-sorts your day by start time\n` +
+                    `• Shortcut: Ctrl/Cmd + S`;
+                }
+
+                // 6. Notes and Focus Goals
+                if (lowerMsg.includes("note") || lowerMsg.includes("focus")) {
+                    return `**📝 Notes / Focus box**\n` +
+                    `• Free-text area at the bottom of the screen for daily notes and focus goals`;
+                }
+
+                // 7. Top Bar, Clock, Now/Next Chips
+                if (lowerMsg.includes("clock") || lowerMsg.includes("now") || lowerMsg.includes("next") || lowerMsg.includes("top")) {
+                     return `**🔝 Top Bar & ⚡ Now / Next chips**\n` +
+                    `• Live clock is on the top right\n` +
+                    `• Chips below the top bar show your active block and what's coming up next\n` +
+                    `• Plays a chime when a new block starts (if sound is on)`;
+                }
+
+                // 8. The AI itself
+                if (lowerMsg.includes("ai") || lowerMsg.includes("bot") || lowerMsg.includes("command")) {
+                    return `**🤖 AI button** (bottom-left, that's me!)\n` +
+                    `• Type commands to generate weeks, add/delete tasks, change themes\n` +
+                    `• Type **"help"** for the full command list`;
+                }
+
+                // DEFAULT: Full Tour (If no specific keywords are matched)
+                return `📍 Here's a full tour of Momento:\n\n` +
+                    `**🔝 Top Bar** (very top)\n` +
+                    `• App title on the left, today's date next to it\n` +
+                    `• Live clock on the right — updates every second\n\n` +
+                    `**⚡ Now / Next chips** (below the top bar)\n` +
+                    `• Shows your active block and what's coming up next\n` +
+                    `• Plays a chime when a new block starts (if sound is on)\n\n` +
+                    `**📅 Day Tabs** (Mon–Sun strip)\n` +
+                    `• Click any day to jump to it — active day glows in your accent colour\n\n` +
+                    `**◀ Prev / Next ▶ + Copy To...**\n` +
+                    `• Navigate days one at a time\n` +
+                    `• Copy To... duplicates the current day to another day\n\n` +
+                    `**📋 Task list** (main area)\n` +
+                    `• Each row = one time block: drag ⣿, checkbox, start, end, task name, 🗑️ delete\n` +
+                    `• Tick the checkbox to mark done — it strikes through\n` +
+                    `• Drag ⣿ to reorder blocks\n` +
+                    `• Cyan glow = currently active block\n\n` +
+                    `**+ Add Time Block**\n` +
+                    `• Adds a blank block — fill in times and name\n\n` +
+                    `**💾 Save and Sort**\n` +
+                    `• Saves and auto-sorts by start time\n` +
+                    `• Shortcut: Ctrl/Cmd + S\n\n` +
+                    `**📝 Notes / Focus box**\n` +
+                    `• Free-text area for daily notes and focus goals\n\n` +
+                    `**◀ Tools sidebar** (right edge of screen)\n` +
+                    `• Hover or click the Tools tab to open\n` +
+                    `• 🎨 Accent Theme — pick your colour\n` +
+                    `• 🔔 Sound toggle — enable/disable chimes\n` +
+                    `• 📊 Weekly Category Breakdown — hours per category\n` +
+                    `• Preset Manager — save, apply, or delete presets\n` +
+                    `• ✨ Create Preset From Scratch — build a preset day by day\n` +
+                    `• 📊 Analyse My Week — check your week against a goal\n\n` +
+                    `**🤖 AI button** (bottom-left, that's me!)\n` +
+                    `• Type commands to generate weeks, add/delete tasks, change themes\n` +
+                    `• Type **"help"** for the full command list`;
+            }
         },
 
         // GENERATE WEEK
@@ -652,10 +806,11 @@ const AI_DATABASE = {
             }
         },
 
+
         // HELP
         {
             id: "help",
-            keywords: ["help","what can you do","commands","options","how do i","what do you do"],
+            keywords: ["help","what can you do","commands","options","what do you do"],
             patterns: [/(?:help|what can you do|commands?|options?)/i],
             handler: () =>
                 `Here's what I can do:\n\n` +

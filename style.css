@@ -207,6 +207,12 @@ label {
     background: #1c2636;
 }
 
+.task-row.sleep-block {
+    border-color: #4a3f6b;
+    background: #1a1630;
+    opacity: 0.75;
+}
+
 .task-row.completed input[type="text"] {
     text-decoration: line-through;
     opacity: 0.6;
@@ -536,6 +542,111 @@ button:hover {
     padding: 10px;
 }
 
+.btn-analyse {
+    width: 100%;
+    background: #6c5ce7;
+    color: white;
+    margin-top: 6px;
+    padding: 10px;
+}
+
+/* Analyser Modal */
+.analyser-box {
+    max-width: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.analyser-subtitle {
+    font-size: 0.85rem;
+    color: #a29bfe;
+    margin: 0 0 12px;
+}
+
+.intent-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.intent-pill {
+    background: #25213b;
+    border: 2px solid #3d315f;
+    color: #ccc;
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.15s;
+}
+
+.intent-pill:hover {
+    border-color: var(--accent-color);
+    color: #fff;
+}
+
+.intent-pill.selected {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #fff;
+}
+
+.btn-analyse-run {
+    width: 100%;
+    background: #0984e3;
+    color: white;
+    padding: 10px;
+    border-radius: 6px;
+    font-weight: bold;
+    margin-bottom: 16px;
+}
+
+.analyser-results-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.analyser-day-card {
+    background: #1e1a30;
+    border: 1px solid #2d2444;
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.analyser-day-title {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #d1baff;
+    margin-bottom: 8px;
+}
+
+.analyser-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+    color: #ccc;
+}
+
+.analyser-check .icon-ok  { color: #20bf6b; }
+.analyser-check .icon-warn { color: #fdcb6e; }
+.analyser-check .icon-bad  { color: #ff4757; }
+
+.analyser-summary {
+    background: #12101f;
+    border: 1px solid #2d2444;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+    color: #a29bfe;
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
 .sidebar-divider {
     border: 0;
     height: 1px;
@@ -694,6 +805,31 @@ button:hover {
 
 .btn-cancel { background: #4b6584; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
 .btn-save-final { background: #20bf6b; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+
+.preview-block-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.preview-time {
+    font-size: 0.75rem;
+    color: #a29bfe;
+    white-space: nowrap;
+    min-width: 95px;
+}
+
+.preview-task-input {
+    flex: 1;
+    background: #25213b;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 0.82rem;
+}
 
 /* AI Chatbot Widget */
 #ai-chat-widget {

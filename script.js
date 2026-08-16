@@ -1,5 +1,5 @@
 /* =========================================================
-   MOMENTO - ULTIMATE TIME BLOCK SCHEDULER
+   MOMENTO - ULTIMATE TIME BLOCK SCHEDULER (V5 COMPLETE)
    ========================================================= */
 
 const BUILT_IN_PRESETS = {
@@ -267,7 +267,7 @@ const CATEGORY_KEYWORDS = {
         "brush", "routine", "get up", "prepare"
     ],
     "😴 Rest": [
-        "sleep", "nap", "rest", "bed", "bedtime", "zzz"
+        "sleep", "nap", "rest", "bed", "bedtime", "zzz", "sleep 😴"
     ]
 };
 
@@ -543,6 +543,7 @@ function renderCurrentDay() {
     if (date) date.textContent = "Date: " + getDateForDay(day);
     if (notes) notes.value = data.notes[day] || "";
 
+    ensureSleepBlock();
     updateSidebarDayLabel();
     updateDayTabs();
     renderTasks();
@@ -732,6 +733,7 @@ function createTaskRow(task, index) {
     row.appendChild(deleteBtn);
 
     if (task.completed) row.classList.add("completed");
+    if (task.isSleep) row.classList.add("sleep-block");
     if (data.currentDay === getTodayIndex() && isTaskActive(task)) {
         row.classList.add("active-now");
     }
@@ -748,12 +750,48 @@ function addTaskRow() {
     renderWeeklyAnalytics();
 }
 
+/* SLEEP BLOCK AUTO-FILL
+   If the last block of a day is not a sleep block, auto-add
+   Sleep 😴 from that block's end to the next day's first block start.
+   Runs on every save & render so it stays in sync. */
+function ensureSleepBlock() {
+    DAYS.forEach((day, i) => {
+        const tasks = data.schedules[day];
+        if (!tasks || tasks.length === 0) return;
+
+        // Remove any existing auto-sleep blocks first to avoid duplicates
+        const withoutSleep = tasks.filter(t => !(t.isSleep));
+        data.schedules[day] = withoutSleep;
+
+        const last = withoutSleep[withoutSleep.length - 1];
+        if (!last) return;
+
+        // Already ends with a sleep-like task typed by the user — skip
+        const isSleepTask = t => /sleep|zzz|bed/i.test(t.task || "");
+        if (isSleepTask(last)) return;
+
+        // Find next day's first non-sleep block start as the wake time
+        const nextDay = DAYS[(i + 1) % DAYS.length];
+        const nextTasks = (data.schedules[nextDay] || []).filter(t => !t.isSleep && !/sleep|zzz|bed/i.test(t.task || ""));
+        const wakeTime = nextTasks.length > 0 ? nextTasks[0].start : "07:00";
+
+        data.schedules[day].push({
+            start: last.end,
+            end: wakeTime,
+            task: "Sleep 😴",
+            completed: false,
+            isSleep: true
+        });
+    });
+}
+
 function saveSchedule() {
     const day = DAYS[data.currentDay];
     const notes = document.getElementById("daily-notes");
     if (notes) data.notes[day] = notes.value;
 
     data.schedules[day].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+    ensureSleepBlock();
     saveData();
     renderCurrentDay();
     showSavedMessage("✓ Saved & Sorted Successfully!");
@@ -786,7 +824,7 @@ function renderWeeklyAnalytics() {
     }
 
     let html = "";
-    for (const [cat, mins] of Object.entries(totals)) {
+    for (const [cat, mins] of Object.entries(totals).sort((a, b) => b[1] - a[1])) {
         if (mins > 0) {
             const hours = (mins / 60).toFixed(1);
             const percent = Math.round((mins / totalWeekMinutes) * 100);
@@ -1034,6 +1072,266 @@ function showSavedMessage(message) {
     status.textContent = message;
     status.classList.add("show");
     setTimeout(() => status.classList.remove("show"), 2200);
+}
+
+/* =========================================================
+   WEEK ANALYSER
+   ========================================================= */
+
+const ANALYSER_INTENTS = {
+    relax: {
+        label: "Relax / Holiday",
+        prompt: "relaxing chill holiday vacation rest recovery free time leisure easy slow calm peaceful weekend fun enjoy hobbies",
+        checks: {
+            minSleepHours: 8,
+            wantedCats: ["🎮 Gaming/Relax"],
+            unwantedCats: ["📚 Study/Work"],
+            maxWorkPct: 15,
+            minRelaxPct: 35,
+            label: "relax/holiday"
+        }
+    },
+    work: {
+        label: "Full Work Flow",
+        prompt: "work deep work focus blocks productivity meetings deadlines coding dev project sprint professional hustle grind career",
+        checks: {
+            minSleepHours: 7,
+            wantedCats: ["📚 Study/Work"],
+            unwantedCats: [],
+            minWorkPct: 35,
+            label: "work"
+        }
+    },
+    study: {
+        label: "School / Study",
+        prompt: "study school revision homework exam lecture notes flashcard assignment quiz mock past paper syllabus subject tutor",
+        checks: {
+            minSleepHours: 8,
+            wantedCats: ["📚 Study/Work"],
+            unwantedCats: [],
+            minWorkPct: 30,
+            label: "study school exam revision"
+        }
+    },
+    gaming: {
+        label: "Gaming Week",
+        prompt: "gaming game games free time relax chill fun minecraft youtube netflix movie music leisure hobby",
+        checks: {
+            minSleepHours: 7,
+            wantedCats: ["🎮 Gaming/Relax"],
+            unwantedCats: [],
+            minRelaxPct: 30,
+            label: "gaming relax free time chill"
+        }
+    },
+    fitness: {
+        label: "Workout Week",
+        prompt: "gym workout fitness cardio weights run running training exercise hiit crossfit cycling swim yoga pilates gains muscle athletic",
+        checks: {
+            minSleepHours: 8,
+            wantedCats: ["🏃 Exercise"],
+            unwantedCats: [],
+            minExercisePct: 15,
+            label: "fitness workout gym exercise training"
+        }
+    }
+};
+
+let _analyserIntent = null;
+
+function openAnalyser() {
+    _analyserIntent = null;
+    document.querySelectorAll(".intent-pill").forEach(p => p.classList.remove("selected"));
+    document.getElementById("analyser-results").innerHTML = "";
+    document.getElementById("analyser-footer").style.display = "none";
+    document.getElementById("analyser-modal").classList.remove("hidden");
+}
+
+function closeAnalyser() {
+    document.getElementById("analyser-modal").classList.add("hidden");
+}
+
+function selectIntent(el) {
+    document.querySelectorAll(".intent-pill").forEach(p => p.classList.remove("selected"));
+    el.classList.add("selected");
+    _analyserIntent = el.dataset.intent;
+}
+
+function runAnalysis() {
+    if (!_analyserIntent) {
+        alert("Pick a week type first.");
+        return;
+    }
+
+    const cfg = ANALYSER_INTENTS[_analyserIntent].checks;
+    const container = document.getElementById("analyser-results");
+    let totalIssues = 0;
+    let html = "<div class='analyser-results-grid'>";
+
+    DAYS.forEach(day => {
+        const tasks = (data.schedules[day] || []).filter(t => t.task);
+        if (tasks.length === 0) return;
+
+        // --- Sleep check ---
+        const sleepTask = tasks.find(t => /sleep|zzz|bed/i.test(t.task) || t.isSleep);
+        let sleepHours = 0;
+        if (sleepTask) {
+            const s = timeToMinutes(sleepTask.start);
+            const e = timeToMinutes(sleepTask.end);
+            // sleep crosses midnight: end < start means it wraps
+            sleepHours = e <= s ? (e + 1440 - s) / 60 : (e - s) / 60;
+        }
+        const sleepOk = sleepHours >= cfg.minSleepHours;
+        const sleepWarn = sleepHours > 0 && sleepHours < cfg.minSleepHours;
+
+        // --- Category breakdown for this day ---
+        const dayMins = {};
+        let totalMins = 0;
+        tasks.forEach(t => {
+            const s = timeToMinutes(t.start), e = timeToMinutes(t.end);
+            if (e > s) {
+                const cat = detectCategory(t.task);
+                dayMins[cat] = (dayMins[cat] || 0) + (e - s);
+                totalMins += (e - s);
+            }
+        });
+
+        const pct = cat => totalMins > 0 ? Math.round(((dayMins[cat] || 0) / totalMins) * 100) : 0;
+
+        // --- Intent-specific checks ---
+        const checks = [];
+
+        // Sleep
+        if (sleepHours === 0) {
+            checks.push({ icon: "icon-warn", sym: "⚠️", text: "No sleep block detected" });
+            totalIssues++;
+        } else if (!sleepOk) {
+            checks.push({ icon: "icon-warn", sym: "⚠️", text: `Sleep: ${sleepHours.toFixed(1)}h (need ${cfg.minSleepHours}h+)` });
+            totalIssues++;
+        } else {
+            checks.push({ icon: "icon-ok", sym: "✅", text: `Sleep: ${sleepHours.toFixed(1)}h ✓` });
+        }
+
+        // Work/study check
+        if (cfg.minWorkPct) {
+            const wp = pct("📚 Study/Work");
+            if (wp < cfg.minWorkPct) {
+                checks.push({ icon: "icon-bad", sym: "❌", text: `Study/Work: ${wp}% (need ${cfg.minWorkPct}%+)` });
+                totalIssues++;
+            } else {
+                checks.push({ icon: "icon-ok", sym: "✅", text: `Study/Work: ${wp}% ✓` });
+            }
+        }
+
+        // Relax check
+        if (cfg.minRelaxPct) {
+            const rp = pct("🎮 Gaming/Relax");
+            if (rp < cfg.minRelaxPct) {
+                checks.push({ icon: "icon-bad", sym: "❌", text: `Relax/Gaming: ${rp}% (need ${cfg.minRelaxPct}%+)` });
+                totalIssues++;
+            } else {
+                checks.push({ icon: "icon-ok", sym: "✅", text: `Relax/Gaming: ${rp}% ✓` });
+            }
+        }
+
+        // Exercise check
+        if (cfg.minExercisePct) {
+            const ep = pct("🏃 Exercise");
+            if (ep < cfg.minExercisePct) {
+                checks.push({ icon: "icon-bad", sym: "❌", text: `Exercise: ${ep}% (need ${cfg.minExercisePct}%+)` });
+                totalIssues++;
+            } else {
+                checks.push({ icon: "icon-ok", sym: "✅", text: `Exercise: ${ep}% ✓` });
+            }
+        }
+
+        // Too much work on a relax week
+        if (cfg.maxWorkPct !== undefined) {
+            const wp = pct("📚 Study/Work");
+            if (wp > cfg.maxWorkPct) {
+                checks.push({ icon: "icon-bad", sym: "❌", text: `Too much work: ${wp}% (max ${cfg.maxWorkPct}% for a ${cfg.label} week)` });
+                totalIssues++;
+            }
+        }
+
+        html += `<div class="analyser-day-card">
+            <div class="analyser-day-title">${day}</div>
+            ${checks.map(c => `<div class="analyser-check"><span class="${c.icon}">${c.sym}</span><span>${c.text}</span></div>`).join("")}
+        </div>`;
+    });
+
+    html += "</div>";
+
+    const summaryColor = totalIssues === 0 ? "#20bf6b" : totalIssues <= 3 ? "#fdcb6e" : "#ff4757";
+    const summaryText = totalIssues === 0
+        ? `✅ Your schedule perfectly matches a <strong>${ANALYSER_INTENTS[_analyserIntent].label}</strong> week!`
+        : `Found <strong>${totalIssues} issue(s)</strong> — your schedule doesn't fully match a <strong>${ANALYSER_INTENTS[_analyserIntent].label}</strong> week. Hit "Regenerate" to fix it.`;
+
+    container.innerHTML = `<div class="analyser-summary" style="border-color:${summaryColor}; color:${summaryColor}">${summaryText}</div>` + html;
+    document.getElementById("analyser-footer").style.display = totalIssues > 0 ? "flex" : "none";
+}
+
+let _previewWeek = null;
+let _previewDay = "Monday";
+
+function applyAnalyserFix() {
+    if (!_analyserIntent) return;
+    const prompt = ANALYSER_INTENTS[_analyserIntent].prompt;
+    try {
+        _previewWeek = generateSmartWeekFromIntent(prompt);
+    } catch(e) { console.error(e); return; }
+    _previewDay = "Monday";
+    closeAnalyser();
+    openPreview();
+}
+
+function openPreview() {
+    renderPreviewTabs();
+    renderPreviewDay();
+    document.getElementById("preview-modal").classList.remove("hidden");
+}
+
+function closePreview() {
+    document.getElementById("preview-modal").classList.add("hidden");
+    _previewWeek = null;
+}
+
+function renderPreviewTabs() {
+    const c = document.getElementById("preview-day-tabs");
+    if (!c) return;
+    c.innerHTML = "";
+    DAYS.forEach(day => {
+        const btn = document.createElement("button");
+        btn.className = `builder-tab${day === _previewDay ? " active" : ""}`;
+        btn.textContent = day.substring(0, 3);
+        btn.onclick = () => { _previewDay = day; renderPreviewTabs(); renderPreviewDay(); };
+        c.appendChild(btn);
+    });
+}
+
+function renderPreviewDay() {
+    const c = document.getElementById("preview-blocks");
+    if (!c || !_previewWeek) return;
+    const tasks = _previewWeek[_previewDay] || [];
+    c.innerHTML = tasks.map((t, i) => `
+        <div class="preview-block-row">
+            <span class="preview-time">${t.start} – ${t.end}</span>
+            <input type="text" value="${t.task || ""}" oninput="_previewWeek['${_previewDay}'][${i}].task=this.value" class="preview-task-input">
+        </div>
+    `).join("");
+}
+
+function keepPreview() {
+    if (!_previewWeek) return;
+    DAYS.forEach(day => {
+        data.schedules[day] = JSON.parse(JSON.stringify(_previewWeek[day] || []));
+    });
+    data.appliedRoutine = `AI: ${ANALYSER_INTENTS[_analyserIntent]?.label || "Generated"}`;
+    saveData();
+    renderCurrentDay();
+    populatePresetMenus();
+    closePreview();
+    showSavedMessage(`✓ Applied: ${ANALYSER_INTENTS[_analyserIntent]?.label}`);
 }
 
 /* =========================================================
