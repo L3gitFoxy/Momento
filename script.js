@@ -1,5 +1,5 @@
 /* =========================================================
-   MOMENTO - ULTIMATE TIME BLOCK SCHEDULER 
+   MOMENTO - ULTIMATE TIME BLOCK SCHEDULER
    ========================================================= */
 
 const BUILT_IN_PRESETS = {
@@ -1012,23 +1012,20 @@ function updateNextTask() {
 
 /* CHECK-IN CARD */
 function updateCheckin() {
-    const card = document.getElementById("checkin-card");
     const prompt = document.getElementById("today-prompt");
-    if (!card || !prompt) return;
+    if (!prompt) return;
 
     const selectedDay = DAYS[data.currentDay];
     const tasks = data.schedules[selectedDay] || [];
 
     if (tasks.length === 0) {
-        prompt.textContent = `Your schedule for ${selectedDay} is currently empty.`;
+        prompt.textContent = `Schedule for ${selectedDay} is empty.`;
     } else {
         const completed = tasks.every(task => task.completed);
         prompt.textContent = completed
-            ? `🔥 Nice! All tasks for ${selectedDay} are complete!`
-            : `Ready to take down today's schedule?`;
+            ? `🔥 All tasks for ${selectedDay} complete!`
+            : `Ready to take on ${selectedDay}?`;
     }
-
-    card.style.display = "block";
 }
 
 function showSavedMessage(message) {

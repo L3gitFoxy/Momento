@@ -1,5 +1,5 @@
 /* =========================================================
-   SYNCDAY - STYLESHEET
+   MOMENTO - STYLESHEET
    ========================================================= */
 
 /* CSS Variables */
@@ -22,9 +22,9 @@ body {
 
 .card {
     background: #1a1528;
-    border: 1px solid #422ba8;
-    padding: 50px;
-    border-radius: 25px;
+    border: 1px solid #2d2250;
+    padding: 24px 28px;
+    border-radius: 16px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     margin-bottom: 20px;
     width: 100%;
@@ -35,6 +35,76 @@ body {
 h2, h3 {
     color: #9569ee;
     margin-top: 0;
+}
+
+/* Top Bar */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.top-bar-left {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.app-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #d1baff;
+    letter-spacing: 0.5px;
+}
+
+.top-bar-date {
+    font-size: 0.8rem;
+    color: #6e6a8a;
+}
+
+.top-bar-clock {
+    font-size: 0.85rem;
+    color: #00cec9;
+    font-weight: 600;
+}
+
+.divider {
+    height: 1px;
+    background: #2d2444;
+    margin: 12px 0;
+}
+
+.day-label {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #d1baff;
+}
+
+.checkin-prompt {
+    margin: 6px 0 0;
+    font-size: 0.82rem;
+    color: #a29bfe;
+    min-height: 1em;
+}
+
+.add-block-btn {
+    margin-top: 8px;
+    background: transparent;
+    border: 1px dashed #3d315f;
+    color: #a29bfe;
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-block-btn:hover {
+    background: #231b36;
+    border-color: var(--accent-color);
+    color: #fff;
 }
 
 label {
@@ -116,19 +186,6 @@ label {
     font-weight: bold;
 }
 
-.live-banner {
-    background: #171223;
-    border: 1px solid #2d2444;
-    padding: 10px 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    color: #00cec9;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 15px;
-}
 
 /* Task Rows & Form Control */
 .task-row {
