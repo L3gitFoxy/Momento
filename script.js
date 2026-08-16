@@ -66,7 +66,7 @@ const BUILT_IN_PRESETS = {
             { start: "15:30", end: "18:00", activity: "Relax & Wind Down" },
             { start: "18:00", end: "19:30", activity: "Exercise / Walk" },
             { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Read & Sleep Early" }
+            { start: "20:30", end: "22:00", activity: "Read" }
         ]
     },
 
@@ -218,7 +218,7 @@ const BUILT_IN_PRESETS = {
             { start: "13:00", end: "18:00", activity: "Rest & Recovery (Do whatever)" },
             { start: "18:00", end: "19:30", activity: "Light Physical Activity / Walk" },
             { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Read & Sleep Early" }
+            { start: "20:30", end: "22:00", activity: "Read" }
         ]
     }
 };
