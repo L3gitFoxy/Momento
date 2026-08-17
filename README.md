@@ -9,17 +9,13 @@ weekly time-block planner + daily check-in, runs entirely in the browser. no bac
 
 ## why
 
-most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is ~3 files, opens instantly, and keeps everything on your machine.
+most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is ~4 files, opens instantly, and keeps everything on your machine.
 
-## what it does
+## what is Momento?
 
-- time blocks with start/end + activity text, drag-and-drop to reorder
-- mark stuff done, daily progress tracking, auto-resets weekly
-- presets baked in (student routine, 9-to-5, exam prep) or save your own
-- weekly analytics broken down by category (study/exercise/relax/food/general)
-- accent color picker + a small chime when a block ends (no popup notifications, don't worry)
-- export/import as JSON so you can back up or move your schedule around
-- keyboard shortcuts: `Ctrl/Cmd+S` save, `←/→` switch day, `Esc` close sidebar
+Momento turns your week into something you actually want to open. Time blocks feel like game levels, checking them off drops XP, and ranks climb from Starter to Mythic — that little hit of progress is intentional. Streaks, unlockable themes, a focus mode with ambient sound, and a persistent to-do list keep the loop going without feeling like another boring planner. 
+
+Plan the day, play the day, level up. Built for students, hustlers, and anyone who gets more done when it feels like a game.
 
 ## files
 
