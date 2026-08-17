@@ -21,8 +21,9 @@ Plan the day, play the day, level up. Built for students, hustlers, and anyone w
 
 ```
 index.html   UI/markup
-script.js    everything — data model, presets, rendering, drag/drop, analytics
+script.js    data model, presets, rendering, drag/drop, analytics
 style.css    dark theme, sidebar drawer, badges
+ai-chatbot.js integrated ai bot, helps out do things throughout the app
 ```
 
 no build step. no node_modules. that's the whole app.
