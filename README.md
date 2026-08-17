@@ -48,7 +48,7 @@ python3 -m http.server 8000
 
 ## contributing
 
-it's a single-page app, poke around `script.js`, send a PR. issues/feature ideas welcome too.
+it's a double-page app, poke around `script.js` and/or `ai-chatbot.js`, send a PR. issues/feature ideas welcome too.
 
 ## license
 
