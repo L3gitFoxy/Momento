@@ -280,7 +280,13 @@ let data = {
     appliedRoutine: "Custom",
     lastResetWeek: getWeekIdentifier(),
     notificationsEnabled: true,
-    theme: { color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108, 92, 231, 0.25)" }
+    theme: { color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108, 92, 231, 0.25)" },
+    xp: 0,
+    streak: 0,
+    lastCompletedDate: null,
+    totalTasksCompleted: 0,
+    todos: [],          // persistent to-do list {id, text, completed, created}
+    rewardsUnlocked: [] // cosmetic / feature rewards
 };
 
 let currentActiveTaskName = null;
@@ -299,6 +305,9 @@ document.addEventListener("DOMContentLoaded", () => {
     renderPresetsManager();
     renderCurrentDay();
     updateClock();
+    updateXPDisplay();
+    renderThemeSwatches();
+    updateFeatureLocks();
 
     /* SIDEBAR HOVER & TOGGLE LISTENERS */
     const sidebar = document.getElementById("preset-sidebar");
@@ -326,6 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
    STARTER WEEK TEMPLATE GENERATOR
    ========================================================= */
 
+   
 function generateFilledWeek() {
     const filledWeek = {};
 
@@ -467,6 +477,13 @@ function loadData() {
             data.lastResetWeek = parsed.lastResetWeek || getWeekIdentifier();
             data.notificationsEnabled = !!parsed.notificationsEnabled;
             data.theme = parsed.theme || data.theme;
+            data.xp = parsed.xp || 0;
+            data.streak = parsed.streak || 0;
+            data.lastCompletedDate = parsed.lastCompletedDate || null;
+            data.totalTasksCompleted = parsed.totalTasksCompleted || 0;
+            data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
+            data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
+            data.themeId = parsed.themeId || "purple";
         }
     } catch (error) {
         console.error("Could not load Momento data:", error);
@@ -497,18 +514,188 @@ function ensureDays() {
     });
 }
 
-/* THEME ACCENT PICKER */
+/* THEME SYSTEM — full page recolor + locked rewards */
+const THEME_CATALOG = [
+    // Only Purple starts unlocked
+    { id: "purple", name: "Purple", color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108,92,231,0.25)",
+      bg: "#120f1d", card: "#1a1528", border: "#2d2250", text: "#e2def8", muted: "#6e6a8a", unlocked: true },
+    { id: "cyan", name: "Cyan", color: "#00cec9", hover: "#00b894", alpha: "rgba(0,206,201,0.25)",
+      bg: "#0d1520", card: "#12202b", border: "#1a3540", text: "#e0f7f6", muted: "#5a8a88", rewardId: "theme_cyan" },
+    { id: "coral", name: "Coral", color: "#ff7675", hover: "#d63031", alpha: "rgba(255,118,117,0.25)",
+      bg: "#1a1014", card: "#24161c", border: "#3d2530", text: "#fce8e8", muted: "#8a6a6a", rewardId: "theme_coral" },
+    { id: "amber", name: "Amber", color: "#fdcb6e", hover: "#e17055", alpha: "rgba(253,203,110,0.25)",
+      bg: "#1a1610", card: "#241f14", border: "#3d3520", text: "#faf3e0", muted: "#8a7a5a", rewardId: "theme_amber" },
+    { id: "green", name: "Green", color: "#00b894", hover: "#009432", alpha: "rgba(0,184,148,0.25)",
+      bg: "#0d1814", card: "#12241e", border: "#1a3a30", text: "#e0f5ee", muted: "#5a8a7a", rewardId: "theme_green" },
+    { id: "rose", name: "Rose", color: "#e84393", hover: "#c0306e", alpha: "rgba(232,67,147,0.25)",
+      bg: "#180f16", card: "#22141e", border: "#3a2535", text: "#fce8f4", muted: "#8a5a78", rewardId: "theme_rose" },
+    { id: "gold", name: "Gold", color: "#f9ca24", hover: "#f0932b", alpha: "rgba(249,202,36,0.25)",
+      bg: "#1a1608", card: "#242010", border: "#3d3520", text: "#faf6e0", muted: "#8a8050", rewardId: "theme_gold" },
+    { id: "neon", name: "Neon", color: "#00cec9", hover: "#e84393", alpha: "rgba(0,206,201,0.3)",
+      bg: "#0a0a18", card: "#12122a", border: "#2a2a50", text: "#e8e8ff", muted: "#6a6a9a", rewardId: "theme_neon" },
+    { id: "ocean", name: "Ocean", color: "#0984e3", hover: "#0652dd", alpha: "rgba(9,132,227,0.25)",
+      bg: "#0a1220", card: "#101c30", border: "#1a3050", text: "#e0eefc", muted: "#5a7a9a", rewardId: "theme_ocean" },
+    { id: "forest", name: "Forest", color: "#27ae60", hover: "#1e8449", alpha: "rgba(39,174,96,0.25)",
+      bg: "#0c1610", card: "#14241a", border: "#1e3a28", text: "#e0f5e8", muted: "#5a8a6a", rewardId: "theme_forest" },
+    { id: "midnight", name: "Midnight", color: "#5f27cd", hover: "#341f97", alpha: "rgba(95,39,205,0.3)",
+      bg: "#080612", card: "#100e1c", border: "#1e1830", text: "#ddd6f0", muted: "#6a6288", rewardId: "theme_midnight" },
+    { id: "sunset", name: "Sunset", color: "#e17055", hover: "#d35400", alpha: "rgba(225,112,85,0.3)",
+      bg: "linear-gradient(160deg,#1a0e10 0%,#1a1210 50%,#141018 100%)", card: "#241816", border: "#3d2820",
+      text: "#fceee8", muted: "#8a6a5a", rewardId: "theme_sunset", gradient: true },
+    { id: "aurora", name: "Aurora", color: "#00cec9", hover: "#6c5ce7", alpha: "rgba(0,206,201,0.3)",
+      bg: "linear-gradient(160deg,#0a1520 0%,#101028 50%,#0e1a18 100%)", card: "#121a28", border: "#1a3050",
+      text: "#e0f8f6", muted: "#5a8a88", rewardId: "theme_aurora", gradient: true },
+    { id: "candy", name: "Candy", color: "#fd79a8", hover: "#e84393", alpha: "rgba(253,121,168,0.3)",
+      bg: "linear-gradient(160deg,#1a0e18 0%,#181028 50%,#1a1018 100%)", card: "#221428", border: "#3a2540",
+      text: "#fce8f4", muted: "#8a5a78", rewardId: "theme_candy", gradient: true },
+];
+
+function isThemeUnlocked(theme) {
+    if (theme.unlocked) return true;
+    if (theme.rewardId) return hasReward(theme.rewardId);
+    return false;
+}
+
+function setThemeById(id) {
+    const theme = THEME_CATALOG.find(t => t.id === id);
+    if (!theme) return;
+    if (!isThemeUnlocked(theme)) {
+        alert(`🔒 "${theme.name}" is locked. Level up to unlock it!`);
+        return;
+    }
+    data.themeId = id;
+    data.theme = { color: theme.color, hover: theme.hover, alpha: theme.alpha };
+    applySavedTheme();
+    saveData();
+    renderThemeSwatches();
+}
+
 function setAccentColor(color, hover, alpha) {
+    // legacy support — map to closest catalog entry
+    const match = THEME_CATALOG.find(t => t.color.toLowerCase() === (color||"").toLowerCase());
+    if (match) { setThemeById(match.id); return; }
     data.theme = { color, hover, alpha };
+    data.themeId = null;
     applySavedTheme();
     saveData();
 }
 
 function applySavedTheme() {
-    if (!data.theme) return;
-    document.documentElement.style.setProperty("--accent-color", data.theme.color);
-    document.documentElement.style.setProperty("--accent-hover", data.theme.hover);
-    document.documentElement.style.setProperty("--accent-light", data.theme.alpha);
+    const id = data.themeId || "purple";
+    let theme = THEME_CATALOG.find(t => t.id === id);
+    if (!theme || !isThemeUnlocked(theme)) {
+        theme = THEME_CATALOG[0]; // fallback purple
+        data.themeId = "purple";
+    }
+    const root = document.documentElement;
+    root.style.setProperty("--accent-color", theme.color);
+    root.style.setProperty("--accent-hover", theme.hover);
+    root.style.setProperty("--accent-light", theme.alpha);
+    root.style.setProperty("--bg-color", theme.bg);
+    root.style.setProperty("--card-bg", theme.card);
+    root.style.setProperty("--border-color", theme.border);
+    root.style.setProperty("--text-color", theme.text);
+    root.style.setProperty("--muted-color", theme.muted);
+    // derived surfaces so tabs/rows/buttons follow theme (not stuck on purple)
+    root.style.setProperty("--surface", theme.card);
+    root.style.setProperty("--surface-hover", theme.border);
+    root.style.setProperty("--input-bg", theme.bg.includes("gradient") ? theme.card : theme.bg);
+    root.style.setProperty("--title-color", theme.text);
+    root.style.setProperty("--heading-color", theme.color);
+
+    // Body + main card
+    document.body.style.background = theme.bg;
+    document.body.style.color = theme.text;
+    document.querySelectorAll(".card").forEach(el => {
+        el.style.background = theme.card;
+        el.style.borderColor = theme.border;
+    });
+
+    // Fixed XP pill
+    const pill = document.getElementById("xp-pill");
+    if (pill) {
+        pill.style.background = theme.card;
+        pill.style.borderColor = theme.color;
+        pill.style.color = theme.text;
+    }
+
+    // Tools sidebar
+    const sidebar = document.getElementById("preset-sidebar");
+    if (sidebar) {
+        sidebar.style.background = theme.card;
+        sidebar.style.color = theme.text;
+        sidebar.style.borderColor = theme.border;
+    }
+
+    // Timeline full page
+    const tlPage = document.getElementById("timeline-page");
+    if (tlPage) {
+        tlPage.style.background = theme.bg;
+        tlPage.style.color = theme.text;
+    }
+
+    // Todo drawer
+    const todoDrawer = document.getElementById("todo-drawer");
+    if (todoDrawer) {
+        todoDrawer.style.background = theme.card;
+        todoDrawer.style.color = theme.text;
+        todoDrawer.style.borderColor = theme.border;
+    }
+
+    // Modals (progress, analyser, preview, scratch, focus)
+    document.querySelectorAll(".modal-box, .modal-overlay .modal-box").forEach(el => {
+        el.style.background = theme.card;
+        el.style.borderColor = theme.border;
+        el.style.color = theme.text;
+    });
+
+    // AI chat window
+    const chatWin = document.getElementById("ai-chat-window");
+    if (chatWin) {
+        chatWin.style.background = theme.card;
+        chatWin.style.borderColor = theme.border;
+        chatWin.style.color = theme.text;
+    }
+    const chatHeader = document.querySelector(".chat-header");
+    if (chatHeader) {
+        chatHeader.style.background = theme.bg;
+        chatHeader.style.color = theme.text;
+    }
+    const chatInputArea = document.querySelector(".chat-input-area");
+    if (chatInputArea) {
+        chatInputArea.style.background = theme.bg;
+    }
+}
+
+function renderThemeSwatches() {
+    const container = document.getElementById("theme-swatches");
+    if (!container) return;
+    container.innerHTML = "";
+    THEME_CATALOG.forEach(theme => {
+        const unlocked = isThemeUnlocked(theme);
+        const active = data.themeId === theme.id;
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "theme-chip" + (active ? " theme-chip-active" : "") + (!unlocked ? " theme-chip-locked" : "");
+        cell.title = unlocked ? theme.name : `🔒 ${theme.name} — level up to unlock`;
+        cell.onclick = () => setThemeById(theme.id);
+
+        const swatch = document.createElement("span");
+        swatch.className = "theme-chip-swatch";
+        if (theme.gradient && theme.bg && String(theme.bg).includes("gradient")) {
+            swatch.style.background = theme.bg;
+        } else {
+            swatch.style.background = `linear-gradient(135deg, ${theme.color}, ${theme.hover})`;
+        }
+
+        const label = document.createElement("span");
+        label.className = "theme-chip-label";
+        label.textContent = unlocked ? theme.name : "🔒 " + theme.name;
+
+        cell.appendChild(swatch);
+        cell.appendChild(label);
+        container.appendChild(cell);
+    });
 }
 
 /* RENDERING & DAY TABS */
@@ -551,6 +738,10 @@ function renderCurrentDay() {
     updateNextTask();
     renderProgressTracker();
     renderWeeklyAnalytics();
+    renderTodos();
+    if (document.getElementById("timeline-page") && !document.getElementById("timeline-page").classList.contains("hidden")) {
+        renderTimeline();
+    }
 }
 
 function updateSidebarDayLabel() {
@@ -667,32 +858,99 @@ function createTaskRow(task, index) {
     checkbox.type = "checkbox";
     checkbox.checked = !!task.completed;
     checkbox.addEventListener("change", () => {
+        const wasCompleted = !!task.completed;
         task.completed = checkbox.checked;
+        if (!task.isSleep) {
+            if (checkbox.checked && !wasCompleted) {
+                awardXPForTask(task);
+            } else if (!checkbox.checked && wasCompleted) {
+                revokeXPForTask(task);
+            }
+        }
         saveData();
         renderTasks();
         renderProgressTracker();
+        updateXPDisplay();
     });
 
-    // Start
+    // Start — use text + pattern so typing multi-digit times is reliable
     const start = document.createElement("input");
-    start.type = "time";
+    start.type = "text";
+    start.className = "time-input";
+    start.placeholder = "HH:MM";
+    start.maxLength = 5;
     start.value = task.start || "09:00";
-    start.addEventListener("change", () => {
-        task.start = start.value;
-        saveData();
-        renderTasks();
-        renderWeeklyAnalytics();
+    start.title = "Start time (HH:MM)";
+    const commitStart = () => {
+        let v = start.value.trim();
+        // auto-insert colon if user types 4 digits
+        if (/^\d{4}$/.test(v)) v = v.slice(0,2) + ":" + v.slice(2);
+        if (/^\d{1,2}:\d{2}$/.test(v)) {
+            const [h,m] = v.split(":").map(Number);
+            if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+                task.start = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+                start.value = task.start;
+                saveData();
+                // soft update only — do NOT full re-render while focused
+                renderWeeklyAnalytics();
+                updateNextTask();
+                updateActiveTask();
+                return;
+            }
+        }
+        // invalid → restore
+        start.value = task.start || "09:00";
+    };
+    start.addEventListener("blur", commitStart);
+    start.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); start.blur(); }
+    });
+    // live auto-colon while typing
+    start.addEventListener("input", () => {
+        let v = start.value.replace(/[^0-9:]/g, "");
+        if (v.length === 2 && !v.includes(":") && start.dataset.prevLen !== "3") {
+            v = v + ":";
+        }
+        start.dataset.prevLen = String(v.length);
+        start.value = v.slice(0,5);
     });
 
     // End
     const end = document.createElement("input");
-    end.type = "time";
+    end.type = "text";
+    end.className = "time-input";
+    end.placeholder = "HH:MM";
+    end.maxLength = 5;
     end.value = task.end || "10:00";
-    end.addEventListener("change", () => {
-        task.end = end.value;
-        saveData();
-        renderTasks();
-        renderWeeklyAnalytics();
+    end.title = "End time (HH:MM)";
+    const commitEnd = () => {
+        let v = end.value.trim();
+        if (/^\d{4}$/.test(v)) v = v.slice(0,2) + ":" + v.slice(2);
+        if (/^\d{1,2}:\d{2}$/.test(v)) {
+            const [h,m] = v.split(":").map(Number);
+            if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+                task.end = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+                end.value = task.end;
+                saveData();
+                renderWeeklyAnalytics();
+                updateNextTask();
+                updateActiveTask();
+                return;
+            }
+        }
+        end.value = task.end || "10:00";
+    };
+    end.addEventListener("blur", commitEnd);
+    end.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); end.blur(); }
+    });
+    end.addEventListener("input", () => {
+        let v = end.value.replace(/[^0-9:]/g, "");
+        if (v.length === 2 && !v.includes(":") && end.dataset.prevLen !== "3") {
+            v = v + ":";
+        }
+        end.dataset.prevLen = String(v.length);
+        end.value = v.slice(0,5);
     });
 
     // Activity Input
@@ -736,6 +994,13 @@ function createTaskRow(task, index) {
     if (task.isSleep) row.classList.add("sleep-block");
     if (data.currentDay === getTodayIndex() && isTaskActive(task)) {
         row.classList.add("active-now");
+        row.title = "Click to open Focus Mode 🎯";
+        row.style.cursor = "pointer";
+        // Open focus mode when clicking the row (but not on interactive controls)
+        row.addEventListener("click", (e) => {
+            if (e.target.closest("input, button, .drag-handle")) return;
+            openFocusMode(task, index);
+        });
     }
 
     container.appendChild(row);
@@ -1014,6 +1279,15 @@ function updateActiveTask() {
     });
 }
 
+function formatDuration(mins) {
+    mins = Math.max(0, Math.round(mins));
+    if (mins < 60) return mins + "m";
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (m === 0) return h + (h === 1 ? " hour" : " hours");
+    return h + "h " + m + "m";
+}
+
 function updateNextTask() {
     const badge = document.getElementById("next-task-badge");
     if (!badge) return;
@@ -1036,10 +1310,12 @@ function updateNextTask() {
 
     let html = "";
     if (active) {
-        html += `<div class="status-chip chip-now"><span class="chip-label">NOW</span><span class="chip-text">${active.task || "Untitled"}</span><span class="chip-time">(${timeToMinutes(active.end) - current}m left)</span></div>`;
+        const left = timeToMinutes(active.end) - current;
+        html += `<div class="status-chip chip-now"><span class="chip-label">NOW</span><span class="chip-text">${active.task || "Untitled"}</span><span class="chip-time">(${formatDuration(left)} left)</span></div>`;
     }
     if (next) {
-        html += `<div class="status-chip chip-next"><span class="chip-label">NEXT</span><span class="chip-text">${next.task || "Untitled"}</span><span class="chip-time">@ ${next.start} (in ${timeToMinutes(next.start) - current}m)</span></div>`;
+        const until = timeToMinutes(next.start) - current;
+        html += `<div class="status-chip chip-next"><span class="chip-label">NEXT</span><span class="chip-text">${next.task || "Untitled"}</span><span class="chip-time">@ ${next.start} (in ${formatDuration(until)})</span></div>`;
     }
     if (!html) {
         html = `<div class="status-chip chip-idle"><span class="chip-text">☕ No active or upcoming tasks left for today</span></div>`;
@@ -1072,6 +1348,980 @@ function showSavedMessage(message) {
     status.textContent = message;
     status.classList.add("show");
     setTimeout(() => status.classList.remove("show"), 2200);
+}
+
+/* =========================================================
+   XP, STREAKS & FOCUS MODE
+   ========================================================= */
+
+
+/* =========================================================
+   LEVEL / RANK SYSTEM + REWARDS
+   ========================================================= */
+const RANK_TIERS = [
+    // Each step within a tier costs the same; each tier costs more than the last
+    { name: "Starter",            sub: ["I","II","III","IV","V"], xpPer: 100  },
+    { name: "Beginner",           sub: ["1","2","3","4","5"],     xpPer: 200  },
+    { name: "Amateur",            sub: ["1","2","3","4","5"],     xpPer: 350  },
+    { name: "Above Average Kid",  sub: ["1","2","3","4","5"],     xpPer: 550  },
+    { name: "Skilled",            sub: ["1","2","3","4","5"],     xpPer: 850  },
+    { name: "Expert",             sub: ["1","2","3","4","5"],     xpPer: 1300 },
+    { name: "Exemplar",           sub: ["1","2","3","4","5"],     xpPer: 2000 },
+    { name: "Master",             sub: ["1","2","3","4","5"],     xpPer: 3200 },
+    { name: "Legend",             sub: ["1","2","3","4","5"],     xpPer: 5000 },
+    { name: "Mythic",             sub: ["I","II","III","IV","V"], xpPer: 8000 }
+];
+// Total to max ≈ 100*5 + 200*5 + ... + 8000*5 ≈ 106,000 XP
+
+// Pre-compute cumulative thresholds
+const LEVEL_TABLE = [];
+(function buildLevelTable() {
+    let cum = 0;
+    RANK_TIERS.forEach(tier => {
+        tier.sub.forEach(s => {
+            cum += tier.xpPer;
+            LEVEL_TABLE.push({
+                rank: `${tier.name} ${s}`,
+                xpNeeded: cum,
+                tier: tier.name,
+                stepCost: tier.xpPer
+            });
+        });
+    });
+})();
+
+function getLevelInfo(xp) {
+    xp = xp || 0;
+    let prev = 0;
+    for (let i = 0; i < LEVEL_TABLE.length; i++) {
+        if (xp < LEVEL_TABLE[i].xpNeeded) {
+            return {
+                rank: LEVEL_TABLE[i].rank,
+                levelIndex: i,
+                currentXP: xp - prev,
+                needed: LEVEL_TABLE[i].xpNeeded - prev,
+                totalXP: xp,
+                nextRank: LEVEL_TABLE[i].rank,
+                progress: (xp - prev) / (LEVEL_TABLE[i].xpNeeded - prev)
+            };
+        }
+        prev = LEVEL_TABLE[i].xpNeeded;
+    }
+    // Max rank
+    const last = LEVEL_TABLE[LEVEL_TABLE.length - 1];
+    return {
+        rank: last.rank + "+",
+        levelIndex: LEVEL_TABLE.length - 1,
+        currentXP: xp - prev,
+        needed: 999999,
+        totalXP: xp,
+        nextRank: "MAX",
+        progress: 1
+    };
+}
+
+const REWARD_CATALOG = [
+    // Starter ranks (0-4)
+    { id: "xp_boost_s2",  atLevel: 1,  name: "+15 Bonus XP",          desc: "One-time +15 XP for reaching Starter II", bonusXP: 15 },
+    { id: "xp_boost_s3",  atLevel: 2,  name: "+20 Bonus XP",          desc: "One-time +20 XP for reaching Starter III", bonusXP: 20 },
+    { id: "xp_boost_s4",  atLevel: 3,  name: "+25 Bonus XP",          desc: "One-time +25 XP for reaching Starter IV", bonusXP: 25 },
+    { id: "theme_cyan",   atLevel: 4,  name: "Cyan Theme",           desc: "Unlock the Cyan colour theme" },
+    // Beginner (5-9)
+    { id: "feature_timeline", atLevel: 5, name: "Timeline Visualizer", desc: "Unlock the day timeline visualizer" },
+    { id: "theme_coral",  atLevel: 5,  name: "Coral Theme",          desc: "Unlock the Coral colour theme" },
+    { id: "xp_boost_b2",  atLevel: 6,  name: "+30 Bonus XP",          desc: "One-time +30 XP for Beginner 2", bonusXP: 30 },
+    { id: "theme_amber",  atLevel: 6,  name: "Amber Theme",          desc: "Unlock the Amber colour theme" },
+    { id: "feature_analyser", atLevel: 7, name: "Week Analyser",     desc: "Unlock Analyse My Week" },
+    { id: "theme_green",  atLevel: 7,  name: "Green Theme",          desc: "Unlock the Green colour theme" },
+    { id: "confetti",     atLevel: 8,  name: "Confetti Celebration", desc: "Confetti on big XP gains" },
+    { id: "theme_rose",   atLevel: 8,  name: "Rose Theme",           desc: "Unlock the Rose colour theme" },
+    { id: "xp_boost_b5",  atLevel: 9,  name: "+40 Bonus XP",          desc: "One-time +40 XP for Beginner 5", bonusXP: 40 },
+    // Amateur (10-14)
+    { id: "theme_gold",   atLevel: 10, name: "Gold Theme",           desc: "Unlock the Gold colour theme" },
+    { id: "sound_victory",atLevel: 11, name: "Victory Fanfare",      desc: "Special chime on task complete" },
+    { id: "theme_ocean",  atLevel: 12, name: "Ocean Theme",          desc: "Unlock the Ocean colour theme" },
+    { id: "focus_plus",   atLevel: 13, name: "Focus+ Modes",         desc: "Extra timer lengths (15/45/60)" },
+    { id: "theme_forest", atLevel: 14, name: "Forest Theme",         desc: "Unlock the Forest colour theme" },
+    // Above Average Kid (15-19)
+    { id: "theme_neon",   atLevel: 15, name: "Neon Theme",           desc: "Unlock the Neon colour theme" },
+    { id: "theme_midnight", atLevel: 16, name: "Midnight Theme",     desc: "Unlock the Midnight colour theme" },
+    { id: "theme_sunset", atLevel: 17, name: "Sunset Gradient",      desc: "Unlock the Sunset gradient theme" },
+    { id: "theme_aurora", atLevel: 18, name: "Aurora Gradient",      desc: "Unlock the Aurora gradient theme" },
+    { id: "theme_candy",  atLevel: 19, name: "Candy Gradient",       desc: "Unlock the Candy gradient theme" },
+    // Higher ranks — occasional extras
+    { id: "xp_boost_skilled", atLevel: 22, name: "+100 Bonus XP",    desc: "One-time +100 XP at Skilled 3", bonusXP: 100 },
+    { id: "badge_legend", atLevel: 30, name: "Legend Badge",         desc: "Show a Legend badge on your progress pill" },
+    { id: "xp_boost_expert", atLevel: 27, name: "+150 Bonus XP",     desc: "One-time +150 XP at Expert 3", bonusXP: 150 },
+    { id: "theme_mythic", atLevel: 45, name: "Mythic Aura",          desc: "Special Mythic glow on the XP pill" },
+    { id: "xp_boost_master", atLevel: 37, name: "+250 Bonus XP",     desc: "One-time +250 XP at Master 3", bonusXP: 250 },
+    { id: "title_mythic", atLevel: 49, name: "Mythic Title",         desc: "Unlock the Mythic title under Momento" },
+];
+
+/** Feature unlock requirements by reward id / levelIndex */
+const FEATURE_UNLOCKS = {
+    timeline: 5,   // Beginner 1
+    analyser: 7,   // Beginner 3
+    ai_generate: 0, // always free
+    ai_theme: 0,
+};
+
+function checkAndUnlockRewards(levelIndex) {
+    const newly = [];
+    REWARD_CATALOG.forEach(r => {
+        if (levelIndex >= r.atLevel && !(data.rewardsUnlocked || []).includes(r.id)) {
+            data.rewardsUnlocked = data.rewardsUnlocked || [];
+            data.rewardsUnlocked.push(r.id);
+            if (r.bonusXP) {
+                data.xp = (data.xp || 0) + r.bonusXP;
+            }
+            newly.push(r);
+        }
+    });
+    if (newly.length) {
+        saveData();
+        newly.forEach(r => showRewardUnlock(r));
+        if (typeof renderThemeSwatches === "function") renderThemeSwatches();
+        if (typeof updateFeatureLocks === "function") updateFeatureLocks();
+        if (typeof updateXPDisplay === "function") updateXPDisplay();
+    }
+}
+
+function isFeatureUnlocked(feature) {
+    const need = FEATURE_UNLOCKS[feature];
+    if (need === undefined || need === 0) return true;
+    const info = getLevelInfo(data.xp || 0);
+    return info.levelIndex >= need;
+}
+
+function updateFeatureLocks() {
+    const tlBadge = document.getElementById("timeline-lock-badge");
+    if (tlBadge) tlBadge.style.display = isFeatureUnlocked("timeline") ? "none" : "inline";
+    const analyseBtn = document.querySelector(".btn-analyse");
+    if (analyseBtn) {
+        if (!isFeatureUnlocked("analyser")) {
+            analyseBtn.classList.add("btn-locked");
+            analyseBtn.title = "🔒 Unlock at Beginner 3";
+        } else {
+            analyseBtn.classList.remove("btn-locked");
+            analyseBtn.title = "";
+        }
+    }
+}
+
+function showRewardUnlock(reward) {
+    const el = document.createElement("div");
+    el.className = "reward-toast";
+    el.innerHTML = `<strong>🎁 Reward Unlocked!</strong><br>${reward.name}<br><small>${reward.desc}</small>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.classList.add("show"), 50);
+    setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 400); }, 4000);
+}
+
+function hasReward(id) {
+    return (data.rewardsUnlocked || []).includes(id);
+}
+
+function awardXPForTask(task) {
+    const xpGain = calcTaskXP(task);
+
+    data.xp = (data.xp || 0) + xpGain;
+    data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
+
+    // Streak logic
+    const todayStr = new Date().toDateString();
+    if (data.lastCompletedDate !== todayStr) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (data.lastCompletedDate === yesterday.toDateString()) {
+            data.streak = (data.streak || 0) + 1;
+        } else {
+            data.streak = 1;
+        }
+        data.lastCompletedDate = todayStr;
+    }
+
+    const infoBefore = getLevelInfo((data.xp || 0) - xpGain);
+    const infoAfter = getLevelInfo(data.xp || 0);
+    saveData();
+    showXPPopup(xpGain, task.task || "Task", infoAfter);
+    updateXPDisplay();
+    if (infoAfter.levelIndex > infoBefore.levelIndex) {
+        checkAndUnlockRewards(infoAfter.levelIndex);
+        // level-up celebration
+        showLevelUp(infoAfter.rank);
+    }
+}
+
+function showXPPopup(xpGain, taskName, levelInfo) {
+    // Remove existing popup if any
+    const existing = document.getElementById("xp-popup");
+    if (existing) existing.remove();
+
+    levelInfo = levelInfo || getLevelInfo(data.xp || 0);
+    const popup = document.createElement("div");
+    popup.id = "xp-popup";
+    popup.className = "xp-popup";
+    popup.innerHTML = `
+        <div class="xp-popup-content">
+            <div class="xp-popup-emoji">🎉</div>
+            <div class="xp-popup-title">Task Completed!</div>
+            <div class="xp-popup-task">${taskName}</div>
+            <div class="xp-popup-gain">+${xpGain} XP</div>
+            <div class="xp-popup-rank">${levelInfo.rank}</div>
+            <div class="xp-popup-stats">Streak: ${data.streak || 0} 🔥 &nbsp;•&nbsp; Total XP: ${data.xp || 0}</div>
+            <div class="xp-bar-wrap"><div class="xp-bar-fill" style="width:${Math.round(levelInfo.progress*100)}%"></div></div>
+            <div class="xp-bar-label">${levelInfo.currentXP} / ${levelInfo.needed} to next</div>
+            <button class="xp-popup-btn" onclick="document.getElementById('xp-popup').remove()">WOOHOO!</button>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    if (hasReward("confetti") && xpGain >= 60) {
+        // simple confetti burst
+        for (let i = 0; i < 24; i++) {
+            const conf = document.createElement("div");
+            conf.className = "confetti-piece";
+            conf.style.left = (40 + Math.random()*20) + "%";
+            conf.style.background = ["#f9ca24","#6c5ce7","#00cec9","#ff7675","#20bf6b"][i%5];
+            conf.style.animationDelay = (Math.random()*0.4) + "s";
+            popup.appendChild(conf);
+        }
+    }
+    setTimeout(() => {
+        if (document.getElementById("xp-popup")) document.getElementById("xp-popup").remove();
+    }, 8000);
+}
+
+function showLevelUp(rank) {
+    const el = document.createElement("div");
+    el.className = "levelup-toast";
+    el.innerHTML = `<div class="levelup-emoji">⬆️</div><div>Level Up!</div><div class="levelup-rank">${rank}</div>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.classList.add("show"), 30);
+    setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 500); }, 3500);
+    if (typeof playChime === "function") playChime();
+}
+
+function calcTaskXP(task) {
+    const startM = timeToMinutes(task.start);
+    const endM = timeToMinutes(task.end);
+    let dur = endM > startM ? endM - startM : (endM + 1440 - startM);
+    return Math.min(120, Math.max(25, Math.round(dur / 3) + 15));
+}
+
+function revokeXPForTask(task) {
+    const xpLoss = calcTaskXP(task);
+    data.xp = Math.max(0, (data.xp || 0) - xpLoss);
+    data.totalTasksCompleted = Math.max(0, (data.totalTasksCompleted || 0) - 1);
+    saveData();
+    updateXPDisplay();
+    // subtle feedback
+    const pill = document.getElementById("xp-pill");
+    if (pill) {
+        pill.classList.add("xp-pill-lost");
+        setTimeout(() => pill.classList.remove("xp-pill-lost"), 600);
+    }
+}
+
+function updateXPDisplay() {
+    const info = getLevelInfo(data.xp || 0);
+    const pct = Math.round((info.progress || 0) * 100);
+    const toNext = Math.max(0, info.needed - info.currentXP);
+    const rankEl = document.getElementById("xp-pill-rank");
+    const fillEl = document.getElementById("xp-pill-fill");
+    const pctEl = document.getElementById("xp-pill-pct");
+    if (rankEl) rankEl.textContent = info.rank;
+    if (fillEl) {
+        // force reflow so bar always paints even at 0%
+        fillEl.style.width = "0%";
+        void fillEl.offsetWidth;
+        fillEl.style.width = Math.max(pct, pct > 0 ? pct : 0) + "%";
+        fillEl.style.minWidth = pct > 0 ? "4px" : "0";
+    }
+    if (pctEl) pctEl.textContent = toNext > 0 ? `${toNext} left` : "MAX";
+    const pill = document.getElementById("xp-pill");
+    if (pill) {
+        pill.title = `${info.rank}\n${info.currentXP}/${info.needed} XP this rank\n${toNext} XP left to next\nClick for full progress`;
+    }
+}
+
+function openProgressPanel() {
+    const panel = document.getElementById("progress-panel");
+    if (!panel) return;
+    const info = getLevelInfo(data.xp || 0);
+    const pct = Math.round((info.progress || 0) * 100);
+    const have = data.xp || 0;
+    const toNext = Math.max(0, info.needed - info.currentXP);
+
+    document.getElementById("progress-rank-big").textContent = info.rank;
+    document.getElementById("progress-xp-line").textContent = `${have} XP total  ·  ${toNext} XP to next`;
+    document.getElementById("progress-bar-fill").style.width = pct + "%";
+    document.getElementById("progress-bar-label").textContent =
+        `${info.currentXP} / ${info.needed} XP this rank  (${pct}%)`;
+    document.getElementById("progress-streak").textContent =
+        `🔥 Streak: ${data.streak || 0} day${(data.streak||0)===1?"":"s"}`;
+
+    // Full rank ladder
+    const ranksEl = document.getElementById("ranks-ladder");
+    if (ranksEl) {
+        ranksEl.innerHTML = LEVEL_TABLE.map((lv, i) => {
+            const prev = i === 0 ? 0 : LEVEL_TABLE[i - 1].xpNeeded;
+            const cost = lv.stepCost || (lv.xpNeeded - prev);
+            const reached = have >= lv.xpNeeded;
+            const current = i === info.levelIndex && have < (LEVEL_TABLE[LEVEL_TABLE.length-1].xpNeeded);
+            const isCurrent = (!reached && have >= prev) || (i === info.levelIndex && have < lv.xpNeeded);
+            // actually current is the one we're working on
+            const working = have >= prev && have < lv.xpNeeded;
+            const cls = reached ? "rank-done" : working ? "rank-current" : "rank-locked";
+            const icon = reached ? "✓" : working ? "▶" : "·";
+            return `<div class="rank-row ${cls}">
+                <span class="rank-icon">${icon}</span>
+                <span class="rank-name">${lv.rank}</span>
+                <span class="rank-cost">${cost} XP</span>
+                <span class="rank-cum">${lv.xpNeeded} total</span>
+            </div>`;
+        }).join("");
+    }
+
+    // Rewards with clear unlock rank + remaining XP
+    const list = document.getElementById("rewards-list");
+    if (list) {
+        list.innerHTML = REWARD_CATALOG.map(r => {
+            const unlocked = hasReward(r.id);
+            const rankName = (LEVEL_TABLE[r.atLevel] || {}).rank || "?";
+            const need = LEVEL_TABLE[r.atLevel]?.xpNeeded || 0;
+            const remain = Math.max(0, need - have);
+            const progress = Math.min(100, Math.round((have / Math.max(need, 1)) * 100));
+            return `
+                <div class="reward-row ${unlocked ? "unlocked" : "locked"}">
+                    <div class="reward-row-top">
+                        <span class="reward-icon">${unlocked ? "✅" : "🔒"}</span>
+                        <span class="reward-name">${r.name}</span>
+                        <span class="reward-req">${unlocked ? "Unlocked" : rankName}</span>
+                    </div>
+                    <div class="reward-desc">${r.desc}</div>
+                    ${!unlocked ? `<div class="xp-bar-wrap small"><div class="xp-bar-fill" style="width:${progress}%"></div></div>
+                    <div class="reward-prog">${remain} XP more · unlocks at ${rankName}</div>` : ""}
+                </div>`;
+        }).join("");
+    }
+    panel.classList.remove("hidden");
+    updateXPDisplay(); // keep pill bar in sync
+}
+
+function closeProgressPanel() {
+    const panel = document.getElementById("progress-panel");
+    if (panel) panel.classList.add("hidden");
+}
+
+function toggleTodoDrawer() {
+    const d = document.getElementById("todo-drawer");
+    if (!d) return;
+    d.classList.toggle("hidden");
+    if (!d.classList.contains("hidden")) renderTodos();
+}
+
+function openTimelinePage() {
+    if (!isFeatureUnlocked("timeline")) {
+        const info = getLevelInfo(data.xp || 0);
+        const need = LEVEL_TABLE[FEATURE_UNLOCKS.timeline];
+        alert(`🔒 Timeline Visualizer is locked!\nReach ${need ? need.rank : "Beginner 1"} to unlock.\n(You are ${info.rank})`);
+        return;
+    }
+    const page = document.getElementById("timeline-page");
+    if (!page) return;
+    page.classList.remove("hidden");
+    renderTimelinePage();
+}
+
+function closeTimelinePage() {
+    const page = document.getElementById("timeline-page");
+    if (page) page.classList.add("hidden");
+}
+
+function renderTimelinePage() {
+    const dayLabel = document.getElementById("timeline-page-day");
+    if (dayLabel) dayLabel.textContent = DAYS[data.currentDay];
+    renderTimeline();
+    const legend = document.getElementById("timeline-legend");
+    if (legend) {
+        const day = DAYS[data.currentDay];
+        const tasks = data.schedules[day] || [];
+        const items = [];
+        tasks.forEach((t, i) => {
+            if (t.isSleep) return;
+            items.push(`
+                <div class="tl-legend-item">
+                    <span class="tl-legend-time">${t.start}–${t.end}</span>
+                    <span class="tl-legend-name">${t.task || "Untitled"}${t.completed ? " ✓" : ""}</span>
+                    <button type="button" class="tl-legend-del" onclick="timelineRemoveBlock(${i})" title="Remove">✕</button>
+                </div>`);
+        });
+        legend.innerHTML = items.join("") || "<em class='todo-empty'>No blocks — click + Add</em>";
+    }
+}
+
+function timelineAddBlock() {
+    const day = DAYS[data.currentDay];
+    if (!data.schedules[day]) data.schedules[day] = [];
+    const tasks = data.schedules[day].filter(t => !t.isSleep);
+    let startM = 9 * 60;
+    if (tasks.length) {
+        const last = tasks[tasks.length - 1];
+        startM = timeToMinutes(last.end);
+        if (startM >= 22 * 60) startM = 8 * 60;
+    }
+    const endM = Math.min(startM + 60, 23 * 60 + 45);
+    data.schedules[day].push({
+        start: formatMinutes(startM),
+        end: formatMinutes(endM),
+        task: "New block",
+        completed: false
+    });
+    data.schedules[day].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+    saveData();
+    renderTimelinePage();
+    renderTasks();
+}
+
+function timelineRemoveBlock(index) {
+    const day = DAYS[data.currentDay];
+    const tasks = data.schedules[day] || [];
+    if (index < 0 || index >= tasks.length) return;
+    if (tasks[index].isSleep) return;
+    tasks.splice(index, 1);
+    saveData();
+    renderTimelinePage();
+    renderTasks();
+    renderWeeklyAnalytics();
+}
+
+/* ---------- FOCUS MODE / POMODORO ---------- */
+let _focusTimerInterval = null;
+let _focusSecondsLeft = 25 * 60;
+let _focusIsRunning = false;
+let _focusIsBreak = false;
+let _focusTaskRef = null;
+let _focusMicroTasks = [];
+let _ambientAudioCtx = null;
+let _ambientNodes = [];
+let _currentAmbient = "none";
+
+function openFocusMode(task, index) {
+    _focusTaskRef = { task, index, day: DAYS[data.currentDay] };
+    _focusMicroTasks = [];
+    _focusIsBreak = false;
+    _focusSecondsLeft = 25 * 60;
+    _focusIsRunning = false;
+    if (_focusTimerInterval) clearInterval(_focusTimerInterval);
+
+    // Build / show modal
+    let modal = document.getElementById("focus-modal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "focus-modal";
+        modal.className = "modal-overlay";
+        modal.innerHTML = `
+            <div class="modal-box focus-box">
+                <div class="modal-header">
+                    <h3>🎯 Focus Mode</h3>
+                    <button onclick="closeFocusMode()" class="close-btn">✕</button>
+                </div>
+                <div class="modal-body focus-body">
+                    <div class="focus-task-name" id="focus-task-name"></div>
+                    <div class="focus-timer" id="focus-timer">25:00</div>
+                    <div class="focus-phase" id="focus-phase">Work Session</div>
+                    <div class="focus-controls">
+                        <button id="focus-start-btn" onclick="toggleFocusTimer()">▶ Start</button>
+                        <button onclick="resetFocusTimer()">↺ Reset</button>
+                        <button onclick="skipFocusPhase()">⏭ Skip</button>
+                    </div>
+                    <div class="focus-ambient">
+                        <span>Ambient:</span>
+                        <button class="ambient-btn active" data-sound="none" onclick="setAmbient('none')">None</button>
+                        <button class="ambient-btn" data-sound="rain" onclick="setAmbient('rain')">🌧 Rain</button>
+                        <button class="ambient-btn" data-sound="brown" onclick="setAmbient('brown')">🟤 Brown</button>
+                        <button class="ambient-btn" data-sound="white" onclick="setAmbient('white')">⚪ White</button>
+                        <button class="ambient-btn" data-sound="forest" onclick="setAmbient('forest')">🌲 Forest</button>
+                    </div>
+                    <div class="focus-micro">
+                        <div class="focus-micro-header">
+                            <strong>Micro-tasks</strong>
+                            <button onclick="addMicroTask()" class="btn-add-micro">+ Add</button>
+                        </div>
+                        <ul id="focus-micro-list"></ul>
+                        <input type="text" id="focus-micro-input" placeholder="Add a tiny step..." onkeydown="if(event.key==='Enter')addMicroTask()">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="closeFocusMode()" class="btn-cancel">Exit Focus</button>
+                    <button onclick="completeFocusTask()" class="btn-save-final">✓ Mark Task Done</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    document.getElementById("focus-task-name").textContent = task.task || "Untitled Task";
+    updateFocusTimerDisplay();
+    renderMicroTasks();
+    modal.classList.remove("hidden");
+    setAmbient("none");
+}
+
+function closeFocusMode() {
+    const modal = document.getElementById("focus-modal");
+    if (modal) modal.classList.add("hidden");
+    if (_focusTimerInterval) clearInterval(_focusTimerInterval);
+    _focusIsRunning = false;
+    stopAmbient();
+}
+
+function updateFocusTimerDisplay() {
+    const el = document.getElementById("focus-timer");
+    if (!el) return;
+    const m = Math.floor(_focusSecondsLeft / 60);
+    const s = _focusSecondsLeft % 60;
+    el.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    const phase = document.getElementById("focus-phase");
+    if (phase) phase.textContent = _focusIsBreak ? "☕ Break Time" : "💪 Work Session";
+    const btn = document.getElementById("focus-start-btn");
+    if (btn) btn.textContent = _focusIsRunning ? "⏸ Pause" : "▶ Start";
+}
+
+function toggleFocusTimer() {
+    if (_focusIsRunning) {
+        clearInterval(_focusTimerInterval);
+        _focusIsRunning = false;
+    } else {
+        _focusIsRunning = true;
+        _focusTimerInterval = setInterval(() => {
+            if (_focusSecondsLeft <= 0) {
+                clearInterval(_focusTimerInterval);
+                _focusIsRunning = false;
+                playChime();
+                // Switch phase
+                if (_focusIsBreak) {
+                    _focusIsBreak = false;
+                    _focusSecondsLeft = 25 * 60;
+                } else {
+                    _focusIsBreak = true;
+                    _focusSecondsLeft = 5 * 60;
+                }
+                updateFocusTimerDisplay();
+                return;
+            }
+            _focusSecondsLeft--;
+            updateFocusTimerDisplay();
+        }, 1000);
+    }
+    updateFocusTimerDisplay();
+}
+
+function resetFocusTimer() {
+    clearInterval(_focusTimerInterval);
+    _focusIsRunning = false;
+    _focusIsBreak = false;
+    _focusSecondsLeft = 25 * 60;
+    updateFocusTimerDisplay();
+}
+
+function skipFocusPhase() {
+    clearInterval(_focusTimerInterval);
+    _focusIsRunning = false;
+    if (_focusIsBreak) {
+        _focusIsBreak = false;
+        _focusSecondsLeft = 25 * 60;
+    } else {
+        _focusIsBreak = true;
+        _focusSecondsLeft = 5 * 60;
+    }
+    updateFocusTimerDisplay();
+}
+
+function completeFocusTask() {
+    if (!_focusTaskRef) return;
+    const { task, day } = _focusTaskRef;
+    if (!task.completed) {
+        task.completed = true;
+        awardXPForTask(task);
+        saveData();
+        renderCurrentDay();
+    }
+    closeFocusMode();
+}
+
+function addMicroTask() {
+    const input = document.getElementById("focus-micro-input");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    _focusMicroTasks.push({ text, done: false });
+    input.value = "";
+    renderMicroTasks();
+}
+
+function toggleMicroTask(i) {
+    if (_focusMicroTasks[i]) {
+        _focusMicroTasks[i].done = !_focusMicroTasks[i].done;
+        renderMicroTasks();
+    }
+}
+
+function removeMicroTask(i) {
+    _focusMicroTasks.splice(i, 1);
+    renderMicroTasks();
+}
+
+function renderMicroTasks() {
+    const list = document.getElementById("focus-micro-list");
+    if (!list) return;
+    list.innerHTML = _focusMicroTasks.map((m, i) => `
+        <li class="micro-item ${m.done ? "done" : ""}">
+            <input type="checkbox" ${m.done ? "checked" : ""} onchange="toggleMicroTask(${i})">
+            <span>${m.text}</span>
+            <button class="micro-remove" onclick="removeMicroTask(${i})">✕</button>
+        </li>
+    `).join("");
+}
+
+/* Ambient sound generators using Web Audio API */
+function stopAmbient() {
+    _ambientNodes.forEach(n => {
+        try { n.stop ? n.stop() : n.disconnect(); } catch(e){}
+    });
+    _ambientNodes = [];
+    if (_ambientAudioCtx) {
+        try { _ambientAudioCtx.close(); } catch(e){}
+        _ambientAudioCtx = null;
+    }
+    _currentAmbient = "none";
+    document.querySelectorAll(".ambient-btn").forEach(b => b.classList.remove("active"));
+    const noneBtn = document.querySelector('.ambient-btn[data-sound="none"]');
+    if (noneBtn) noneBtn.classList.add("active");
+}
+
+function setAmbient(type) {
+    stopAmbient();
+    _currentAmbient = type;
+    document.querySelectorAll(".ambient-btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.sound === type);
+    });
+    if (type === "none") return;
+
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    _ambientAudioCtx = ctx;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.18;
+    gain.connect(ctx.destination);
+
+    if (type === "brown" || type === "white") {
+        // Noise buffer
+        const bufferSize = 2 * ctx.sampleRate;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        let last = 0;
+        for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            if (type === "brown") {
+                last = (last + 0.02 * white) / 1.02;
+                data[i] = last * 3.5;
+            } else {
+                data[i] = white;
+            }
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.loop = true;
+        src.connect(gain);
+        src.start();
+        _ambientNodes.push(src);
+    } else if (type === "rain") {
+        // Filtered noise + occasional drops
+        const bufferSize = 2 * ctx.sampleRate;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.loop = true;
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = 800;
+        filter.Q.value = 0.7;
+        src.connect(filter);
+        filter.connect(gain);
+        src.start();
+        _ambientNodes.push(src);
+        // Soft "drops"
+        const dropGain = ctx.createGain();
+        dropGain.gain.value = 0.08;
+        dropGain.connect(ctx.destination);
+        const makeDrop = () => {
+            if (_currentAmbient !== "rain") return;
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.frequency.value = 400 + Math.random() * 600;
+            g.gain.setValueAtTime(0.15, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+            osc.connect(g);
+            g.connect(dropGain);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.3);
+            setTimeout(makeDrop, 200 + Math.random() * 800);
+        };
+        makeDrop();
+    } else if (type === "forest") {
+        // Soft wind-like filtered noise
+        const bufferSize = 2 * ctx.sampleRate;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.4;
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.loop = true;
+        const filter = ctx.createBiquadFilter();
+        filter.type = "bandpass";
+        filter.frequency.value = 600;
+        filter.Q.value = 0.5;
+        src.connect(filter);
+        filter.connect(gain);
+        src.start();
+        _ambientNodes.push(src);
+    }
+}
+
+
+/* =========================================================
+   PERSISTENT TO-DO LIST
+   ========================================================= */
+function addTodo() {
+    const input = document.getElementById("todo-input");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+    data.todos = data.todos || [];
+    data.todos.push({
+        id: Date.now() + Math.random().toString(36).slice(2,7),
+        text,
+        completed: false,
+        created: new Date().toISOString()
+    });
+    input.value = "";
+    saveData();
+    renderTodos();
+}
+
+function toggleTodo(id) {
+    const t = (data.todos || []).find(x => x.id === id);
+    if (!t) return;
+    const was = t.completed;
+    t.completed = !t.completed;
+    const xpGain = 40;
+    if (t.completed && !was) {
+        data.xp = (data.xp || 0) + xpGain;
+        data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
+        const todayStr = new Date().toDateString();
+        if (data.lastCompletedDate !== todayStr) {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            if (data.lastCompletedDate === yesterday.toDateString()) {
+                data.streak = (data.streak || 0) + 1;
+            } else {
+                data.streak = 1;
+            }
+            data.lastCompletedDate = todayStr;
+        }
+        const infoBefore = getLevelInfo((data.xp || 0) - xpGain);
+        const infoAfter = getLevelInfo(data.xp || 0);
+        showXPPopup(xpGain, t.text, infoAfter);
+        updateXPDisplay();
+        if (infoAfter.levelIndex > infoBefore.levelIndex) {
+            checkAndUnlockRewards(infoAfter.levelIndex);
+            showLevelUp(infoAfter.rank);
+        }
+    } else if (!t.completed && was) {
+        data.xp = Math.max(0, (data.xp || 0) - xpGain);
+        data.totalTasksCompleted = Math.max(0, (data.totalTasksCompleted || 0) - 1);
+        updateXPDisplay();
+    }
+    saveData();
+    renderTodos();
+}
+
+function removeTodo(id) {
+    data.todos = (data.todos || []).filter(x => x.id !== id);
+    saveData();
+    renderTodos();
+}
+
+function renderTodos() {
+    const list = document.getElementById("todo-list");
+    const todos = data.todos || [];
+    const incomplete = todos.filter(t => !t.completed).length;
+    const badge = document.getElementById("todo-count-badge");
+    if (badge) {
+        badge.textContent = incomplete;
+        badge.style.display = incomplete > 0 ? "inline-flex" : "none";
+    }
+    if (!list) return;
+    if (todos.length === 0) {
+        list.innerHTML = `<li class="todo-empty">No lasting to-dos yet. Add one below!</li>`;
+        return;
+    }
+    const sorted = [...todos].sort((a,b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1));
+    list.innerHTML = sorted.map(t => `
+        <li class="todo-item ${t.completed ? "done" : ""}">
+            <input type="checkbox" ${t.completed ? "checked" : ""} onchange="toggleTodo('${t.id}')">
+            <span class="todo-text">${t.text}</span>
+            <button class="todo-remove" onclick="removeTodo('${t.id}')" title="Remove">✕</button>
+        </li>
+    `).join("");
+}
+
+/* =========================================================
+   TIMELINE VISUALIZER — vertical (Google Calendar style)
+   ========================================================= */
+let _tlDrag = null;
+
+function renderTimeline() {
+    const container = document.getElementById("timeline-viz");
+    if (!container) return;
+    const day = DAYS[data.currentDay];
+    container.innerHTML = "";
+    container.className = "timeline-viz timeline-viz-vertical";
+
+    const wrap = document.createElement("div");
+    wrap.className = "tl-vertical-wrap";
+
+    // Hour gutter + track
+    const gutter = document.createElement("div");
+    gutter.className = "tl-gutter";
+    const track = document.createElement("div");
+    track.className = "tl-vtrack";
+
+    // 24 hours, each hour = 48px → total 1152px
+    const PX_PER_MIN = 64 / 60; // 64px per hour — roomier
+
+    for (let h = 0; h < 24; h++) {
+        const hourLbl = document.createElement("div");
+        hourLbl.className = "tl-vhour";
+        hourLbl.style.top = (h * 64) + "px";
+        hourLbl.textContent = String(h).padStart(2, "0") + ":00";
+        gutter.appendChild(hourLbl);
+
+        const line = document.createElement("div");
+        line.className = "tl-hline";
+        line.style.top = (h * 64) + "px";
+        track.appendChild(line);
+    }
+    track.style.height = (24 * 64) + "px";
+    gutter.style.height = (24 * 64) + "px";
+
+    // Now line
+    if (data.currentDay === getTodayIndex()) {
+        const now = new Date();
+        const mins = now.getHours() * 60 + now.getMinutes();
+        const nowLine = document.createElement("div");
+        nowLine.className = "tl-vnow";
+        nowLine.style.top = (mins * PX_PER_MIN) + "px";
+        track.appendChild(nowLine);
+    }
+
+    const dayTasks = data.schedules[day] || [];
+    dayTasks.forEach((task, realIdx) => {
+        if (task.isSleep) return;
+        const s = timeToMinutes(task.start);
+        const e = timeToMinutes(task.end);
+        let dur = e > s ? e - s : (e + 1440 - s);
+        if (dur <= 0) return;
+
+        const block = document.createElement("div");
+        block.className = "tl-vblock" + (task.completed ? " tl-done" : "") + (isTaskActive(task) ? " tl-active" : "");
+        block.style.top = (s * PX_PER_MIN) + "px";
+        block.style.height = Math.max(dur * PX_PER_MIN, 28) + "px";
+        block.title = `${task.start}–${task.end}: ${task.task || "Untitled"}`;
+        block.innerHTML = `
+            <div class="tl-vhandle tl-vhandle-top" data-mode="resize-start"></div>
+            <div class="tl-vlabel">
+                <strong>${task.start}–${task.end}</strong>
+                <span>${task.task || "Untitled"}</span>
+            </div>
+            <div class="tl-vhandle tl-vhandle-bot" data-mode="resize-end"></div>
+        `;
+
+        block.addEventListener("mousedown", e => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            const mode = e.target.dataset.mode || "move";
+            const endMin = timeToMinutes(task.end);
+            const resolvedEnd = endMin > s ? endMin : endMin + 1440;
+            _tlDrag = {
+                index: realIdx,
+                mode,
+                startY: e.clientY,
+                origStart: s,
+                origEnd: resolvedEnd,
+                trackRect: track.getBoundingClientRect(),
+                pxPerMin: PX_PER_MIN
+            };
+            block.classList.add("tl-dragging");
+            document.addEventListener("mousemove", onTimelineDrag);
+            document.addEventListener("mouseup", onTimelineDrop);
+        });
+
+        track.appendChild(block);
+    });
+
+    wrap.appendChild(gutter);
+    wrap.appendChild(track);
+    container.appendChild(wrap);
+}
+
+function onTimelineDrag(e) {
+    if (!_tlDrag) return;
+    const { index, mode, startY, origStart, origEnd, trackRect, pxPerMin } = _tlDrag;
+    const day = DAYS[data.currentDay];
+    const tasks = data.schedules[day] || [];
+    const task = tasks[index];
+    if (!task || task.isSleep) return;
+
+    const dy = e.clientY - startY;
+    const minsDelta = Math.round((dy / pxPerMin) / 15) * 15;
+
+    let newStart = origStart;
+    let newEnd = origEnd;
+
+    if (mode === "move") {
+        newStart = Math.max(0, Math.min(1440 - 15, origStart + minsDelta));
+        const dur = origEnd - origStart;
+        newEnd = newStart + dur;
+        if (newEnd > 1440) { newEnd = 1440; newStart = newEnd - dur; }
+    } else if (mode === "resize-start") {
+        newStart = Math.max(0, Math.min(origEnd - 15, origStart + minsDelta));
+    } else if (mode === "resize-end") {
+        newEnd = Math.max(origStart + 15, Math.min(1440, origEnd + minsDelta));
+    }
+
+    task.start = formatMinutes(newStart % 1440);
+    task.end = formatMinutes(newEnd % 1440);
+    renderTimeline();
+}
+
+function onTimelineDrop() {
+    if (!_tlDrag) return;
+    document.removeEventListener("mousemove", onTimelineDrag);
+    document.removeEventListener("mouseup", onTimelineDrop);
+    _tlDrag = null;
+    saveData();
+    renderTasks();
+    renderWeeklyAnalytics();
+    updateNextTask();
+    updateActiveTask();
+}
+
+function formatMinutes(m) {
+    m = ((m % 1440) + 1440) % 1440;
+    return String(Math.floor(m / 60)).padStart(2,"0") + ":" + String(m % 60).padStart(2,"0");
 }
 
 /* =========================================================
@@ -1140,6 +2390,12 @@ const ANALYSER_INTENTS = {
 let _analyserIntent = null;
 
 function openAnalyser() {
+    if (!isFeatureUnlocked("analyser")) {
+        const info = getLevelInfo(data.xp || 0);
+        const need = LEVEL_TABLE[FEATURE_UNLOCKS.analyser];
+        alert(`🔒 Week Analyser is locked!\nReach ${need ? need.rank : "Beginner 3"} to unlock.\n(You are ${info.rank})`);
+        return;
+    }
     _analyserIntent = null;
     document.querySelectorAll(".intent-pill").forEach(p => p.classList.remove("selected"));
     document.getElementById("analyser-results").innerHTML = "";
@@ -1508,6 +2764,12 @@ document.addEventListener("keydown", event => {
     if (event.key === "Escape") {
         const sidebar = document.getElementById("preset-sidebar");
         if (sidebar && sidebar.classList.contains("open")) toggleSidebar();
+        const todo = document.getElementById("todo-drawer");
+        if (todo && !todo.classList.contains("hidden")) toggleTodoDrawer();
+        const tl = document.getElementById("timeline-page");
+        if (tl && !tl.classList.contains("hidden")) closeTimelinePage();
+        const prog = document.getElementById("progress-panel");
+        if (prog && !prog.classList.contains("hidden")) closeProgressPanel();
     }
 });
 
@@ -1520,3 +2782,5 @@ document.addEventListener("click", (e) => {
         toggleSidebar();
     }
 });
+
+

@@ -4,12 +4,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Momento - Keep the momentum going!</title>
+    <title>Momento</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🗓️%3C/text%3E%3C/svg%3E">
     <link rel="stylesheet" href="./style.css">
 </head>
 
 <body>
+
+    <!-- Fixed XP pill — top-left of SCREEN -->
+    <button type="button" id="xp-pill" class="xp-pill xp-pill-fixed" onclick="openProgressPanel()" title="Progress & Rewards">
+        <span class="xp-pill-rank" id="xp-pill-rank">Starter I</span>
+        <span class="xp-pill-bar"><span class="xp-pill-fill" id="xp-pill-fill" style="width:0%"></span></span>
+        <span class="xp-pill-pct" id="xp-pill-pct">0 left</span>
+    </button>
+
 
     <!-- Single App Shell -->
     <div class="card">
@@ -52,6 +60,16 @@
 
         <div class="divider"></div>
 
+        <!-- Quick actions: To-Dos + Timeline (high visibility) -->
+        <div class="quick-actions">
+            <button type="button" class="quick-action-btn" onclick="toggleTodoDrawer()">
+                📋 To-Dos <span id="todo-count-badge" class="todo-count-badge">0</span>
+            </button>
+            <button type="button" class="quick-action-btn" id="timeline-btn" onclick="openTimelinePage()">
+                📅 Timeline <span id="timeline-lock-badge" class="lock-badge">🔒</span>
+            </button>
+        </div>
+
         <!-- Tasks -->
         <div id="task-container"></div>
         <button onclick="addTaskRow()" class="add-block-btn">+ Add Time Block</button>
@@ -65,6 +83,22 @@
         <!-- Save -->
         <button class="save-master-btn" onclick="saveSchedule()">Save &amp; Sort</button>
         <div id="save-status" class="save-status">&#10003; Saved!</div>
+
+        <!-- App overview / bio -->
+        <div class="app-bio">
+            <div class="app-bio-title">🗓️ What is Momento?</div>
+            <p>
+                Momento turns your week into something you actually <em>want</em> to open.
+                Time blocks feel like game levels, checking them off drops XP, and ranks climb
+                from Starter to Mythic — that little hit of progress is intentional.
+                Streaks, unlockable themes, a focus mode with ambient sound, and a persistent
+                to-do list keep the loop going without feeling like another boring planner.
+            </p>
+            <p>
+                Plan the day, play the day, level up. Built for students, hustlers, and anyone
+                who gets more done when it feels like a game.
+            </p>
+        </div>
 
     </div>
 
@@ -98,16 +132,11 @@
 
             <h3>&#9881;&#65039; Control Panel</h3>
 
-            <!-- Theme Accent Picker -->
+            <!-- Theme Accent Picker (dynamic — locked themes show lock) -->
             <div class="sidebar-group">
                 <label>&#127912; Accent Theme</label>
-                <div class="theme-swatches">
-                    <button type="button" class="swatch" style="background: #6c5ce7;" onclick="setAccentColor('#6c5ce7', '#5b4cc4', 'rgba(108, 92, 231, 0.25)')" title="Purple"></button>
-                    <button type="button" class="swatch" style="background: #00cec9;" onclick="setAccentColor('#00cec9', '#00b894', 'rgba(0, 206, 201, 0.25)')" title="Cyan"></button>
-                    <button type="button" class="swatch" style="background: #ff7675;" onclick="setAccentColor('#ff7675', '#d63031', 'rgba(255, 118, 117, 0.25)')" title="Coral"></button>
-                    <button type="button" class="swatch" style="background: #fdcb6e;" onclick="setAccentColor('#fdcb6e', '#e17055', 'rgba(253, 203, 110, 0.25)')" title="Amber"></button>
-                    <button type="button" class="swatch" style="background: #00b894;" onclick="setAccentColor('#00b894', '#009432', 'rgba(0, 184, 148, 0.25)')" title="Green"></button>
-                </div>
+                <div class="theme-swatches" id="theme-swatches"></div>
+                <p class="theme-hint">Locked themes unlock via XP ranks</p>
             </div>
 
             <!-- Audio -->
@@ -138,7 +167,13 @@
                 </button>
             </div>
 
-            
+            <!-- Create Preset -->
+            <div class="sidebar-group">
+                <label>Save Week as New Preset</label>
+                <input type="text" id="new-preset-name" placeholder="Preset Name...">
+                <button type="button" class="btn-info" onclick="createNewPreset()">&#128190; Save Current as Preset</button>
+            </div>
+
             <!-- Delete Preset -->
             <div class="sidebar-group">
                 <label>Delete Custom Preset</label>
@@ -238,6 +273,76 @@
             <div class="modal-footer">
                 <button onclick="closeScratchBuilder()" class="btn-cancel">Cancel</button>
                 <button onclick="saveScratchPreset()" class="btn-save-final">&#128190; Save Preset</button>
+            </div>
+        </div>
+    </div>
+
+    
+
+
+    <!-- PROGRESS / REWARDS PANEL -->
+    <div id="progress-panel" class="modal-overlay hidden">
+        <div class="modal-box progress-box">
+            <div class="modal-header">
+                <h3>⭐ Progress &amp; Rewards</h3>
+                <button onclick="closeProgressPanel()" class="close-btn">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <div class="progress-rank-big" id="progress-rank-big">Starter I</div>
+                <div class="progress-xp-line" id="progress-xp-line">0 XP</div>
+                <div class="xp-bar-wrap big"><div class="xp-bar-fill" id="progress-bar-fill" style="width:0%"></div></div>
+                <div class="xp-bar-label" id="progress-bar-label">0 / 100 to next</div>
+                <div class="progress-streak" id="progress-streak">🔥 Streak: 0</div>
+                <hr class="sidebar-divider">
+                <h4>All Ranks</h4>
+                <p class="ranks-hint">Each rank costs more XP than the last</p>
+                <div id="ranks-ladder" class="ranks-ladder"></div>
+                <hr class="sidebar-divider">
+                <h4>Rewards</h4>
+                <div id="rewards-list" class="rewards-list"></div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeProgressPanel()" class="btn-cancel">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TO-DO DRAWER -->
+    <div id="todo-drawer" class="todo-drawer hidden">
+        <div class="todo-drawer-header">
+            <strong>📋 Persistent To-Dos</strong>
+            <button onclick="toggleTodoDrawer()" class="close-btn">&#10005;</button>
+        </div>
+        <p class="todo-drawer-hint">These stay until you complete them — +40 XP each</p>
+        <ul id="todo-list"></ul>
+        <div class="todo-add-row">
+            <input type="text" id="todo-input" placeholder="Add a lasting to-do..." onkeydown="if(event.key==='Enter')addTodo()">
+            <button onclick="addTodo()" class="todo-add-btn">Add</button>
+        </div>
+    </div>
+
+    <!-- TIMELINE FULL PAGE -->
+    <div id="timeline-page" class="timeline-page hidden">
+        <div class="timeline-page-header">
+            <div>
+                <h2>📅 Timeline Visualizer</h2>
+                <span id="timeline-page-day" class="timeline-page-day">Monday</span>
+            </div>
+            <div class="timeline-page-actions">
+                <button class="nav-btn" onclick="changeDay(-1); renderTimelinePage();">&#9664; Prev</button>
+                <button class="nav-btn" onclick="changeDay(1); renderTimelinePage();">Next &#9654;</button>
+                <button onclick="closeTimelinePage()" class="btn-cancel">Close</button>
+            </div>
+        </div>
+        <p class="todo-hint">Drag blocks up/down to move • Drag top/bottom edges to resize • Snaps to 15 min</p>
+        <div class="timeline-page-body">
+            <div id="timeline-viz" class="timeline-viz timeline-viz-full"></div>
+            <div class="timeline-side">
+                <div class="timeline-side-header">
+                    <strong>Blocks</strong>
+                    <button type="button" class="btn-add-micro" onclick="timelineAddBlock()">+ Add</button>
+                </div>
+                <div id="timeline-legend" class="timeline-legend"></div>
             </div>
         </div>
     </div>
