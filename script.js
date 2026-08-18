@@ -285,8 +285,8 @@ let data = {
     streak: 0,
     lastCompletedDate: null,
     totalTasksCompleted: 0,
-    todos: [],         
-    rewardsUnlocked: [], 
+    todos: [],          // persistent to-do list {id, text, completed, created}
+    rewardsUnlocked: [], // cosmetic / feature rewards
     preferredChime: "default"
 };
 
@@ -492,6 +492,7 @@ function loadData() {
     } catch (error) {
         console.error("Could not load Momento data:", error);
     }
+    // Prune rewards that are no longer earned at current rank
     try { if (typeof syncRewardsToLevel === "function") syncRewardsToLevel(); } catch (e) {}
 
     Object.entries(BUILT_IN_PRESETS).forEach(([name, preset]) => {
@@ -558,6 +559,8 @@ const THEME_CATALOG = [
 function isThemeUnlocked(theme) {
     if (!theme) return false;
     if (theme.id === "purple") return true;
+    // Rank-gated: if theme has a reward entry, require current level >= that rank
+    // (level-down re-locks themes)
     if (theme.rewardId) {
         const reward = (typeof REWARD_CATALOG !== "undefined")
             ? REWARD_CATALOG.find(r => r.id === theme.rewardId) : null;
@@ -610,6 +613,7 @@ function applySavedTheme() {
     root.style.setProperty("--border-color", theme.border);
     root.style.setProperty("--text-color", theme.text);
     root.style.setProperty("--muted-color", theme.muted);
+    // derived surfaces so tabs/rows/buttons follow theme (not stuck on purple)
     root.style.setProperty("--surface", theme.card);
     root.style.setProperty("--surface-hover", theme.border);
     root.style.setProperty("--input-bg", theme.bg.includes("gradient") ? theme.card : theme.bg);
@@ -624,7 +628,7 @@ function applySavedTheme() {
         el.style.borderColor = theme.border;
     });
 
-    // XP pill
+    // Fixed XP pill
     const pill = document.getElementById("xp-pill");
     if (pill) {
         pill.style.background = theme.card;
@@ -714,6 +718,7 @@ function renderThemeSwatches() {
 /* RENDERING & DAY TABS */
 function isChimeUnlocked(chime) {
     if (!chime || chime.id === "default") return true;
+    // Rank-gated only — level-down re-locks (do NOT use sticky hasReward)
     const feature = chime.unlockFeature;
     if (feature && FEATURE_UNLOCKS[feature] !== undefined) {
         const info = getLevelInfo(data.xp || 0);
@@ -884,6 +889,7 @@ function importPresets(event) {
             if (parsed && parsed.presets && typeof parsed.presets === "object") {
                 incoming = parsed.presets;
             } else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                // raw { "My Week": { Monday: [...] } }
                 const first = Object.values(parsed)[0];
                 if (first && typeof first === "object") incoming = parsed;
             }
@@ -891,6 +897,7 @@ function importPresets(event) {
             let added = 0;
             Object.keys(incoming).forEach(name => {
                 if (!name || typeof incoming[name] !== "object") return;
+                // Don't overwrite built-ins
                 if (Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name)) {
                     const alt = name + " (imported)";
                     data.presets[alt] = incoming[name];
@@ -1013,6 +1020,7 @@ function createTaskRow(task, index) {
         } else if (!checkbox.checked && wasCompleted) {
             task.completed = false;
             if (!task.isSleep) {
+                // Always claw back — even if completed before this session (no xpAwarded flag)
                 if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
                 task.xpAwarded = true;
                 revokeXPForTask(task);
@@ -1027,6 +1035,7 @@ function createTaskRow(task, index) {
         enforceLocksAfterXPChange();
     });
 
+    // Start — use text + pattern so typing multi-digit times is reliable
     const start = document.createElement("input");
     start.type = "text";
     start.className = "time-input";
@@ -1036,6 +1045,7 @@ function createTaskRow(task, index) {
     start.title = "Start time (HH:MM)";
     const commitStart = () => {
         let v = start.value.trim();
+        // auto-insert colon if user types 4 digits
         if (/^\d{4}$/.test(v)) v = v.slice(0,2) + ":" + v.slice(2);
         if (/^\d{1,2}:\d{2}$/.test(v)) {
             const [h,m] = v.split(":").map(Number);
@@ -1043,20 +1053,21 @@ function createTaskRow(task, index) {
                 task.start = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
                 start.value = task.start;
                 saveData();
+                // soft update only — do NOT full re-render while focused
                 renderWeeklyAnalytics();
                 updateNextTask();
                 updateActiveTask();
                 return;
             }
         }
-
+        // invalid → restore
         start.value = task.start || "09:00";
     };
     start.addEventListener("blur", commitStart);
     start.addEventListener("keydown", e => {
         if (e.key === "Enter") { e.preventDefault(); start.blur(); }
     });
-
+    // live auto-colon while typing
     start.addEventListener("input", () => {
         let v = start.value.replace(/[^0-9:]/g, "");
         if (v.length === 2 && !v.includes(":") && start.dataset.prevLen !== "3") {
@@ -1160,18 +1171,27 @@ function addTaskRow() {
     renderWeeklyAnalytics();
 }
 
-
+/* SLEEP BLOCK AUTO-FILL
+   If the last block of a day is not a sleep block, auto-add
+   Sleep 😴 from that block's end to the next day's first block start.
+   Runs on every save & render so it stays in sync. */
 function ensureSleepBlock() {
     DAYS.forEach((day, i) => {
         const tasks = data.schedules[day];
         if (!tasks || tasks.length === 0) return;
+
+        // Remove any existing auto-sleep blocks first to avoid duplicates
         const withoutSleep = tasks.filter(t => !(t.isSleep));
         data.schedules[day] = withoutSleep;
 
         const last = withoutSleep[withoutSleep.length - 1];
-        if (!last) return;p
+        if (!last) return;
+
+        // Already ends with a sleep-like task typed by the user — skip
         const isSleepTask = t => /sleep|zzz|bed/i.test(t.task || "");
         if (isSleepTask(last)) return;
+
+        // Find next day's first non-sleep block start as the wake time
         const nextDay = DAYS[(i + 1) % DAYS.length];
         const nextTasks = (data.schedules[nextDay] || []).filter(t => !t.isSleep && !/sleep|zzz|bed/i.test(t.task || ""));
         const wakeTime = nextTasks.length > 0 ? nextTasks[0].start : "07:00";
@@ -1433,6 +1453,7 @@ function updateClock() {
         setFlapDigit("m1", mStr[0]);
         setFlapDigit("m2", mStr[1]);
         setFlapDigit("ampm", ampm);
+        // Hide empty leading hour flap when hour is 1–9
         const h1 = document.querySelector('[data-flap="h1"]');
         if (h1) h1.classList.toggle("flap-empty", hStr[0] === " ");
     }
@@ -1497,6 +1518,7 @@ function updateNextTask() {
         const left = timeToMinutes(active.end) - current;
         html += `<div class="status-chip chip-now"><span class="chip-label">NOW</span><span class="chip-text">${active.task || "Untitled"}</span><span class="chip-time">(${formatDuration(left)} left)</span></div>`;
     } else {
+        // Default to IDLE when nothing is in progress
         const idleText = next
             ? "Nothing right now — you're free until the next block"
             : "No active or upcoming tasks left for today";
@@ -1545,6 +1567,7 @@ function showSavedMessage(message) {
    LEVEL / RANK SYSTEM + REWARDS
    ========================================================= */
 const RANK_TIERS = [
+    // Each step within a tier costs the same; each tier costs more than the last
     { name: "Starter",            sub: ["I","II","III","IV","V"], xpPer: 100  },
     { name: "Beginner",           sub: ["1","2","3","4","5"],     xpPer: 200  },
     { name: "Amateur",            sub: ["1","2","3","4","5"],     xpPer: 350  },
@@ -1556,7 +1579,9 @@ const RANK_TIERS = [
     { name: "Legend",             sub: ["1","2","3","4","5"],     xpPer: 5000 },
     { name: "Mythic",             sub: ["I","II","III","IV","V"], xpPer: 8000 }
 ];
+// Total to max ≈ 100*5 + 200*5 + ... + 8000*5 ≈ 106,000 XP
 
+// Pre-compute cumulative thresholds
 const LEVEL_TABLE = [];
 (function buildLevelTable() {
     let cum = 0;
@@ -1731,6 +1756,7 @@ function showRewardUnlock(reward) {
         if (fill) {
             fill.style.transition = "none";
             fill.style.width = "100%";
+            // next frame → animate to 0
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     fill.style.transition = `width ${DURATION}ms linear`;
@@ -1751,6 +1777,7 @@ function isRewardUnlockedByRank(idOrReward) {
     return info.levelIndex >= r.atLevel;
 }
 
+/** Sticky list kept in sync with current rank (prunes locked-again rewards) */
 function hasReward(id) {
     return isRewardUnlockedByRank(id);
 }
@@ -1877,6 +1904,7 @@ function revokeXPForTask(task) {
 }
 
 
+/** Earlier non-sleep tasks on this day must be completed first */
 function canCompleteTaskInOrder(day, task) {
     const tasks = data.schedules[day] || [];
     const startM = timeToMinutes(task.start);
@@ -1917,6 +1945,7 @@ function showToast(msg, kind) {
     setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 450); }, 7000);
 }
 
+/** After XP changes: re-lock features + force theme switch if needed */
 function enforceLocksAfterXPChange() {
     syncRewardsToLevel();
     if (typeof updateFeatureLocks === "function") updateFeatureLocks();
@@ -1974,6 +2003,7 @@ function showThemeLockedPopup(theme) {
     document.body.appendChild(el);
 }
 
+/** Claw back XP for every completed task that had been awarded on a day */
 function clawbackDayXP(day, opts) {
     opts = opts || {};
     const silent = !!opts.silent;
@@ -1981,6 +2011,7 @@ function clawbackDayXP(day, opts) {
     let total = 0;
     const infoBefore = getLevelInfo(data.xp || 0);
     tasks.forEach(t => {
+        // Treat any completed non-sleep task as having been paid (incl. pre-session)
         if ((t.xpAwarded || t.completed) && !t.isSleep) {
             const loss = t.xpAmount || calcTaskXP(t);
             data.xp = Math.max(0, (data.xp || 0) - loss);
@@ -2243,6 +2274,7 @@ function closeWeeklyReview() {
 
 
 
+/* ========== MUSIC PAGE + NOW PLAYING (no API keys) ========== */
 let _musicVolume = 0.4;
 let _streamPlaying = false;
 let _localTracks = []; // { id, name, artist, blob? url? }
@@ -2391,7 +2423,10 @@ function updateNpTimes() {
     dur.textContent = formatAudioTime(audio.duration);
 }
 
+/* --- Free music search: Internet Archive netlabels (actual music) --- */
 
+
+/** Music: direct-from-browser Piped calls, no local server required */
 const PIPED_INSTANCES = [
     "https://pipedapi.kavin.rocks",
     "https://pipedapi.adminforge.de",
@@ -2638,6 +2673,7 @@ function stopStream() {
     updateNpPlayBtn();
 }
 
+/* --- Local library with IndexedDB persistence --- */
 function openMusicDB() {
     return new Promise((resolve, reject) => {
         const req = indexedDB.open(LOCAL_MUSIC_DB, 1);

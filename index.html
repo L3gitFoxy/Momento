@@ -11,7 +11,7 @@
 
 <body>
 
-    <!-- XP pill — top-left of SCREEN -->
+    <!-- Fixed XP pill — top-left of SCREEN -->
     <button type="button" id="xp-pill" class="xp-pill xp-pill-fixed" onclick="openProgressPanel()" title="Progress & Rewards">
         <span class="xp-pill-rank" id="xp-pill-rank">Starter I</span>
         <span class="xp-pill-bar"><span class="xp-pill-fill" id="xp-pill-fill" style="width:0%"></span></span>
@@ -62,12 +62,12 @@
             <span id="applied-date-label">Date: --</span>
         </div>
 
-        <!-- Check-in prompt -->
+        <!-- Check-in prompt (inline) -->
         <p id="today-prompt" class="checkin-prompt"></p>
 
         <div class="divider"></div>
 
-        <!-- Quick actions: To-Dos + Timeline  -->
+        <!-- Quick actions: To-Dos + Timeline (high visibility) -->
         <div class="quick-actions">
             <button type="button" class="quick-action-btn" onclick="toggleTodoDrawer()">
                 📋 To-Dos <span id="todo-count-badge" class="todo-count-badge">0</span>
@@ -343,6 +343,7 @@
         </div>
     </div>
 
+    <!-- MUSIC DOCK -->
     <!-- FULL-SCREEN MUSIC / FOCUS PAGE -->
     <div id="music-page" class="music-page hidden">
         <div class="music-page-header">

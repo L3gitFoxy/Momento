@@ -149,7 +149,7 @@ h2, h3 {
 @keyframes colonBlink {
     50% { opacity: 0.25; }
 }
-/* AM/PM indicator */
+/* AM/PM matches digit tiles: same gradient, border, mono font */
 .flap-ampm {
     margin-left: 4px;
     display: flex;
@@ -1233,7 +1233,7 @@ button:hover {
     border-color: var(--accent-color);
 }
 
-/* Micro-tasks */
+/* Micro-tasks — embedded in focus panel (not a nested cut-off card) */
 .focus-micro {
     width: 100%;
     background: transparent;
@@ -2697,7 +2697,7 @@ button:hover {
     color: var(--muted-color);
 }
 
-/* Now-playing bar */
+/* Now-playing bar — bottom left, always when playing */
 .now-playing-bar {
     position: fixed;
     bottom: 16px;

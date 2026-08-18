@@ -2,6 +2,9 @@
    MOMENTO AI CHATBOT ENGINE
    ========================================================= */
 
+// ---------------------------------------------------------------------------
+// SEEDED RNG
+// ---------------------------------------------------------------------------
 
 let _seed = Math.floor(Math.random() * 1e9);
 function seededRand() {
@@ -93,6 +96,7 @@ const INTENT_DICT = {
 // TASK POOLS — large variety per category
 // ---------------------------------------------------------------------------
 
+// Each task: { label, tag, window: [startMin, endMin] }  (window = allowed time range)
 const TASKS = {
     STUDY: [
         { label: "Study 📚", tag: "study" }
@@ -118,6 +122,7 @@ const TASKS = {
         { label: "Wind Down 🌙", tag: "evening" },
         { label: "Relax 😌", tag: "evening" }
     ],
+    // Bedtime reading — evening only
     READ: [
         { label: "Read a Book 📖", tag: "evening" }
     ],
@@ -194,18 +199,18 @@ function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
     // 2. Breakfast
     pushBlock("Breakfast 🍳", short, "food");
 
-    // 3. Big morning primary (Study / Work / Workout)
+    // 3. Big morning primary (Study / Work / Workout) — daytime only
     if (cur < LUNCH - 20) {
         const p = pickLabel(primary);
         pushBlock(p.label, Math.min(big, LUNCH - cur), p.tag);
     }
-    // Optional short side activity before lunch
+    // Optional short side activity before lunch (not more primary spam)
     if (cur < LUNCH - 25) {
         if (tag === "FITNESS") {
             const s = pickLabel(TASKS.RELAX);
             pushBlock(s.label, Math.min(med, LUNCH - cur), s.tag);
         } else {
-            // stroll / light move
+            // stroll / light move — never "Run"
             pushBlock("Take a Stroll Outside 🚶", Math.min(med, LUNCH - cur), "fitness");
         }
     }
@@ -220,7 +225,7 @@ function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
         pushBlock(p.label, isWknd ? 90 : big, p.tag);
     }
 
-    // Powernap 30 min — afternoon only (13:00–16:00)
+    // Powernap 30 min — afternoon only (13:00–16:00), not fitness-heavy weeks
     if (tag !== "FITNESS" && cur >= 13 * 60 && cur <= 16 * 60 && seededRand() < 0.4) {
         pushBlock("Powernap 😴", 30, "rest");
     }
@@ -418,6 +423,7 @@ const AI_DATABASE = {
                 /show me/i
             ],
             handler: (...args) => {
+                // Safely extract text whether passed as string, object, or secondary argument
                 const rawMsg = args.find(a => typeof a === 'string') || args[0]?.text || args[0]?.message || "";
                 const lowerMsg = String(rawMsg).toLowerCase();
 
@@ -543,7 +549,9 @@ const AI_DATABASE = {
             ],
             handler: (match, rawInput) => {
                 const intent = match && match[1] ? match[1].trim() : rawInput;
+                // Claw back XP from previous schedule before replacing (anti-farm)
                 if (typeof clearWeekSchedules === "function") {
+                    // only claw XP + empty; then fill
                     DAYS.forEach(d => { if (typeof clawbackDayXP === "function") clawbackDayXP(d); });
                 }
                 const week = generateSmartWeekFromIntent(intent);
@@ -554,7 +562,7 @@ const AI_DATABASE = {
                 try { saveData(); } catch(e) {}
                 try { renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch(e) {}
                 const blockCount = week[DAYS[0]] ? week[DAYS[0]].length : 0;
-                return `✅ Built a full 7-day **${intent}** schedule — ${blockCount} blocks/day. XP from the old week was clawed back so you can't farm clears.`;
+                return `✅ Built a full 7-day **${intent}** schedule — ${blockCount} blocks/day. XP from the old week was taken back so you can't farm clears.`;
             }
         },
 
@@ -568,6 +576,7 @@ const AI_DATABASE = {
                     const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
                     return `🔒 **Regenerate** unlocks at **Starter V**. You're **${info.rank}**.`;
                 }
+                // Claw back XP from existing awarded tasks before replacing week
                 if (typeof clearWeekSchedules === "function") {
                     clearWeekSchedules();
                 } else {
@@ -580,7 +589,7 @@ const AI_DATABASE = {
                 });
                 data.appliedRoutine = `AI: ${lastRoutine.substring(0, 30)}`;
                 try { saveData(); renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch(e) {}
-                return `🔄 Regenerated a fresh **${lastRoutine}** week. Any XP from the old week was clawed back — no farming!`;
+                return `🔄 Regenerated a fresh **${lastRoutine}** week. Any XP from the old week was taken back — no farming!`;
             }
         },
 
@@ -684,12 +693,13 @@ const AI_DATABASE = {
                 const day = DAYS[data.currentDay];
                 const tasks = data.schedules[day] || [];
                 let count = 0;
+                // Claw back XP for awarded tasks
                 if (typeof clawbackDayXP === "function") {
                     const lost = clawbackDayXP(day);
                     count = tasks.filter(t => !t.completed).length;
                     try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
                     return lost > 0
-                        ? `🧹 Unchecked tasks on **${day}**. **−${lost} XP** clawed back (no farming).`
+                        ? `🧹 Unchecked tasks on **${day}**. **−${lost} XP** taken back (no farming).`
                         : `🧹 Unchecked tasks on **${day}**. Blocks remain.`;
                 }
                 tasks.forEach(t => {
@@ -714,6 +724,7 @@ const AI_DATABASE = {
                 }
                 let lost = 0;
                 if (typeof clearWeekSchedules === "function") {
+                    // clearWeekSchedules wipes blocks — for uncheck-only we just clawback completions
                     DAYS.forEach(d => {
                         if (typeof clawbackDayXP === "function") lost += clawbackDayXP(d);
                         else (data.schedules[d] || []).forEach(t => { t.completed = false; t.xpAwarded = false; });
@@ -721,9 +732,10 @@ const AI_DATABASE = {
                 } else {
                     DAYS.forEach(d => { (data.schedules[d] || []).forEach(t => { t.completed = false; t.xpAwarded = false; }); });
                 }
+                // Restore schedules? clawbackDayXP only unchecks — good
                 try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
                 return lost > 0
-                    ? `🧹 Unchecked the whole week. **−${lost} XP** clawed back.`
+                    ? `🧹 Unchecked the whole week. **−${lost} XP** taken back.`
                     : `🧹 Unchecked all tasks across the week.`;
             }
         },
@@ -745,7 +757,7 @@ const AI_DATABASE = {
                 data.schedules[dayName] = [];
                 try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
                 return lost > 0
-                    ? `🗑️ Wiped ${count} block(s) from **${dayName}**. **−${lost} XP** clawed back.`
+                    ? `🗑️ Wiped ${count} block(s) from **${dayName}**. **−${lost} XP** taken back.`
                     : `🗑️ Wiped all ${count} block(s) from **${dayName}**.`;
             }
         },
@@ -947,7 +959,7 @@ const AI_DATABASE = {
             patterns: [/(?:open|show|view)\s+(?:my\s+)?(?:todo|to-?do)/i],
             handler: () => {
                 try { toggleTodoDrawer(); } catch(e) {}
-                return `📋 Opened your **Persistent To-Dos**. They stay until you complete them (+40 XP for completing each).`;
+                return `📋 Opened your **Persistent To-Dos**. They stay until you complete them (+40 XP each).`;
             }
         },
 
@@ -1057,6 +1069,7 @@ function processNLPIntent(rawInput) {
 
 /** Score-based local NLP */
 function resolveLocalIntent(input, lower) {
+    // 1. Patterns first (most specific)
     for (const intent of AI_DATABASE.intents) {
         if (!intent.patterns) continue;
         for (const pattern of intent.patterns) {
@@ -1069,6 +1082,7 @@ function resolveLocalIntent(input, lower) {
         }
     }
 
+    // 2. Scored keyword match — longer / multi-hit wins
     let best = null;
     let bestScore = 0;
     for (const intent of AI_DATABASE.intents) {
@@ -1080,6 +1094,7 @@ function resolveLocalIntent(input, lower) {
             else if (lower.startsWith(kw + " ") || lower.endsWith(" " + kw)) score += 6;
             else if (lower.includes(kw)) score += Math.min(5, kw.length / 3);
         }
+        // Boost generate-ish intents when user says build/make/plan
         if (intent.id === "generate_week" && /\b(generate|build|make|create|plan|schedule|week|routine)\b/.test(lower)) {
             score += 4;
         }
@@ -1104,7 +1119,7 @@ function resolveLocalIntent(input, lower) {
             data.appliedRoutine = `AI: ${input.substring(0, 40)}`;
             try { saveData(); renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch (e) {}
             const n = (week[DAYS[0]] || []).length;
-            return `✅ Generated a week from **"${input}"** — ${n} blocks/day, mixed categories. Old XP removed.`;
+            return `✅ Generated a week from **"${input}"** — ${n} blocks/day, mixed categories. Old XP taken back.`;
         } catch (e) {}
     }
 
