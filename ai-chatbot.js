@@ -2,9 +2,6 @@
    MOMENTO AI CHATBOT ENGINE
    ========================================================= */
 
-// ---------------------------------------------------------------------------
-// SEEDED RNG
-// ---------------------------------------------------------------------------
 
 let _seed = Math.floor(Math.random() * 1e9);
 function seededRand() {
@@ -96,164 +93,172 @@ const INTENT_DICT = {
 // TASK POOLS — large variety per category
 // ---------------------------------------------------------------------------
 
-// Each task: { label, tag, window: [startMin, endMin] }  (window = allowed time range)
 const TASKS = {
     STUDY: [
-        { label: "Study 📚",    tag: "study",   window: [360,  1320] },
-        { label: "Revision 📝", tag: "study",   window: [360,  1320] },
-        { label: "Homework ✏️", tag: "homework", window: [840,  1320] },
-        { label: "Flashcards 🃏", tag: "study", window: [480, 1320] }
+        { label: "Study 📚", tag: "study" }
     ],
     WORK: [
-        { label: "Work 💻",       tag: "work",   window: [360,  1260] },
-        { label: "Deep Work 🎯",  tag: "work",   window: [360,  1200] },
-        { label: "Focus Block 🔒",tag: "work",   window: [480,  1260] },
-        { label: "Emails & Admin 📧", tag: "work", window: [480, 1200] }
+        { label: "Work 💻", tag: "work" }
     ],
     FITNESS: [
-        { label: "Workout 🏋️",  tag: "fitness", window: [300,  1200] },
-        { label: "Run 🏃",       tag: "fitness", window: [300,  1080] },
-        { label: "Yoga 🧘",      tag: "fitness", window: [360,  1140] },
-        { label: "Stretching 🤸", tag: "fitness", window: [360, 1200] }
+        { label: "Workout 🏋️", tag: "fitness" },
+        { label: "Exercise 💪", tag: "fitness" },
+        { label: "Take a Stroll Outside 🚶", tag: "fitness" }
     ],
     RELAX: [
-        { label: "You Time 😌",  tag: "relax",  window: [480,  1320] },
-        { label: "Free Time 🎮", tag: "gaming", window: [600,  1320] },
-        { label: "Read for Fun 📖", tag: "relax", window: [600, 1320] },
-        { label: "Hobby Time 🎨", tag: "relax", window: [540, 1320] }
+        { label: "Free Time 😌", tag: "relax" },
+        { label: "You Time 🎮", tag: "relax" },
+        { label: "Hobby Time 🎨", tag: "relax" }
     ],
     MORNING: [
-        { label: "Morning Routine ☀️", tag: "routine", window: [240, 660] }
+        { label: "Morning Routine ☀️", tag: "routine" },
+        { label: "Get Ready 🚿", tag: "routine" }
     ],
     EVENING: [
-        { label: "Wind Down 🌙", tag: "relax",   window: [1080, 1440] },
-        { label: "Journal 📓",   tag: "relax",   window: [1080, 1380] },
-        { label: "Light Reading 📚", tag: "relax", window: [1080, 1380] }
+        { label: "Wind Down 🌙", tag: "evening" },
+        { label: "Relax 😌", tag: "evening" }
+    ],
+    READ: [
+        { label: "Read a Book 📖", tag: "evening" }
     ],
     NAP: [
-        { label: "Nap 😴",       tag: "rest",    window: [780,  1020] }  // 13:00–17:00 only
-    ],
-    FOOD: [
-        { label: "Breakfast 🍳", tag: "food", window: [300,  660]  },
-        { label: "Lunch 🥗",     tag: "food", window: [660,  840]  },
-        { label: "Dinner 🍽️",   tag: "food", window: [1020, 1320] },
-        { label: "Snack 🍎",     tag: "food", window: [540,  1200] }
+        { label: "Powernap 😴", tag: "rest" }
     ]
 };
 
-// ---------------------------------------------------------------------------
-// SCHEDULE GENERATOR — no gaps, 8+ blocks, fills wake→sleep
-// ---------------------------------------------------------------------------
+const CATEGORY_GROUP = {
+    study: "focus", work: "focus",
+    fitness: "move",
+    relax: "rest", evening: "rest", rest: "rest",
+    routine: "routine",
+    food: "food"
+};
 
+/**
+ * Build one day: ~8–10 solid blocks.
+ * - Study weeks: Study daytime, Read a Book before bed
+ * - Work only daytime (never evening)
+ * - Fitness: Workout / Exercise / Stroll — no "Run"
+ * - Powernap 30m afternoon only
+ */
 function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
     const isWknd = (dayName === "Saturday" || dayName === "Sunday");
     const blocks = [];
     let cur = wakeMin;
-    const LUNCH = 12 * 60;   // 12:00
-    const DINNER = 19 * 60;  // 19:00
-    let lastTag = null;      // avoid consecutive similar categories
+    const LUNCH = 12 * 60;
+    const DINNER = 19 * 60;
+    let lastGroup = null;
 
-    // Tags considered "similar" so we never place them back-to-back
-    const SIMILAR = {
-        study: new Set(["study", "homework"]),
-        homework: new Set(["study", "homework"]),
-        work: new Set(["work"]),
-        fitness: new Set(["fitness"]),
-        relax: new Set(["relax", "gaming", "rest"]),
-        gaming: new Set(["relax", "gaming", "rest"]),
-        rest: new Set(["relax", "gaming", "rest"]),
-        routine: new Set(["routine"]),
-        food: new Set(["food"])
-    };
+    function groupOf(t) {
+        return CATEGORY_GROUP[t] || t || "other";
+    }
 
     function pushBlock(taskName, dur, taskTag) {
-        const end = cur + dur;
+        if (dur < 15) return;
+        const end = Math.min(cur + dur, sleepMin);
+        if (end <= cur) return;
         blocks.push({
             start: formatMinutesToTime(cur),
             end: formatMinutesToTime(end),
             task: taskName,
-            completed: false
+            completed: false,
+            _tag: taskTag || null
         });
         cur = end;
-        if (taskTag) lastTag = taskTag;
+        if (taskTag) lastGroup = groupOf(taskTag);
     }
 
-    function pickUnused(pool) {
-        // Filter by time window first
-        const inWindow = pool.filter(t => cur >= t.window[0] && cur < t.window[1]);
-        let eligible = inWindow.length > 0 ? inWindow : pool;
-
-        // Prefer labels not used this week
-        let unused = eligible.filter(t => !usedNames.has(t.label));
-        if (unused.length === 0) unused = eligible;
-
-        // Avoid consecutive similar tags
-        if (lastTag && SIMILAR[lastTag]) {
-            const nonSimilar = unused.filter(t => !SIMILAR[lastTag].has(t.tag));
-            if (nonSimilar.length > 0) unused = nonSimilar;
-            else {
-                const nonSimilarAll = eligible.filter(t => !SIMILAR[lastTag].has(t.tag));
-                if (nonSimilarAll.length > 0) unused = nonSimilarAll;
-            }
+    function pickLabel(pool) {
+        let options = pool.filter(t => !usedNames.has(t.label));
+        if (options.length === 0) options = pool.slice();
+        if (lastGroup) {
+            const diff = options.filter(t => groupOf(t.tag) !== lastGroup);
+            if (diff.length) options = diff;
         }
-
-        const chosen = pick(unused.length > 0 ? unused : eligible);
+        const chosen = pick(options);
         usedNames.add(chosen.label);
-        lastTag = chosen.tag;
-        return chosen.label;
+        return chosen;
     }
 
-    function fillTo(targetMin, pool) {
-        while (cur < targetMin - 20) {
-            const remaining = targetMin - cur;
-            const dur = remaining >= 60 ? 60 : remaining >= 30 ? 30 : remaining;
-            pushBlock(pickUnused(pool), dur);
+    const primary = TASKS[tag] || TASKS.WORK;
+    const big = intensity >= 1.3 ? 120 : (isWknd ? 90 : 105);
+    const med = 45;
+    const short = 30;
+
+    // 1. Morning routine
+    {
+        const m = pickLabel(TASKS.MORNING);
+        pushBlock(m.label, short, m.tag);
+    }
+
+    // 2. Breakfast
+    pushBlock("Breakfast 🍳", short, "food");
+
+    // 3. Big morning primary (Study / Work / Workout)
+    if (cur < LUNCH - 20) {
+        const p = pickLabel(primary);
+        pushBlock(p.label, Math.min(big, LUNCH - cur), p.tag);
+    }
+    // Optional short side activity before lunch
+    if (cur < LUNCH - 25) {
+        if (tag === "FITNESS") {
+            const s = pickLabel(TASKS.RELAX);
+            pushBlock(s.label, Math.min(med, LUNCH - cur), s.tag);
+        } else {
+            // stroll / light move
+            pushBlock("Take a Stroll Outside 🚶", Math.min(med, LUNCH - cur), "fitness");
         }
-        if (cur < targetMin) cur = targetMin;
     }
+    if (cur < LUNCH) cur = LUNCH;
 
-    // 1. Morning routine (30 min)
-    pushBlock(pickUnused(TASKS.MORNING), 30, "routine");
-
-    // 2. Breakfast (30 min)
-    pushBlock("Breakfast 🍳", 30, "food");
-
-    // 3. Fill morning with focus blocks up to 12:00
-    fillTo(LUNCH, TASKS[tag] || TASKS.WORK);
-
-    // 4. Lunch anchored at 12:00 (45 min)
-    cur = LUNCH;
+    // 4. Lunch
     pushBlock("Lunch 🥗", 45, "food");
 
-    // 5. Afternoon blocks until 19:00
-    const crossTag = tag === "STUDY" ? "RELAX" : tag === "WORK" ? "FITNESS" : tag === "FITNESS" ? "RELAX" : "STUDY";
-    pushBlock(pickUnused(TASKS[tag] || TASKS.WORK), 90);
-    pushBlock(pickUnused(TASKS[crossTag]), 45);
-
-    // Optional afternoon nap (only if time allows and not fitness-heavy day)
-    if (tag !== "FITNESS" && cur >= 780 && cur < 960 && seededRand() < 0.35) {
-        pushBlock(pickUnused(TASKS.NAP), 30, "rest");
+    // 5. Afternoon primary (work/study/fitness stay in daytime)
+    {
+        const p = pickLabel(primary);
+        pushBlock(p.label, isWknd ? 90 : big, p.tag);
     }
 
-    if (tag !== "FITNESS") {
-        pushBlock(pickUnused(TASKS.FITNESS), 45);
-    } else {
-        pushBlock(pickUnused(TASKS.RELAX), 45);
+    // Powernap 30 min — afternoon only (13:00–16:00)
+    if (tag !== "FITNESS" && cur >= 13 * 60 && cur <= 16 * 60 && seededRand() < 0.4) {
+        pushBlock("Powernap 😴", 30, "rest");
     }
-    fillTo(DINNER, TASKS[tag] || TASKS.WORK);
 
-    // 6. Dinner anchored at 19:00 (45 min)
-    cur = DINNER;
+    // Different-category break
+    {
+        if (tag === "STUDY" || tag === "WORK") {
+            const r = pickLabel(TASKS.RELAX);
+            pushBlock(r.label, med, r.tag);
+        } else if (tag === "FITNESS") {
+            const r = pickLabel(TASKS.RELAX);
+            pushBlock(r.label, med, r.tag);
+        } else {
+            pushBlock("Take a Stroll Outside 🚶", med, "fitness");
+        }
+    }
+
+    // At most one more daytime primary before dinner (never into evening)
+    if (cur < DINNER - 40 && cur < 18 * 60) {
+        const p = pickLabel(primary);
+        pushBlock(p.label, Math.min(75, DINNER - cur), p.tag);
+    }
+    if (cur < DINNER) cur = DINNER;
+
+    // 6. Dinner
     pushBlock("Dinner 🍽️", 45, "food");
 
-    // 7. Evening blocks until sleep — never Nap here
-    pushBlock(pickUnused(TASKS.EVENING), 45);
-    const remaining = sleepMin - cur;
-    if (remaining >= 20) {
-        pushBlock(pickUnused(TASKS.EVENING), Math.min(remaining, 60));
+    // 7. Evening — NO work. Study weeks → Read a Book; else wind down / relax
+    if (cur < sleepMin - 20) {
+        if (tag === "STUDY") {
+            pushBlock("Read a Book 📖", Math.min(45, sleepMin - cur), "evening");
+        } else {
+            const e = pickLabel(TASKS.EVENING);
+            pushBlock(e.label, Math.min(50, sleepMin - cur), e.tag);
+        }
     }
 
-    // 8. Sleep block — from sleepMin to wakeMin (next day), capped at 10h
+    // 8. Sleep
     if (cur < sleepMin) cur = sleepMin;
     const rawSleepDur = (wakeMin + 1440 - sleepMin) % 1440 || 480;
     const cappedWakeMin = rawSleepDur > 600 ? (sleepMin + 600) % 1440 : wakeMin;
@@ -265,16 +270,21 @@ function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
         isSleep: true
     });
 
-    const filtered = blocks.filter(b => parseTimeToMinutes(b.start) <= sleepMin);
-
-    // Merge consecutive blocks with the same task name
+    // Merge consecutive same-name blocks
     const merged = [];
-    for (const b of filtered) {
+    for (const b of blocks) {
+        const clean = {
+            start: b.start,
+            end: b.end,
+            task: b.task,
+            completed: false
+        };
+        if (b.isSleep) clean.isSleep = true;
         const prev = merged[merged.length - 1];
-        if (prev && prev.task === b.task && prev.end === b.start) {
-            prev.end = b.end;
+        if (prev && !prev.isSleep && !clean.isSleep && prev.task === clean.task && prev.end === clean.start) {
+            prev.end = clean.end;
         } else {
-            merged.push({ ...b });
+            merged.push(clean);
         }
     }
     return merged;
@@ -408,7 +418,6 @@ const AI_DATABASE = {
                 /show me/i
             ],
             handler: (...args) => {
-                // Safely extract text whether passed as string, object, or secondary argument
                 const rawMsg = args.find(a => typeof a === 'string') || args[0]?.text || args[0]?.message || "";
                 const lowerMsg = String(rawMsg).toLowerCase();
 
@@ -425,6 +434,8 @@ const AI_DATABASE = {
                     `• Hover or click the Tools tab to open\n` +
                     `• 🎨 Accent Theme — pick your colour\n` +
                     `• 🔔 Sound toggle — enable/disable chimes\n` +
+                    `• Completion chimes — plays when you finish a task\n` +
+                    `• Import / Export — share and apply schedules\n` +
                     `• 📊 Weekly Category Breakdown — hours per category\n` +
                     `• Preset Manager — save, apply, or delete presets\n` +
                     `• ✨ Create Preset From Scratch — build a preset day by day\n` +
@@ -506,12 +517,19 @@ const AI_DATABASE = {
                     `• Hover or click the Tools tab to open\n` +
                     `• 🎨 Accent Theme — pick your colour\n` +
                     `• 🔔 Sound toggle — enable/disable chimes\n` +
+                    `• Completion chimes — plays when you finish a task\n` +
+                    `• Import / Export — share and apply schedules\n` +
                     `• 📊 Weekly Category Breakdown — hours per category\n` +
                     `• Preset Manager — save, apply, or delete presets\n` +
                     `• ✨ Create Preset From Scratch — build a preset day by day\n` +
                     `• 📊 Analyse My Week — check your week against a goal\n\n` +
                     `**🤖 AI button** (bottom-left, that's me!)\n` +
-                    `• Type commands to generate weeks, add/delete tasks, change themes\n` +
+                    `• Type commands to generate weeks, add/delete tasks, change themes\n\n` +
+                    `**Quality of Life Tools**\n` +
+                    `• To - Do List — manage your daily tasks\n` +
+                    `• Timeline — visualize and edit your day at a glance\n` +
+                    `• Week Review — analyze your weekly progress\n` +
+                    `• Focus and music — create a distraction-free environment, just you, your tasks and your favourite songs!\n` +
                     `• Type **"help"** for the full command list`;
             }
         },
@@ -525,15 +543,18 @@ const AI_DATABASE = {
             ],
             handler: (match, rawInput) => {
                 const intent = match && match[1] ? match[1].trim() : rawInput;
+                if (typeof clearWeekSchedules === "function") {
+                    DAYS.forEach(d => { if (typeof clawbackDayXP === "function") clawbackDayXP(d); });
+                }
                 const week = generateSmartWeekFromIntent(intent);
                 DAYS.forEach(day => {
                     data.schedules[day] = week[day] ? JSON.parse(JSON.stringify(week[day])) : [];
                 });
                 data.appliedRoutine = `AI: ${intent.substring(0, 30)}`;
                 try { saveData(); } catch(e) {}
-                try { renderCurrentDay(); populatePresetMenus(); } catch(e) {}
+                try { renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch(e) {}
                 const blockCount = week[DAYS[0]] ? week[DAYS[0]].length : 0;
-                return `✅ Built a full 7-day **${intent}** schedule — ${blockCount} blocks per day, zero gaps, wake to sleep. Use "regenerate" for a fresh version or "save preset <name>" to keep it.`;
+                return `✅ Built a full 7-day **${intent}** schedule — ${blockCount} blocks/day. XP from the old week was clawed back so you can't farm clears.`;
             }
         },
 
@@ -543,14 +564,23 @@ const AI_DATABASE = {
             keywords: ["regenerate","redo","again","retry","different","new version","reshuffle"],
             patterns: [/^(?:regenerate|redo|retry|again|reshuffle|new version)/i],
             handler: (match, rawInput) => {
+                if (typeof isFeatureUnlocked === "function" && !isFeatureUnlocked("ai_regenerate")) {
+                    const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
+                    return `🔒 **Regenerate** unlocks at **Starter V**. You're **${info.rank}**.`;
+                }
+                if (typeof clearWeekSchedules === "function") {
+                    clearWeekSchedules();
+                } else {
+                    DAYS.forEach(day => { data.schedules[day] = []; });
+                }
                 const lastRoutine = (data.appliedRoutine || "").replace(/^AI:\s*/, "").trim() || "work";
                 const week = generateSmartWeekFromIntent(lastRoutine);
                 DAYS.forEach(day => {
                     data.schedules[day] = week[day] ? JSON.parse(JSON.stringify(week[day])) : [];
                 });
                 data.appliedRoutine = `AI: ${lastRoutine.substring(0, 30)}`;
-                try { saveData(); renderCurrentDay(); populatePresetMenus(); } catch(e) {}
-                return `🔄 Regenerated a fresh **${lastRoutine}** week with different task variety. Zero gaps, 8+ blocks per day.`;
+                try { saveData(); renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch(e) {}
+                return `🔄 Regenerated a fresh **${lastRoutine}** week. Any XP from the old week was clawed back — no farming!`;
             }
         },
 
@@ -647,13 +677,28 @@ const AI_DATABASE = {
             patterns: [/(?:clear|reset|uncheck)\s+(?:day|today|all|checkboxes?|tasks?)/i],
             keywords: ["clear day","reset day","uncheck all","reset checkboxes"],
             handler: () => {
+                if (typeof isFeatureUnlocked === "function" && !isFeatureUnlocked("ai_clear_day")) {
+                    const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
+                    return `🔒 **Clear day** unlocks at **Starter IV**. You're **${info.rank}**.`;
+                }
                 const day = DAYS[data.currentDay];
                 const tasks = data.schedules[day] || [];
                 let count = 0;
-                tasks.forEach(t => { if (t.completed) { t.completed = false; count++; } });
+                if (typeof clawbackDayXP === "function") {
+                    const lost = clawbackDayXP(day);
+                    count = tasks.filter(t => !t.completed).length;
+                    try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
+                    return lost > 0
+                        ? `🧹 Unchecked tasks on **${day}**. **−${lost} XP** clawed back (no farming).`
+                        : `🧹 Unchecked tasks on **${day}**. Blocks remain.`;
+                }
+                tasks.forEach(t => {
+                    if (t.completed) { t.completed = false; count++; }
+                    t.xpAwarded = false;
+                });
                 try { saveData(); renderCurrentDay(); } catch(e) {}
                 return count > 0
-                    ? `🧹 Unchecked ${count} task(s) on **${day}**. Blocks are still there.`
+                    ? `🧹 Unchecked ${count} task(s) on **${day}**.`
                     : `Nothing was checked on **${day}** anyway.`;
             }
         },
@@ -663,9 +708,23 @@ const AI_DATABASE = {
             id: "clear_week",
             patterns: [/(?:clear|reset|wipe)\s+(?:week|all days|everything)/i],
             handler: () => {
-                DAYS.forEach(d => { (data.schedules[d] || []).forEach(t => t.completed = false); });
-                try { saveData(); renderCurrentDay(); } catch(e) {}
-                return `🧹 Unchecked all tasks across the entire week.`;
+                if (typeof isFeatureUnlocked === "function" && !isFeatureUnlocked("ai_clear_week")) {
+                    const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
+                    return `🔒 **Clear week** unlocks at **Beginner 3**. You're **${info.rank}**.`;
+                }
+                let lost = 0;
+                if (typeof clearWeekSchedules === "function") {
+                    DAYS.forEach(d => {
+                        if (typeof clawbackDayXP === "function") lost += clawbackDayXP(d);
+                        else (data.schedules[d] || []).forEach(t => { t.completed = false; t.xpAwarded = false; });
+                    });
+                } else {
+                    DAYS.forEach(d => { (data.schedules[d] || []).forEach(t => { t.completed = false; t.xpAwarded = false; }); });
+                }
+                try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
+                return lost > 0
+                    ? `🧹 Unchecked the whole week. **−${lost} XP** clawed back.`
+                    : `🧹 Unchecked all tasks across the week.`;
             }
         },
 
@@ -674,12 +733,20 @@ const AI_DATABASE = {
             id: "wipe_day",
             patterns: [/(?:wipe|empty|delete all|remove all)\s+(?:tasks?|blocks?|schedule)?\s*(?:for|on|from)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday|today)?/i],
             handler: (match) => {
+                if (typeof isFeatureUnlocked === "function" && !isFeatureUnlocked("ai_clear_day")) {
+                    const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
+                    return `🔒 **Wipe day** unlocks at **Starter IV**. You're **${info.rank}**.`;
+                }
                 let dayName = match && match[1] ? match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase() : DAYS[data.currentDay];
                 if (!DAYS.includes(dayName)) dayName = DAYS[data.currentDay];
                 const count = (data.schedules[dayName] || []).length;
+                let lost = 0;
+                if (typeof clawbackDayXP === "function") lost = clawbackDayXP(dayName);
                 data.schedules[dayName] = [];
-                try { saveData(); renderCurrentDay(); } catch(e) {}
-                return `🗑️ Wiped all ${count} block(s) from **${dayName}**.`;
+                try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
+                return lost > 0
+                    ? `🗑️ Wiped ${count} block(s) from **${dayName}**. **−${lost} XP** clawed back.`
+                    : `🗑️ Wiped all ${count} block(s) from **${dayName}**.`;
             }
         },
 
@@ -880,7 +947,7 @@ const AI_DATABASE = {
             patterns: [/(?:open|show|view)\s+(?:my\s+)?(?:todo|to-?do)/i],
             handler: () => {
                 try { toggleTodoDrawer(); } catch(e) {}
-                return `📋 Opened your **Persistent To-Dos**. They stay until you complete them (+40 XP each).`;
+                return `📋 Opened your **Persistent To-Dos**. They stay until you complete them (+40 XP for completing each).`;
             }
         },
 
@@ -892,7 +959,7 @@ const AI_DATABASE = {
             handler: () => {
                 if (typeof isFeatureUnlocked === "function" && !isFeatureUnlocked("timeline")) {
                     const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
-                    return `🔒 Timeline Visualizer is **locked**. Reach **Beginner 1** to unlock it.\nYou are currently **${info.rank}**.`;
+                    return `🔒 Timeline Visualizer is **locked**. Reach **Amateur 3** to unlock it.\nYou are currently **${info.rank}**.`;
                 }
                 try { openTimelinePage(); } catch(e) {}
                 return `📅 Opened the **Timeline Visualizer**. Drag blocks up/down to reschedule.`;
@@ -907,7 +974,7 @@ const AI_DATABASE = {
             handler: () => {
                 if (typeof isFeatureUnlocked === "function" && !isFeatureUnlocked("analyser")) {
                     const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
-                    return `🔒 Week Analyser is **locked**. Reach **Beginner 3** to unlock it.\nYou are currently **${info.rank}**.`;
+                    return `🔒 Week Analyser is **locked**. Reach **Amateur 3** to unlock it.\nYou are currently **${info.rank}**.`;
                 }
                 try { openAnalyser(); } catch(e) {}
                 return `📊 Opened the **Week Analyser**. Pick an intent and hit Analyse.`;
@@ -941,8 +1008,8 @@ const AI_DATABASE = {
                 "💾 **Presets:** \"save preset X\" / \"apply X\" / \"list presets\"\n" +
                 "🎨 **Theme:** \"change theme to cyan\" (some locked until you rank up)\n" +
                 "📋 **To-Dos:** \"open todo list\"\n" +
-                "📅 **Timeline:** \"open timeline\" 🔒 Beginner 1+\n" +
-                "📊 **Analyser:** \"open analyser\" 🔒 Beginner 3+\n" +
+                "📅 **Timeline:** \"open timeline\" 🔒 Beginner 3+\n" +
+                "📊 **Analyser:** \"open analyser\" 🔒 Amateur 3+\n" +
                 "⭐ **Progress:** \"open progress\" / \"show rewards\"\n" +
                 "📅 **Schedule:** \"show my schedule\" / \"what's next\"\n" +
                 "🔔 **Sound:** \"mute\" / \"unmute\""
@@ -984,61 +1051,78 @@ function processNLPIntent(rawInput) {
     if (!rawInput || !rawInput.trim()) return;
     const input = rawInput.trim();
     const lower = input.toLowerCase();
+    const result = resolveLocalIntent(input, lower);
+    appendMessage(result, "bot-msg");
+}
 
-    // 1. Pattern matching — most specific first
+/** Score-based local NLP */
+function resolveLocalIntent(input, lower) {
     for (const intent of AI_DATABASE.intents) {
         if (!intent.patterns) continue;
         for (const pattern of intent.patterns) {
             const m = input.match(pattern);
-            if (m) {
-                try {
-                    const result = intent.handler(m, input);
-                    if (result !== null && result !== undefined) {
-                        appendMessage(result, "bot-msg");
-                        return;
-                    }
-                } catch(e) { console.error(intent.id, e); }
-            }
+            if (!m) continue;
+            try {
+                const result = intent.handler(m, input);
+                if (result !== null && result !== undefined) return result;
+            } catch (e) { console.error(intent.id, e); }
         }
     }
 
-    // 2. Keyword matching
+    let best = null;
+    let bestScore = 0;
     for (const intent of AI_DATABASE.intents) {
         if (!intent.keywords) continue;
-        const hit = intent.keywords.some(kw => lower.includes(kw));
-        if (hit) {
-            try {
-                const result = intent.handler(null, input);
-                if (result !== null && result !== undefined) {
-                    appendMessage(result, "bot-msg");
-                    return;
-                }
-            } catch(e) { console.error(intent.id, e); }
+        let score = 0;
+        for (const kw of intent.keywords) {
+            if (!kw) continue;
+            if (lower === kw) score += 10;
+            else if (lower.startsWith(kw + " ") || lower.endsWith(" " + kw)) score += 6;
+            else if (lower.includes(kw)) score += Math.min(5, kw.length / 3);
+        }
+        if (intent.id === "generate_week" && /\b(generate|build|make|create|plan|schedule|week|routine)\b/.test(lower)) {
+            score += 4;
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            best = intent;
         }
     }
-
-    // 3. Fuzzy fallback — try to detect generate intent from loose phrasing
-    if (/week|schedule|routine|plan|day/i.test(lower)) {
+    if (best && bestScore >= 3) {
         try {
-            const week = generateSmartWeekFromIntent(input);
-            DAYS.forEach(day => { data.schedules[day] = JSON.parse(JSON.stringify(week[day] || [])); });
-            data.appliedRoutine = `AI: ${input.substring(0, 30)}`;
-            try { saveData(); renderCurrentDay(); populatePresetMenus(); } catch(e) {}
-            appendMessage(`✅ Generated a week based on: **"${input}"**. ${week[DAYS[0]].length} blocks per day, no gaps.`, "bot-msg");
-            return;
-        } catch(e) {}
+            const result = best.handler(null, input);
+            if (result !== null && result !== undefined) return result;
+        } catch (e) { console.error(best.id, e); }
     }
 
-    // 4. Final fallback
-    appendMessage(
-        `🤔 I didn't get that. Try:\n` +
-        `• "generate study week"\n` +
-        `• "apply Study Week for Monday"\n` +
+    // 3. Fuzzy generate
+    if (/\b(week|schedule|routine|plan|day|timetable)\b/i.test(lower)) {
+        try {
+            DAYS.forEach(d => { if (typeof clawbackDayXP === "function") clawbackDayXP(d); });
+            const week = generateSmartWeekFromIntent(input);
+            DAYS.forEach(day => { data.schedules[day] = JSON.parse(JSON.stringify(week[day] || [])); });
+            data.appliedRoutine = `AI: ${input.substring(0, 40)}`;
+            try { saveData(); renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch (e) {}
+            const n = (week[DAYS[0]] || []).length;
+            return `✅ Generated a week from **"${input}"** — ${n} blocks/day, mixed categories. Old XP removed.`;
+        } catch (e) {}
+    }
+
+    // 4. Fallback with smarter hints
+    if (/\b(xp|level|rank|streak)\b/.test(lower)) {
+        try { if (typeof openProgressPanel === "function") openProgressPanel(); } catch(e){}
+        const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
+        return `⭐ You're **${info.rank}** with **${data.xp || 0} XP**. Opened progress.`;
+    }
+
+    return (
+        `🤔 Not sure I caught that. Try:\n` +
+        `• "generate study week" / "build a chill week"\n` +
         `• "add Gym from 07:00 to 08:00"\n` +
-        `• "delete task 2"\n` +
-        `• "change theme to blue"\n` +
-        `• "help" for the full list`,
-        "bot-msg"
+        `• "delete task 2" / "clear day"\n` +
+        `• "open todo" / "open progress" / "open timeline"\n` +
+        `• "change theme to cyan"\n` +
+        `• "help" for the full list`
     );
 }
 

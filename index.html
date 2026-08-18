@@ -11,7 +11,7 @@
 
 <body>
 
-    <!-- Fixed XP pill — top-left of SCREEN -->
+    <!-- XP pill — top-left of SCREEN -->
     <button type="button" id="xp-pill" class="xp-pill xp-pill-fixed" onclick="openProgressPanel()" title="Progress & Rewards">
         <span class="xp-pill-rank" id="xp-pill-rank">Starter I</span>
         <span class="xp-pill-bar"><span class="xp-pill-fill" id="xp-pill-fill" style="width:0%"></span></span>
@@ -29,7 +29,14 @@
                 <span id="live-date" class="top-bar-date"></span>
             </div>
             <div class="top-bar-right">
-                <span id="live-clock" class="top-bar-clock"></span>
+                <div id="live-clock" class="flap-clock" aria-label="Current time">
+                    <div class="flap-digit" data-flap="h1"><span class="flap-card">1</span></div>
+                    <div class="flap-digit" data-flap="h2"><span class="flap-card">2</span></div>
+                    <div class="flap-colon">:</div>
+                    <div class="flap-digit" data-flap="m1"><span class="flap-card">0</span></div>
+                    <div class="flap-digit" data-flap="m2"><span class="flap-card">0</span></div>
+                    <div class="flap-ampm" data-flap="ampm">AM</div>
+                </div>
             </div>
         </div>
 
@@ -55,18 +62,24 @@
             <span id="applied-date-label">Date: --</span>
         </div>
 
-        <!-- Check-in prompt (inline) -->
+        <!-- Check-in prompt -->
         <p id="today-prompt" class="checkin-prompt"></p>
 
         <div class="divider"></div>
 
-        <!-- Quick actions: To-Dos + Timeline (high visibility) -->
+        <!-- Quick actions: To-Dos + Timeline  -->
         <div class="quick-actions">
             <button type="button" class="quick-action-btn" onclick="toggleTodoDrawer()">
                 📋 To-Dos <span id="todo-count-badge" class="todo-count-badge">0</span>
             </button>
             <button type="button" class="quick-action-btn" id="timeline-btn" onclick="openTimelinePage()">
                 📅 Timeline <span id="timeline-lock-badge" class="lock-badge">🔒</span>
+            </button>
+            <button type="button" class="quick-action-btn" onclick="openWeeklyReview()">
+                📊 Week Review
+            </button>
+            <button type="button" class="quick-action-btn" onclick="openMusicPage()">
+                🎵 Focus & Music
             </button>
         </div>
 
@@ -88,7 +101,7 @@
         <div class="app-bio">
             <div class="app-bio-title">🗓️ What is Momento?</div>
             <p>
-                Momento turns your week into something you actually <em>want</em> to open.
+                Momento turns your week into something you actually want to open.
                 Time blocks feel like game levels, checking them off drops XP, and ranks climb
                 from Starter to Mythic — that little hit of progress is intentional.
                 Streaks, unlockable themes, a focus mode with ambient sound, and a persistent
@@ -128,15 +141,27 @@
 
                 <h4>Your Presets</h4>
                 <div id="presets-manager-list" class="presets-list"></div>
+                <div class="preset-io-row">
+                    <button type="button" class="btn-info" onclick="exportPresets()">⬆ Export Presets</button>
+                    <button type="button" class="btn-primary" onclick="document.getElementById('preset-import-input').click()">⬇ Import Presets</button>
+                    <input type="file" id="preset-import-input" accept="application/json,.json" hidden onchange="importPresets(event)">
+                </div>
             </div>
 
             <h3>&#9881;&#65039; Control Panel</h3>
 
-            <!-- Theme Accent Picker (dynamic — locked themes show lock) -->
+            <!-- Theme Accent Picker  -->
             <div class="sidebar-group">
                 <label>&#127912; Accent Theme</label>
                 <div class="theme-swatches" id="theme-swatches"></div>
                 <p class="theme-hint">Locked themes unlock via XP ranks</p>
+            </div>
+
+            <!-- Chime / sound picker -->
+            <div class="sidebar-group">
+                <label>&#127911; Completion Chimes</label>
+                <div class="chime-swatches" id="chime-swatches"></div>
+                <p class="theme-hint">Special chimes unlock via ranks — click to preview</p>
             </div>
 
             <!-- Audio -->
@@ -167,12 +192,6 @@
                 </button>
             </div>
 
-            <!-- Create Preset -->
-            <div class="sidebar-group">
-                <label>Save Week as New Preset</label>
-                <input type="text" id="new-preset-name" placeholder="Preset Name...">
-                <button type="button" class="btn-info" onclick="createNewPreset()">&#128190; Save Current as Preset</button>
-            </div>
 
             <!-- Delete Preset -->
             <div class="sidebar-group">
@@ -304,6 +323,97 @@
             <div class="modal-footer">
                 <button onclick="closeProgressPanel()" class="btn-cancel">Close</button>
             </div>
+        </div>
+    </div>
+
+    
+    <!-- WEEKLY REVIEW -->
+    <div id="weekly-review-panel" class="modal-overlay hidden">
+        <div class="modal-box progress-box">
+            <div class="modal-header">
+                <h3>📊 Weekly Review</h3>
+                <button onclick="closeWeeklyReview()" class="close-btn">&#10005;</button>
+            </div>
+            <div class="modal-body" id="weekly-review-body">
+                <!-- filled by JS -->
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeWeeklyReview()" class="btn-cancel">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FULL-SCREEN MUSIC / FOCUS PAGE -->
+    <div id="music-page" class="music-page hidden">
+        <div class="music-page-header">
+            <div>
+                <h2>🎵 Focus &amp; Music</h2>
+                <p class="music-page-sub">Search free tracks · your library · focus timer</p>
+            </div>
+            <button type="button" class="btn-cancel" onclick="closeMusicPage()">Close</button>
+        </div>
+        <div class="music-page-grid music-page-grid-2">
+            <section class="music-panel">
+                <h3>🔍 Search music</h3>
+                <p class="music-hint">YouTube via local backend · Audius fallback</p>
+                <div class="music-search-row">
+                    <input type="text" id="music-search-input" class="music-search-input" placeholder="Any song or artist…" onkeydown="if(event.key==='Enter')searchFreeMusic()">
+                    <button type="button" class="btn-primary" onclick="searchFreeMusic()">Search</button>
+                </div>
+                <div id="music-search-status" class="music-track-label"></div>
+                <ul id="music-search-results" class="music-search-results"></ul>
+            </section>
+
+            <section class="music-panel">
+                <h3>📁 Your library</h3>
+                <p class="music-hint">Saved on this device between sessions</p>
+                <div class="music-local-row">
+                    <input type="file" id="local-audio-input" accept="audio/*" multiple hidden onchange="loadLocalTracks(event)">
+                    <button type="button" class="btn-info" onclick="document.getElementById('local-audio-input').click()">+ Add files</button>
+                </div>
+                <ul id="local-track-list" class="local-track-list">
+                    <li class="music-track-label">No tracks yet — add some files</li>
+                </ul>
+            </section>
+
+            <section class="music-panel music-focus-panel">
+                <h3>🎯 Focus timer</h3>
+                <p class="music-hint">Pomodoro while you listen</p>
+                <div class="focus-task-name" id="music-focus-task">Current task (optional)</div>
+                <div class="focus-timer" id="music-focus-timer">25:00</div>
+                <div class="focus-phase" id="music-focus-phase">Work Session</div>
+                <div class="focus-controls">
+                    <button id="music-focus-start" onclick="toggleFocusTimer()">▶ Start</button>
+                    <button onclick="resetFocusTimer()">↺ Reset</button>
+                    <button onclick="skipFocusPhase()">⏭ Skip</button>
+                </div>
+                <div class="focus-micro">
+                    <div class="focus-micro-header">
+                        <strong>Micro-tasks</strong>
+                    </div>
+                    <ul id="focus-micro-list" class="micro-task-list"></ul>
+                    <div class="micro-add-row">
+                        <input type="text" id="focus-micro-input" placeholder="Add a tiny step…" onkeydown="if(event.key==='Enter')addMicroTask()">
+                        <button type="button" class="btn-add-micro" onclick="addMicroTask()">Add</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+        <audio id="stream-audio" preload="none" crossorigin="anonymous"></audio>
+        <audio id="local-audio" preload="metadata"></audio>
+    </div>
+
+    <!-- Persistent now-playing badge (bottom-right) -->
+    <div id="now-playing-bar" class="now-playing-bar hidden">
+        <div class="np-info">
+            <div class="np-title" id="np-title">—</div>
+            <div class="np-artist" id="np-artist">—</div>
+            <div class="np-time"><span id="np-current">0:00</span> / <span id="np-duration">0:00</span></div>
+        </div>
+        <div class="np-controls">
+            <button type="button" id="np-play-btn" onclick="toggleNowPlaying()" title="Play/Pause">▶</button>
+            <input type="range" id="np-volume" min="0" max="100" value="40" oninput="setMusicVolume(this.value)" title="Volume">
+            <button type="button" class="np-open" onclick="openMusicPage()" title="Open music">♫</button>
         </div>
     </div>
 

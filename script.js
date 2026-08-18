@@ -233,7 +233,7 @@ const DAYS = [
     "Sunday"
 ];
 
-const STORAGE_KEY = "Momento_data_v5";
+const STORAGE_KEY = "SyncDay_data_v5";
 
 const CATEGORY_KEYWORDS = {
     "📚 Study/Work": [
@@ -285,8 +285,9 @@ let data = {
     streak: 0,
     lastCompletedDate: null,
     totalTasksCompleted: 0,
-    todos: [],          // persistent to-do list {id, text, completed, created}
-    rewardsUnlocked: [] // cosmetic / feature rewards
+    todos: [],         
+    rewardsUnlocked: [], 
+    preferredChime: "default"
 };
 
 let currentActiveTaskName = null;
@@ -307,7 +308,9 @@ document.addEventListener("DOMContentLoaded", () => {
     updateClock();
     updateXPDisplay();
     renderThemeSwatches();
+    renderChimeSwatches();
     updateFeatureLocks();
+    if (typeof initLocalLibrary === "function") initLocalLibrary();
 
     /* SIDEBAR HOVER & TOGGLE LISTENERS */
     const sidebar = document.getElementById("preset-sidebar");
@@ -484,10 +487,12 @@ function loadData() {
             data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
             data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
             data.themeId = parsed.themeId || "purple";
+            data.preferredChime = parsed.preferredChime || "default";
         }
     } catch (error) {
         console.error("Could not load Momento data:", error);
     }
+    try { if (typeof syncRewardsToLevel === "function") syncRewardsToLevel(); } catch (e) {}
 
     Object.entries(BUILT_IN_PRESETS).forEach(([name, preset]) => {
         if (!data.presets[name]) {
@@ -551,9 +556,18 @@ const THEME_CATALOG = [
 ];
 
 function isThemeUnlocked(theme) {
-    if (theme.unlocked) return true;
-    if (theme.rewardId) return hasReward(theme.rewardId);
-    return false;
+    if (!theme) return false;
+    if (theme.id === "purple") return true;
+    if (theme.rewardId) {
+        const reward = (typeof REWARD_CATALOG !== "undefined")
+            ? REWARD_CATALOG.find(r => r.id === theme.rewardId) : null;
+        if (reward) {
+            const info = getLevelInfo(data.xp || 0);
+            return info.levelIndex >= reward.atLevel;
+        }
+        return hasReward(theme.rewardId);
+    }
+    return true;
 }
 
 function setThemeById(id) {
@@ -596,7 +610,6 @@ function applySavedTheme() {
     root.style.setProperty("--border-color", theme.border);
     root.style.setProperty("--text-color", theme.text);
     root.style.setProperty("--muted-color", theme.muted);
-    // derived surfaces so tabs/rows/buttons follow theme (not stuck on purple)
     root.style.setProperty("--surface", theme.card);
     root.style.setProperty("--surface-hover", theme.border);
     root.style.setProperty("--input-bg", theme.bg.includes("gradient") ? theme.card : theme.bg);
@@ -611,7 +624,7 @@ function applySavedTheme() {
         el.style.borderColor = theme.border;
     });
 
-    // Fixed XP pill
+    // XP pill
     const pill = document.getElementById("xp-pill");
     if (pill) {
         pill.style.background = theme.card;
@@ -699,6 +712,50 @@ function renderThemeSwatches() {
 }
 
 /* RENDERING & DAY TABS */
+function isChimeUnlocked(chime) {
+    if (!chime || chime.id === "default") return true;
+    const feature = chime.unlockFeature;
+    if (feature && FEATURE_UNLOCKS[feature] !== undefined) {
+        const info = getLevelInfo(data.xp || 0);
+        return info.levelIndex >= FEATURE_UNLOCKS[feature];
+    }
+    if (chime.rewardId && typeof REWARD_CATALOG !== "undefined") {
+        const r = REWARD_CATALOG.find(x => x.id === chime.rewardId);
+        if (r) {
+            const info = getLevelInfo(data.xp || 0);
+            return info.levelIndex >= r.atLevel;
+        }
+    }
+    return false;
+}
+
+function renderChimeSwatches() {
+    const container = document.getElementById("chime-swatches");
+    if (!container) return;
+    const active = data.preferredChime || "default";
+    container.innerHTML = "";
+    CHIME_CATALOG.forEach(ch => {
+        const unlocked = isChimeUnlocked(ch);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "chime-chip" + (active === ch.id ? " chime-chip-active" : "") + (!unlocked ? " chime-chip-locked" : "");
+        btn.title = unlocked ? ch.name : `🔒 ${ch.name} — level up to unlock`;
+        btn.innerHTML = `<span class="chime-chip-icon">${unlocked ? "🔔" : "🔒"}</span><span class="chime-chip-label">${ch.name}</span>`;
+        btn.onclick = () => {
+            if (!unlocked) {
+                showToast(`🔒 ${ch.name} is locked — rank up to unlock`, "warn");
+                return;
+            }
+            data.preferredChime = ch.id;
+            saveData();
+            renderChimeSwatches();
+            playRewardSound(ch.id === "default" ? "complete" : ch.id, true); // preview
+        };
+        container.appendChild(btn);
+    });
+}
+
+
 function buildDayTabs() {
     const container = document.getElementById("day-tabs-container");
     if (!container) return;
@@ -792,12 +849,73 @@ function renderProgressTracker() {
     badge.textContent = `📊 Progress: ${completed}/${tasks.length} completed (${percent}%)`;
 }
 
-/* EXPORT DATA FIX */
-function exportData() {
-    const exporting_data = [];
-    exporting_data.push(BUILT_IN_PRESETS);
-    return exporting_data;
+/* ========== PRESET IMPORT / EXPORT ========== */
+function exportPresets() {
+    const payload = {
+        type: "SyncDay_presets",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        presets: {}
+    };
+    // Export custom presets only (skip built-ins unless user has edits)
+    Object.keys(data.presets || {}).forEach(name => {
+        payload.presets[name] = data.presets[name];
+    });
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "momento-presets-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast("⬆ Presets exported", "info");
 }
+
+function importPresets(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const parsed = JSON.parse(reader.result);
+            let incoming = null;
+            if (parsed && parsed.presets && typeof parsed.presets === "object") {
+                incoming = parsed.presets;
+            } else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                const first = Object.values(parsed)[0];
+                if (first && typeof first === "object") incoming = parsed;
+            }
+            if (!incoming) throw new Error("Unrecognized preset file");
+            let added = 0;
+            Object.keys(incoming).forEach(name => {
+                if (!name || typeof incoming[name] !== "object") return;
+                if (Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name)) {
+                    const alt = name + " (imported)";
+                    data.presets[alt] = incoming[name];
+                } else {
+                    data.presets[name] = incoming[name];
+                }
+                added++;
+            });
+            saveData();
+            if (typeof renderPresetsManager === "function") renderPresetsManager();
+            if (typeof populatePresetMenus === "function") populatePresetMenus();
+            showToast(`⬇ Imported ${added} preset(s)`, "info");
+        } catch (e) {
+            console.error(e);
+            showToast("Could not import presets — invalid file", "warn");
+        }
+        event.target.value = "";
+    };
+    reader.readAsText(file);
+}
+
+function exportData() {
+    exportPresets();
+}
+
 
 /* DRAG & DROP TASK RENDERER */
 function renderTasks() {
@@ -857,23 +975,58 @@ function createTaskRow(task, index) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = !!task.completed;
+    const isToday = (typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay) === data.currentDay;
+    if (!isToday) {
+        checkbox.disabled = true;
+        checkbox.title = "Only today's tasks can be checked off";
+    }
     checkbox.addEventListener("change", () => {
+        const day = DAYS[data.currentDay];
         const wasCompleted = !!task.completed;
-        task.completed = checkbox.checked;
-        if (!task.isSleep) {
-            if (checkbox.checked && !wasCompleted) {
+        const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay;
+
+        // Block completing / uncompleting on any day that is not today
+        if (data.currentDay !== todayIdx) {
+            checkbox.checked = wasCompleted; // revert
+            showToast("⛔ You can only check off tasks on today's day!", "warn");
+            return;
+        }
+
+        if (checkbox.checked && !wasCompleted) {
+            if (!canCompleteTaskInOrder(day, task)) {
+                checkbox.checked = false;
+                showToast("⛔ Finish earlier tasks first — no skipping ahead!", "warn");
+                return;
+            }
+            // Can't check off tasks starting more than 1 hour in the future
+            const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+            const startM = timeToMinutes(task.start);
+            if (startM - nowM > 60) {
+                checkbox.checked = false;
+                showToast("⛔ Too early — you can only check off tasks within 1 hour of their start.", "warn");
+                return;
+            }
+            task.completed = true;
+            if (!task.isSleep) {
                 awardXPForTask(task);
-            } else if (!checkbox.checked && wasCompleted) {
+            }
+        } else if (!checkbox.checked && wasCompleted) {
+            task.completed = false;
+            if (!task.isSleep) {
+                if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
+                task.xpAwarded = true;
                 revokeXPForTask(task);
             }
+        } else {
+            task.completed = checkbox.checked;
         }
         saveData();
         renderTasks();
         renderProgressTracker();
         updateXPDisplay();
+        enforceLocksAfterXPChange();
     });
 
-    // Start — use text + pattern so typing multi-digit times is reliable
     const start = document.createElement("input");
     start.type = "text";
     start.className = "time-input";
@@ -883,7 +1036,6 @@ function createTaskRow(task, index) {
     start.title = "Start time (HH:MM)";
     const commitStart = () => {
         let v = start.value.trim();
-        // auto-insert colon if user types 4 digits
         if (/^\d{4}$/.test(v)) v = v.slice(0,2) + ":" + v.slice(2);
         if (/^\d{1,2}:\d{2}$/.test(v)) {
             const [h,m] = v.split(":").map(Number);
@@ -891,21 +1043,20 @@ function createTaskRow(task, index) {
                 task.start = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
                 start.value = task.start;
                 saveData();
-                // soft update only — do NOT full re-render while focused
                 renderWeeklyAnalytics();
                 updateNextTask();
                 updateActiveTask();
                 return;
             }
         }
-        // invalid → restore
+
         start.value = task.start || "09:00";
     };
     start.addEventListener("blur", commitStart);
     start.addEventListener("keydown", e => {
         if (e.key === "Enter") { e.preventDefault(); start.blur(); }
     });
-    // live auto-colon while typing
+
     start.addEventListener("input", () => {
         let v = start.value.replace(/[^0-9:]/g, "");
         if (v.length === 2 && !v.includes(":") && start.dataset.prevLen !== "3") {
@@ -994,13 +1145,7 @@ function createTaskRow(task, index) {
     if (task.isSleep) row.classList.add("sleep-block");
     if (data.currentDay === getTodayIndex() && isTaskActive(task)) {
         row.classList.add("active-now");
-        row.title = "Click to open Focus Mode 🎯";
-        row.style.cursor = "pointer";
-        // Open focus mode when clicking the row (but not on interactive controls)
-        row.addEventListener("click", (e) => {
-            if (e.target.closest("input, button, .drag-handle")) return;
-            openFocusMode(task, index);
-        });
+        row.title = "Active now — open Focus & Music to focus on this task";
     }
 
     container.appendChild(row);
@@ -1015,27 +1160,18 @@ function addTaskRow() {
     renderWeeklyAnalytics();
 }
 
-/* SLEEP BLOCK AUTO-FILL
-   If the last block of a day is not a sleep block, auto-add
-   Sleep 😴 from that block's end to the next day's first block start.
-   Runs on every save & render so it stays in sync. */
+
 function ensureSleepBlock() {
     DAYS.forEach((day, i) => {
         const tasks = data.schedules[day];
         if (!tasks || tasks.length === 0) return;
-
-        // Remove any existing auto-sleep blocks first to avoid duplicates
         const withoutSleep = tasks.filter(t => !(t.isSleep));
         data.schedules[day] = withoutSleep;
 
         const last = withoutSleep[withoutSleep.length - 1];
-        if (!last) return;
-
-        // Already ends with a sleep-like task typed by the user — skip
+        if (!last) return;p
         const isSleepTask = t => /sleep|zzz|bed/i.test(t.task || "");
         if (isSleepTask(last)) return;
-
-        // Find next day's first non-sleep block start as the wake time
         const nextDay = DAYS[(i + 1) % DAYS.length];
         const nextTasks = (data.schedules[nextDay] || []).filter(t => !t.isSleep && !/sleep|zzz|bed/i.test(t.task || ""));
         const wakeTime = nextTasks.length > 0 ? nextTasks[0].start : "07:00";
@@ -1145,6 +1281,7 @@ function updateNotifBtnLabel() {
 
 /* PRESETS & DRAWER */
 function toggleSidebar() {
+    setTimeout(updateNowPlayingVisibility, 50);
     const sidebar = document.getElementById("preset-sidebar");
     const arrow = document.getElementById("sidebar-arrow");
     if (!sidebar) return;
@@ -1182,14 +1319,24 @@ function applyPreset() {
     const select = document.getElementById("preset-select");
     if (!select || !select.value) return alert("Select a preset first.");
     const name = select.value;
-    if (!confirm(`Apply "${name}" to the ENTIRE week?`)) return;
+    if (!confirm(`Apply "${name}" to the ENTIRE week? XP from completed tasks will be clawed back.`)) return;
 
-    DAYS.forEach(day => data.schedules[day] = deepClone(data.presets[name][day] || []));
+    let lost = 0;
+    DAYS.forEach(day => { if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true }); });
+    DAYS.forEach(day => {
+        data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
+            ...t, completed: false, xpAwarded: false, xpAmount: 0
+        }));
+    });
     data.appliedRoutine = name;
     saveData();
     renderCurrentDay();
+    updateXPDisplay();
+    enforceLocksAfterXPChange();
     select.value = "";
-    showSavedMessage(`✓ "${name}" applied to entire week.`);
+    showSavedMessage(lost > 0
+        ? `✓ "${name}" applied (−${lost} XP clawed back)`
+        : `✓ "${name}" applied to entire week.`);
 }
 
 function applySingleDayPreset() {
@@ -1198,19 +1345,27 @@ function applySingleDayPreset() {
     const name = select.value;
     const day = DAYS[data.currentDay];
 
-    data.schedules[day] = deepClone(data.presets[name][day] || []);
+    if (typeof clawbackDayXP === "function") clawbackDayXP(day);
+    data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
+        ...t, completed: false, xpAwarded: false, xpAmount: 0
+    }));
     data.appliedRoutine = `${name} → ${day}`;
     saveData();
     renderCurrentDay();
+    updateXPDisplay();
     select.value = "";
     showSavedMessage(`✓ "${name}" applied to ${day}.`);
 }
 
 function applyCustomDayPreset(day,name){
-    data.schedules[day] = deepClone(data.presets[name][day] || []);
+    if (typeof clawbackDayXP === "function") clawbackDayXP(day);
+    data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
+        ...t, completed: false, xpAwarded: false, xpAmount: 0
+    }));
     data.appliedRoutine = `${name} → ${day}`;
     saveData();
     renderCurrentDay();
+    updateXPDisplay();
     showSavedMessage(`✓ "${name}" applied to ${day}.`);
 }
 
@@ -1247,14 +1402,43 @@ function deleteSelectedPreset() {
 }
 
 /* LIVE CLOCK & STATUS CHIPS */
+let _lastFlapTime = "";
+
+function setFlapDigit(key, value) {
+    const el = document.querySelector(`[data-flap="${key}"]`);
+    if (!el) return;
+    const card = el.querySelector(".flap-card") || el;
+    const next = String(value);
+    if (card.textContent === next) return;
+    el.classList.remove("flap-flip");
+    void el.offsetWidth; // reflow
+    card.textContent = next;
+    el.classList.add("flap-flip");
+}
+
 function updateClock() {
-    const clock = document.getElementById("live-clock");
-    if (clock) {
-        clock.textContent = "🕒 " + new Date().toLocaleTimeString([], { hour12: false, hour: "numeric", minute: "2-digit", second: "2-digit" });
+    const now = new Date();
+    let h = now.getHours();
+    const m = now.getMinutes();
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12;
+    if (h === 0) h = 12;
+    const hStr = String(h).padStart(2, " "); // leading space for single-digit hours
+    const mStr = String(m).padStart(2, "0");
+    const stamp = hStr + mStr + ampm;
+    if (stamp !== _lastFlapTime) {
+        _lastFlapTime = stamp;
+        setFlapDigit("h1", hStr[0] === " " ? "" : hStr[0]);
+        setFlapDigit("h2", hStr[1]);
+        setFlapDigit("m1", mStr[0]);
+        setFlapDigit("m2", mStr[1]);
+        setFlapDigit("ampm", ampm);
+        const h1 = document.querySelector('[data-flap="h1"]');
+        if (h1) h1.classList.toggle("flap-empty", hStr[0] === " ");
     }
     const datee = document.getElementById("live-date");
     if (datee) {
-        datee.textContent = new Date().toDateString();
+        datee.textContent = now.toDateString();
     }
     updateNextTask();
 }
@@ -1312,13 +1496,15 @@ function updateNextTask() {
     if (active) {
         const left = timeToMinutes(active.end) - current;
         html += `<div class="status-chip chip-now"><span class="chip-label">NOW</span><span class="chip-text">${active.task || "Untitled"}</span><span class="chip-time">(${formatDuration(left)} left)</span></div>`;
+    } else {
+        const idleText = next
+            ? "Nothing right now — you're free until the next block"
+            : "No active or upcoming tasks left for today";
+        html += `<div class="status-chip chip-idle"><span class="chip-label">IDLE</span><span class="chip-text">☕ ${idleText}</span></div>`;
     }
     if (next) {
         const until = timeToMinutes(next.start) - current;
         html += `<div class="status-chip chip-next"><span class="chip-label">NEXT</span><span class="chip-text">${next.task || "Untitled"}</span><span class="chip-time">@ ${next.start} (in ${formatDuration(until)})</span></div>`;
-    }
-    if (!html) {
-        html = `<div class="status-chip chip-idle"><span class="chip-text">☕ No active or upcoming tasks left for today</span></div>`;
     }
 
     badge.innerHTML = html;
@@ -1359,7 +1545,6 @@ function showSavedMessage(message) {
    LEVEL / RANK SYSTEM + REWARDS
    ========================================================= */
 const RANK_TIERS = [
-    // Each step within a tier costs the same; each tier costs more than the last
     { name: "Starter",            sub: ["I","II","III","IV","V"], xpPer: 100  },
     { name: "Beginner",           sub: ["1","2","3","4","5"],     xpPer: 200  },
     { name: "Amateur",            sub: ["1","2","3","4","5"],     xpPer: 350  },
@@ -1371,9 +1556,7 @@ const RANK_TIERS = [
     { name: "Legend",             sub: ["1","2","3","4","5"],     xpPer: 5000 },
     { name: "Mythic",             sub: ["I","II","III","IV","V"], xpPer: 8000 }
 ];
-// Total to max ≈ 100*5 + 200*5 + ... + 8000*5 ≈ 106,000 XP
 
-// Pre-compute cumulative thresholds
 const LEVEL_TABLE = [];
 (function buildLevelTable() {
     let cum = 0;
@@ -1421,48 +1604,65 @@ function getLevelInfo(xp) {
 }
 
 const REWARD_CATALOG = [
-    // Starter ranks (0-4)
-    { id: "xp_boost_s2",  atLevel: 1,  name: "+15 Bonus XP",          desc: "One-time +15 XP for reaching Starter II", bonusXP: 15 },
-    { id: "xp_boost_s3",  atLevel: 2,  name: "+20 Bonus XP",          desc: "One-time +20 XP for reaching Starter III", bonusXP: 20 },
-    { id: "xp_boost_s4",  atLevel: 3,  name: "+25 Bonus XP",          desc: "One-time +25 XP for reaching Starter IV", bonusXP: 25 },
-    { id: "theme_cyan",   atLevel: 4,  name: "Cyan Theme",           desc: "Unlock the Cyan colour theme" },
-    // Beginner (5-9)
-    { id: "feature_timeline", atLevel: 5, name: "Timeline Visualizer", desc: "Unlock the day timeline visualizer" },
-    { id: "theme_coral",  atLevel: 5,  name: "Coral Theme",          desc: "Unlock the Coral colour theme" },
-    { id: "xp_boost_b2",  atLevel: 6,  name: "+30 Bonus XP",          desc: "One-time +30 XP for Beginner 2", bonusXP: 30 },
-    { id: "theme_amber",  atLevel: 6,  name: "Amber Theme",          desc: "Unlock the Amber colour theme" },
-    { id: "feature_analyser", atLevel: 7, name: "Week Analyser",     desc: "Unlock Analyse My Week" },
-    { id: "theme_green",  atLevel: 7,  name: "Green Theme",          desc: "Unlock the Green colour theme" },
-    { id: "confetti",     atLevel: 8,  name: "Confetti Celebration", desc: "Confetti on big XP gains" },
-    { id: "theme_rose",   atLevel: 8,  name: "Rose Theme",           desc: "Unlock the Rose colour theme" },
-    { id: "xp_boost_b5",  atLevel: 9,  name: "+40 Bonus XP",          desc: "One-time +40 XP for Beginner 5", bonusXP: 40 },
-    // Amateur (10-14)
-    { id: "theme_gold",   atLevel: 10, name: "Gold Theme",           desc: "Unlock the Gold colour theme" },
-    { id: "sound_victory",atLevel: 11, name: "Victory Fanfare",      desc: "Special chime on task complete" },
-    { id: "theme_ocean",  atLevel: 12, name: "Ocean Theme",          desc: "Unlock the Ocean colour theme" },
-    { id: "focus_plus",   atLevel: 13, name: "Focus+ Modes",         desc: "Extra timer lengths (15/45/60)" },
-    { id: "theme_forest", atLevel: 14, name: "Forest Theme",         desc: "Unlock the Forest colour theme" },
-    // Above Average Kid (15-19)
-    { id: "theme_neon",   atLevel: 15, name: "Neon Theme",           desc: "Unlock the Neon colour theme" },
-    { id: "theme_midnight", atLevel: 16, name: "Midnight Theme",     desc: "Unlock the Midnight colour theme" },
-    { id: "theme_sunset", atLevel: 17, name: "Sunset Gradient",      desc: "Unlock the Sunset gradient theme" },
-    { id: "theme_aurora", atLevel: 18, name: "Aurora Gradient",      desc: "Unlock the Aurora gradient theme" },
-    { id: "theme_candy",  atLevel: 19, name: "Candy Gradient",       desc: "Unlock the Candy gradient theme" },
-    // Higher ranks — occasional extras
-    { id: "xp_boost_skilled", atLevel: 22, name: "+100 Bonus XP",    desc: "One-time +100 XP at Skilled 3", bonusXP: 100 },
-    { id: "badge_legend", atLevel: 30, name: "Legend Badge",         desc: "Show a Legend badge on your progress pill" },
-    { id: "xp_boost_expert", atLevel: 27, name: "+150 Bonus XP",     desc: "One-time +150 XP at Expert 3", bonusXP: 150 },
-    { id: "theme_mythic", atLevel: 45, name: "Mythic Aura",          desc: "Special Mythic glow on the XP pill" },
-    { id: "xp_boost_master", atLevel: 37, name: "+250 Bonus XP",     desc: "One-time +250 XP at Master 3", bonusXP: 250 },
-    { id: "title_mythic", atLevel: 49, name: "Mythic Title",         desc: "Unlock the Mythic title under Momento" },
+    // Starter (0–4) — sparse: only a taste
+    { id: "xp_boost_s3",      atLevel: 2,  name: "+20 Bonus XP",          desc: "One-time +20 XP at Starter III", bonusXP: 20 },
+    { id: "theme_cyan",       atLevel: 4,  name: "Cyan Theme",            desc: "Unlock the Cyan colour theme" },
+    // Beginner (5–9)
+    { id: "xp_boost_b2",      atLevel: 6,  name: "+35 Bonus XP",          desc: "One-time +35 XP at Beginner 2", bonusXP: 35 },
+    { id: "feature_timeline", atLevel: 7,  name: "Timeline Visualizer",   desc: "Unlock the day timeline visualizer" },
+    { id: "theme_coral",      atLevel: 9,  name: "Coral Theme",           desc: "Unlock the Coral colour theme" },
+    // Amateur (10–14)
+    { id: "sound_levelup",    atLevel: 10, name: "Level-Up Fanfare",      desc: "Special arpeggio when you level up" },
+    { id: "feature_analyser", atLevel: 12, name: "Week Analyser",         desc: "Unlock Analyse My Week" },
+    { id: "theme_amber",      atLevel: 14, name: "Amber Theme",           desc: "Unlock the Amber colour theme" },
+    // Above Average Kid (15–19)
+    { id: "confetti",         atLevel: 15, name: "Confetti Celebration",  desc: "Confetti on big XP gains" },
+    { id: "theme_green",      atLevel: 17, name: "Green Theme",           desc: "Unlock the Green colour theme" },
+    { id: "sound_victory",    atLevel: 19, name: "Victory Fanfare",       desc: "Special chime on task complete" },
+    // Skilled (20–24)
+    { id: "theme_rose",       atLevel: 20, name: "Rose Theme",            desc: "Unlock the Rose colour theme" },
+    { id: "focus_plus",       atLevel: 22, name: "Focus+ Modes",          desc: "Extra timer lengths (15/45/60)" },
+    { id: "xp_boost_skilled", atLevel: 24, name: "+100 Bonus XP",         desc: "One-time +100 XP at Skilled 5", bonusXP: 100 },
+    // Expert (25–29)
+    { id: "theme_gold",       atLevel: 26, name: "Gold Theme",            desc: "Unlock the Gold colour theme" },
+    { id: "sound_chill",      atLevel: 28, name: "Chill Chime",            desc: "Softer completion tone" },
+    // Exemplar (30–34)
+    { id: "theme_ocean",      atLevel: 30, name: "Ocean Theme",           desc: "Unlock the Ocean colour theme" },
+    { id: "badge_legend",     atLevel: 32, name: "Legend Badge",          desc: "Show a Legend badge on your progress pill" },
+    { id: "theme_forest",     atLevel: 34, name: "Forest Theme",          desc: "Unlock the Forest colour theme" },
+    // Master (35–39)
+    { id: "theme_neon",       atLevel: 36, name: "Neon Theme",            desc: "Unlock the Neon colour theme" },
+    { id: "xp_boost_master",  atLevel: 38, name: "+250 Bonus XP",         desc: "One-time +250 XP at Master 4", bonusXP: 250 },
+    // Legend (40–44)
+    { id: "theme_midnight",   atLevel: 40, name: "Midnight Theme",        desc: "Unlock the Midnight colour theme" },
+    { id: "theme_sunset",     atLevel: 42, name: "Sunset Gradient",       desc: "Unlock the Sunset gradient theme" },
+    { id: "theme_aurora",     atLevel: 44, name: "Aurora Gradient",       desc: "Unlock the Aurora gradient theme" },
+    // Mythic (45–49)
+    { id: "theme_candy",      atLevel: 46, name: "Candy Gradient",        desc: "Unlock the Candy gradient theme" },
+    { id: "theme_mythic",     atLevel: 48, name: "Mythic Aura",           desc: "Special Mythic glow on the XP pill" },
+    { id: "title_mythic",     atLevel: 49, name: "Mythic Title",          desc: "Unlock the Mythic title under Momento" },
 ];
 
 /** Feature unlock requirements by reward id / levelIndex */
+const CHIME_CATALOG = [
+    { id: "default",  name: "Classic",   rewardId: null,           unlockFeature: null },
+    { id: "victory",  name: "Victory",   rewardId: "sound_victory", unlockFeature: "sound_victory" },
+    { id: "levelup",  name: "Fanfare",   rewardId: "sound_levelup", unlockFeature: "sound_levelup" },
+    { id: "chill",    name: "Chill",     rewardId: "sound_chill",   unlockFeature: "sound_chill" },
+];
+
 const FEATURE_UNLOCKS = {
-    timeline: 5,   // Beginner 1
-    analyser: 7,   // Beginner 3
-    ai_generate: 0, // always free
-    ai_theme: 0,
+    timeline: 7,        // Beginner 3
+    analyser: 12,       // Amateur 3
+    ai_generate: 0,     // free
+    ai_theme: 0,        // free (individual themes still rank-gated)
+    ai_regenerate: 4,   // Starter V
+    ai_clear_day: 3,    // Starter IV
+    ai_clear_week: 7,   // Beginner 3
+    ai_bulk_edit: 6,    // Beginner 2
+    sound_victory: 19,  // Above Average Kid 5
+    sound_levelup: 10,  // Amateur 1
+    sound_chill: 28,    // Expert 4
 };
 
 function checkAndUnlockRewards(levelIndex) {
@@ -1481,6 +1681,7 @@ function checkAndUnlockRewards(levelIndex) {
         saveData();
         newly.forEach(r => showRewardUnlock(r));
         if (typeof renderThemeSwatches === "function") renderThemeSwatches();
+        if (typeof renderChimeSwatches === "function") renderChimeSwatches();
         if (typeof updateFeatureLocks === "function") updateFeatureLocks();
         if (typeof updateXPDisplay === "function") updateXPDisplay();
     }
@@ -1500,32 +1701,77 @@ function updateFeatureLocks() {
     if (analyseBtn) {
         if (!isFeatureUnlocked("analyser")) {
             analyseBtn.classList.add("btn-locked");
-            analyseBtn.title = "🔒 Unlock at Beginner 3";
+            analyseBtn.title = "🔒 Unlock at Amateur 3";
         } else {
             analyseBtn.classList.remove("btn-locked");
             analyseBtn.title = "";
         }
     }
+    // Close timeline page if locked after demotion
+    if (!isFeatureUnlocked("timeline")) {
+        const page = document.getElementById("timeline-page");
+        if (page && !page.classList.contains("hidden")) {
+            page.classList.add("hidden");
+            showToast("🔒 Timeline locked again — climb back to Beginner 3", "warn");
+        }
+    }
 }
 
 function showRewardUnlock(reward) {
+    const DURATION = 7000; // ms visible
     const el = document.createElement("div");
     el.className = "reward-toast";
-    el.innerHTML = `<strong>🎁 Reward Unlocked!</strong><br>${reward.name}<br><small>${reward.desc}</small>`;
+    el.innerHTML = `
+        <strong>🎁 Reward Unlocked!</strong><br>${reward.name}<br><small>${reward.desc}</small>
+        <div class="reward-toast-timer" aria-hidden="true"><div class="reward-toast-timer-fill"></div></div>`;
     document.body.appendChild(el);
-    setTimeout(() => el.classList.add("show"), 50);
-    setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 400); }, 4000);
+    setTimeout(() => {
+        el.classList.add("show");
+        const fill = el.querySelector(".reward-toast-timer-fill");
+        if (fill) {
+            fill.style.transition = "none";
+            fill.style.width = "100%";
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    fill.style.transition = `width ${DURATION}ms linear`;
+                    fill.style.width = "0%";
+                });
+            });
+        }
+    }, 50);
+    setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 450); }, DURATION + 50);
+}
+
+function isRewardUnlockedByRank(idOrReward) {
+    const r = typeof idOrReward === "string"
+        ? (typeof REWARD_CATALOG !== "undefined" ? REWARD_CATALOG.find(x => x.id === idOrReward) : null)
+        : idOrReward;
+    if (!r) return false;
+    const info = getLevelInfo(data.xp || 0);
+    return info.levelIndex >= r.atLevel;
 }
 
 function hasReward(id) {
-    return (data.rewardsUnlocked || []).includes(id);
+    return isRewardUnlockedByRank(id);
 }
 
+function syncRewardsToLevel() {
+    if (typeof REWARD_CATALOG === "undefined") return;
+    const info = getLevelInfo(data.xp || 0);
+    data.rewardsUnlocked = REWARD_CATALOG
+        .filter(r => info.levelIndex >= r.atLevel)
+        .map(r => r.id);
+}
+
+
 function awardXPForTask(task) {
+    if (task.xpAwarded) return; // already paid out — anti-farm
     const xpGain = calcTaskXP(task);
 
     data.xp = (data.xp || 0) + xpGain;
     data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
+    task.xpAwarded = true;
+    task.xpAmount = xpGain;
 
     // Streak logic
     const todayStr = new Date().toDateString();
@@ -1545,10 +1791,11 @@ function awardXPForTask(task) {
     saveData();
     showXPPopup(xpGain, task.task || "Task", infoAfter);
     updateXPDisplay();
+    playRewardSound("complete");
     if (infoAfter.levelIndex > infoBefore.levelIndex) {
         checkAndUnlockRewards(infoAfter.levelIndex);
-        // level-up celebration
         showLevelUp(infoAfter.rank);
+        playRewardSound("levelup");
     }
 }
 
@@ -1609,17 +1856,223 @@ function calcTaskXP(task) {
 }
 
 function revokeXPForTask(task) {
-    const xpLoss = calcTaskXP(task);
+    const xpLoss = task.xpAmount || calcTaskXP(task);
+    const infoBefore = getLevelInfo(data.xp || 0);
     data.xp = Math.max(0, (data.xp || 0) - xpLoss);
     data.totalTasksCompleted = Math.max(0, (data.totalTasksCompleted || 0) - 1);
+    task.xpAwarded = false;
+    task.xpAmount = 0;
+    const infoAfter = getLevelInfo(data.xp || 0);
     saveData();
     updateXPDisplay();
-    // subtle feedback
     const pill = document.getElementById("xp-pill");
     if (pill) {
         pill.classList.add("xp-pill-lost");
         setTimeout(() => pill.classList.remove("xp-pill-lost"), 600);
     }
+    if (infoAfter.levelIndex < infoBefore.levelIndex) {
+        showLevelDown(infoBefore.rank, infoAfter.rank);
+        enforceLocksAfterXPChange();
+    }
+}
+
+
+function canCompleteTaskInOrder(day, task) {
+    const tasks = data.schedules[day] || [];
+    const startM = timeToMinutes(task.start);
+    for (const t of tasks) {
+        if (t === task || t.isSleep) continue;
+        if (timeToMinutes(t.start) < startM && !t.completed) return false;
+    }
+    return true;
+}
+
+function showLevelDown(oldRank, newRank) {
+    const existing = document.getElementById("leveldown-card");
+    if (existing) existing.remove();
+    const el = document.createElement("div");
+    el.id = "leveldown-card";
+    el.className = "leveldown-card";
+    el.innerHTML = `
+        <div class="leveldown-inner">
+            <div class="leveldown-emoji">😬</div>
+            <div class="leveldown-title">Uh oh…</div>
+            <div class="leveldown-body">It looks like you unchecked some tasks.<br>
+            You've dropped from <strong>${oldRank}</strong> to <strong>${newRank}</strong>.</div>
+            <div class="leveldown-hint">Some features or themes may lock again until you climb back up.</div>
+            <button class="xp-popup-btn" onclick="document.getElementById('leveldown-card').remove()">Got it</button>
+        </div>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.classList.add("show"), 30);
+    playRewardSound("down");
+}
+
+function showToast(msg, kind) {
+    const el = document.createElement("div");
+    el.className = "sync-toast" + (kind ? " toast-" + kind : "");
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.classList.add("show"), 20);
+    // Longer so errors / penalties are readable
+    setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 450); }, 7000);
+}
+
+function enforceLocksAfterXPChange() {
+    syncRewardsToLevel();
+    if (typeof updateFeatureLocks === "function") updateFeatureLocks();
+    if (typeof renderThemeSwatches === "function") renderThemeSwatches();
+    if (typeof renderChimeSwatches === "function") renderChimeSwatches();
+    // Preferred chime locked after demotion?
+    const pref = data.preferredChime || "default";
+    if (pref !== "default") {
+        const ch = CHIME_CATALOG.find(x => x.id === pref);
+        if (ch && !isChimeUnlocked(ch)) {
+            data.preferredChime = "default";
+            saveData();
+            showToast("🔔 Chime locked again — switched to Classic", "info");
+        }
+    }
+    // Theme still equipped but no longer unlocked?
+    const id = data.themeId || "purple";
+    if (id === "purple") return;
+    const theme = (typeof THEME_CATALOG !== "undefined")
+        ? THEME_CATALOG.find(t => t.id === id) : null;
+    if (theme && !isThemeUnlocked(theme)) {
+        showThemeLockedPopup(theme);
+    }
+}
+
+function showThemeLockedPopup(theme) {
+    // Auto-switch to purple immediately — no "pick later"
+    setThemeById("purple");
+    if (document.getElementById("theme-locked-popup")) return;
+
+    const unlocked = (typeof THEME_CATALOG !== "undefined")
+        ? THEME_CATALOG.filter(t => t.id !== "purple" && isThemeUnlocked(t))
+        : [];
+    const picks = unlocked.slice(0, 6).map(t =>
+        `<button type="button" class="theme-pick-btn" style="border-color:${t.color}"
+            onclick="setThemeById('${t.id}');document.getElementById('theme-locked-popup').remove()">
+            <span class="theme-pick-dot" style="background:${t.color}"></span>${t.name}
+        </button>`
+    ).join("");
+
+    const el = document.createElement("div");
+    el.id = "theme-locked-popup";
+    el.className = "leveldown-card show";
+    el.innerHTML = `
+        <div class="leveldown-inner">
+            <div class="leveldown-emoji">🎨🔒</div>
+            <div class="leveldown-title">Theme locked</div>
+            <div class="leveldown-body"><strong>${theme.name}</strong> needs a higher rank again.<br>
+            Switched you to <strong>Purple</strong> automatically.</div>
+            ${picks ? `<div class="leveldown-hint">Or pick another unlocked theme:</div>
+            <div class="theme-pick-row">${picks}</div>` : ""}
+            <button class="xp-popup-btn" style="margin-top:12px"
+                onclick="document.getElementById('theme-locked-popup').remove()">OK</button>
+        </div>`;
+    document.body.appendChild(el);
+}
+
+function clawbackDayXP(day, opts) {
+    opts = opts || {};
+    const silent = !!opts.silent;
+    const tasks = data.schedules[day] || [];
+    let total = 0;
+    const infoBefore = getLevelInfo(data.xp || 0);
+    tasks.forEach(t => {
+        if ((t.xpAwarded || t.completed) && !t.isSleep) {
+            const loss = t.xpAmount || calcTaskXP(t);
+            data.xp = Math.max(0, (data.xp || 0) - loss);
+            data.totalTasksCompleted = Math.max(0, (data.totalTasksCompleted || 0) - 1);
+            total += loss;
+        }
+        t.xpAwarded = false;
+        t.xpAmount = 0;
+        t.completed = false;
+    });
+    if (total > 0 && !silent) {
+        const infoAfter = getLevelInfo(data.xp || 0);
+        if (infoAfter.levelIndex < infoBefore.levelIndex) {
+            showLevelDown(infoBefore.rank, infoAfter.rank);
+        }
+        showToast(`−${total} XP clawed back (day cleared)`, "warn");
+    }
+    if (!silent) enforceLocksAfterXPChange();
+    return total;
+}
+
+function clearDaySchedule(day) {
+    clawbackDayXP(day);
+    data.schedules[day] = [];
+    saveData();
+    updateXPDisplay();
+}
+
+function clearWeekSchedules() {
+    let total = 0;
+    const infoBefore = getLevelInfo(data.xp || 0);
+    DAYS.forEach(day => {
+        total += clawbackDayXP(day);
+        data.schedules[day] = [];
+    });
+    saveData();
+    updateXPDisplay();
+    enforceLocksAfterXPChange();
+    const infoAfter = getLevelInfo(data.xp || 0);
+    if (infoAfter.levelIndex < infoBefore.levelIndex) {
+        showLevelDown(infoBefore.rank, infoAfter.rank);
+    }
+    return total;
+}
+
+/** Special chimes — unlocked via rewards / rank */
+function playRewardSound(kind, forcePreview) {
+    // forcePreview = play even if alerts off (toolbar preview)
+    if (!forcePreview && !data.notificationsEnabled && kind !== "down") return;
+    // On normal complete, use preferred chime if unlocked
+    let tone = kind;
+    if (kind === "complete") {
+        const pref = data.preferredChime || "default";
+        if (pref !== "default") {
+            const ch = CHIME_CATALOG.find(x => x.id === pref);
+            if (ch && isChimeUnlocked(ch)) tone = pref;
+        }
+    }
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        const playTone = (freq, start, dur, type, vol) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type || "sine";
+            osc.frequency.setValueAtTime(freq, now + start);
+            gain.gain.setValueAtTime(vol || 0.2, now + start);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + start + dur);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + start);
+            osc.stop(now + start + dur);
+        };
+        if (tone === "levelup" || tone === "fanfare") {
+            playTone(523.25, 0, 0.15, "sine", 0.25);
+            playTone(659.25, 0.12, 0.15, "sine", 0.25);
+            playTone(783.99, 0.24, 0.25, "sine", 0.3);
+            playTone(1046.5, 0.4, 0.35, "triangle", 0.22);
+        } else if (tone === "victory") {
+            playTone(784, 0, 0.12, "square", 0.12);
+            playTone(988, 0.1, 0.12, "square", 0.12);
+            playTone(1175, 0.2, 0.25, "sine", 0.18);
+        } else if (tone === "chill") {
+            playTone(440, 0, 0.2, "sine", 0.15);
+            playTone(554, 0.15, 0.3, "sine", 0.12);
+        } else if (tone === "down") {
+            playTone(400, 0, 0.2, "sawtooth", 0.12);
+            playTone(300, 0.15, 0.25, "sawtooth", 0.1);
+        } else {
+            playChime();
+        }
+    } catch (e) { /* ignore */ }
 }
 
 function updateXPDisplay() {
@@ -1645,8 +2098,10 @@ function updateXPDisplay() {
 }
 
 function openProgressPanel() {
+    setTimeout(updateNowPlayingVisibility, 50);
     const panel = document.getElementById("progress-panel");
     if (!panel) return;
+    syncRewardsToLevel();
     const info = getLevelInfo(data.xp || 0);
     const pct = Math.round((info.progress || 0) * 100);
     const have = data.xp || 0;
@@ -1686,7 +2141,7 @@ function openProgressPanel() {
     const list = document.getElementById("rewards-list");
     if (list) {
         list.innerHTML = REWARD_CATALOG.map(r => {
-            const unlocked = hasReward(r.id);
+            const unlocked = isRewardUnlockedByRank(r);
             const rankName = (LEVEL_TABLE[r.atLevel] || {}).rank || "?";
             const need = LEVEL_TABLE[r.atLevel]?.xpNeeded || 0;
             const remain = Math.max(0, need - have);
@@ -1708,12 +2163,658 @@ function openProgressPanel() {
     updateXPDisplay(); // keep pill bar in sync
 }
 
+
+/* ========== WEEKLY REVIEW ========== */
+function computeWeeklyReview() {
+    let totalBlocks = 0;
+    let completedBlocks = 0;
+    const perDay = {};
+    DAYS.forEach(day => {
+        const tasks = (data.schedules[day] || []).filter(t => !t.isSleep);
+        const done = tasks.filter(t => t.completed).length;
+        perDay[day] = { total: tasks.length, done, pct: tasks.length ? Math.round((done / tasks.length) * 100) : 0 };
+        totalBlocks += tasks.length;
+        completedBlocks += done;
+    });
+    const overallPct = totalBlocks ? Math.round((completedBlocks / totalBlocks) * 100) : 0;
+    let bestDay = null;
+    let bestScore = -1;
+    DAYS.forEach(day => {
+        const d = perDay[day];
+        // Prefer higher completion count, then %
+        const score = d.done * 1000 + d.pct;
+        if (d.total > 0 && score > bestScore) {
+            bestScore = score;
+            bestDay = day;
+        }
+    });
+    return {
+        totalBlocks,
+        completedBlocks,
+        overallPct,
+        perDay,
+        bestDay,
+        bestDone: bestDay ? perDay[bestDay].done : 0,
+        bestTotal: bestDay ? perDay[bestDay].total : 0,
+        bestPct: bestDay ? perDay[bestDay].pct : 0,
+        xp: data.xp || 0,
+        streak: data.streak || 0,
+        rank: (typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0).rank : "?")
+    };
+}
+
+function openWeeklyReview() {
+    setTimeout(updateNowPlayingVisibility, 50);
+    const panel = document.getElementById("weekly-review-panel");
+    const body = document.getElementById("weekly-review-body");
+    if (!panel || !body) return;
+    const r = computeWeeklyReview();
+    const dayRows = DAYS.map(day => {
+        const d = r.perDay[day];
+        const isBest = day === r.bestDay;
+        return `<div class="review-day-row ${isBest ? "review-best" : ""}">
+            <span class="review-day-name">${day.slice(0, 3)}${isBest ? " ⭐" : ""}</span>
+            <div class="xp-bar-wrap small"><div class="xp-bar-fill" style="width:${d.pct}%"></div></div>
+            <span class="review-day-stats">${d.done}/${d.total} · ${d.pct}%</span>
+        </div>`;
+    }).join("");
+    body.innerHTML = `
+        <div class="review-hero">
+            <div class="review-stat"><div class="review-stat-val">${r.rank}</div><div class="review-stat-label">Rank</div></div>
+            <div class="review-stat"><div class="review-stat-val">${r.xp}</div><div class="review-stat-label">XP</div></div>
+            <div class="review-stat"><div class="review-stat-val">${r.streak}🔥</div><div class="review-stat-label">Streak</div></div>
+            <div class="review-stat"><div class="review-stat-val">${r.overallPct}%</div><div class="review-stat-label">Done</div></div>
+        </div>
+        <div class="review-summary">
+            <strong>${r.completedBlocks}</strong> of <strong>${r.totalBlocks}</strong> blocks completed this week
+            ${r.bestDay ? `<br>Best day: <strong>${r.bestDay}</strong> (${r.bestDone}/${r.bestTotal} · ${r.bestPct}%)` : "<br>No blocks scheduled yet."}
+        </div>
+        <h4 style="margin:14px 0 8px">By day</h4>
+        <div class="review-days">${dayRows}</div>
+    `;
+    panel.classList.remove("hidden");
+}
+
+function closeWeeklyReview() {
+    setTimeout(updateNowPlayingVisibility, 50);
+    const panel = document.getElementById("weekly-review-panel");
+    if (panel) panel.classList.add("hidden");
+}
+
+
+
+let _musicVolume = 0.4;
+let _streamPlaying = false;
+let _localTracks = []; // { id, name, artist, blob? url? }
+let _localIndex = 0;
+let _localPlaying = false;
+let _npSource = null;
+let _npTimer = null;
+let _archivePlaying = false;
+let _npWantVisible = false;
+const LOCAL_MUSIC_DB = "SyncDay_local_music";
+const LOCAL_MUSIC_STORE = "tracks";
+
+function openMusicPage() {
+    const page = document.getElementById("music-page");
+    if (!page) return;
+    page.classList.remove("hidden");
+    const day = DAYS[getTodayIndex()];
+    const now = new Date().getHours() * 60 + new Date().getMinutes();
+    const active = (data.schedules[day] || []).find(t =>
+        !t.completed && !t.isSleep &&
+        timeToMinutes(t.start) <= now && now < timeToMinutes(t.end)
+    );
+    const label = document.getElementById("music-focus-task");
+    if (label) label.textContent = active ? (active.task || "Untitled") : "No active block — free focus";
+    if (active) {
+        _focusTaskRef = { task: active, index: (data.schedules[day] || []).indexOf(active), day };
+    }
+    updateFocusTimerDisplay();
+    renderMicroTasks();
+    renderLocalTrackList();
+    updateNowPlayingVisibility();
+    if (!navigator.onLine) {
+        showToast("📡 Offline — local library still works", "info");
+    }
+}
+
+function closeMusicPage() {
+    const page = document.getElementById("music-page");
+    if (page) page.classList.add("hidden");
+    updateNowPlayingVisibility();
+}
+
+function toggleMusicDock() { openMusicPage(); }
+
+function setMusicVolume(val) {
+    _musicVolume = Math.max(0, Math.min(100, Number(val))) / 100;
+    ["stream-audio", "local-audio"].forEach(id => {
+        const a = document.getElementById(id);
+        if (a) a.volume = _musicVolume;
+    });
+    const npVol = document.getElementById("np-volume");
+    if (npVol) npVol.value = Math.round(_musicVolume * 100);
+}
+
+function isBlockingOverlayOpen() {
+    const check = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return false;
+        if (el.classList.contains("hidden")) return false;
+        if (el.style.display === "none") return false;
+        return true;
+    };
+    if (check("todo-drawer")) return true;
+    if (check("progress-panel")) return true;
+    if (check("timeline-page")) return true;
+    if (check("weekly-review-panel")) return true;
+    if (check("focus-modal")) return true;
+    if (check("theme-locked-popup")) return true;
+    const side = document.getElementById("preset-sidebar") || document.getElementById("sidebar");
+    if (side && side.classList.contains("open")) return true;
+    return false;
+}
+
+function updateNowPlayingVisibility() {
+    const bar = document.getElementById("now-playing-bar");
+    if (!bar) return;
+    const musicOpen = document.getElementById("music-page") &&
+        !document.getElementById("music-page").classList.contains("hidden");
+    const mainOk = !isBlockingOverlayOpen();
+    // Show if we have something to show AND (music page open OR main schedule view without overlays)
+    if (_npWantVisible && mainOk) {
+        bar.classList.remove("hidden");
+    } else {
+        bar.classList.add("hidden");
+    }
+    // Always allow on music page
+    if (_npWantVisible && musicOpen) bar.classList.remove("hidden");
+}
+
+function showNowPlaying(title, artist, source) {
+    const bar = document.getElementById("now-playing-bar");
+    if (!bar) return;
+    _npWantVisible = true;
+    const t = document.getElementById("np-title");
+    const a = document.getElementById("np-artist");
+    if (t) t.textContent = title || "—";
+    if (a) a.textContent = artist || (source === "local" ? "Local file" : "—");
+    _npSource = source;
+    updateNpPlayBtn();
+    startNpTimer();
+    updateNowPlayingVisibility();
+}
+
+function hideNowPlaying() {
+    _npWantVisible = false;
+    const bar = document.getElementById("now-playing-bar");
+    if (bar) bar.classList.add("hidden");
+    stopNpTimer();
+    _npSource = null;
+}
+
+function updateNpPlayBtn() {
+    const btn = document.getElementById("np-play-btn");
+    if (!btn) return;
+    const playing = _localPlaying || _streamPlaying || _archivePlaying;
+    btn.textContent = playing ? "⏸" : "▶";
+}
+
+function toggleNowPlaying() {
+    if (_npSource === "local") toggleLocalPlayByIndex(_localIndex);
+    else if (_npSource === "archive") toggleArchivePlay();
+    updateNpPlayBtn();
+}
+
+function startNpTimer() {
+    stopNpTimer();
+    _npTimer = setInterval(updateNpTimes, 500);
+    updateNpTimes();
+}
+function stopNpTimer() {
+    if (_npTimer) clearInterval(_npTimer);
+    _npTimer = null;
+}
+function formatAudioTime(sec) {
+    if (!isFinite(sec) || sec < 0) return "0:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return m + ":" + String(s).padStart(2, "0");
+}
+function updateNpTimes() {
+    const audio = document.getElementById(_npSource === "local" ? "local-audio" : "stream-audio");
+    const cur = document.getElementById("np-current");
+    const dur = document.getElementById("np-duration");
+    if (!audio || !cur || !dur) return;
+    cur.textContent = formatAudioTime(audio.currentTime);
+    dur.textContent = formatAudioTime(audio.duration);
+}
+
+
+const PIPED_INSTANCES = [
+    "https://pipedapi.kavin.rocks",
+    "https://pipedapi.adminforge.de",
+    "https://api.piped.private.coffee",
+    "https://pipedapi.syncpundit.io",
+];
+let _musicResults = [];
+let _audiusHost = null;
+
+function pickBestAudio(audioStreams) {
+    if (!Array.isArray(audioStreams) || !audioStreams.length) return null;
+    const scored = audioStreams
+        .filter(s => s.url)
+        .map(s => {
+            const mime = (s.mimeType || s.format || "").toLowerCase();
+            let score = s.bitrate || s.quality || 0;
+            if (mime.includes("mp4") || mime.includes("m4a") || mime.includes("aac")) score += 50000;
+            if (mime.includes("opus")) score += 20000;
+            return { s, score };
+        })
+        .sort((a, b) => b.score - a.score);
+    return scored[0] ? scored[0].s : null;
+}
+
+async function pipedFetch(pathAndQuery) {
+    let lastErr;
+    for (const base of PIPED_INSTANCES) {
+        try {
+            const res = await fetch(base + pathAndQuery, { signal: AbortSignal.timeout(8000) });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            return await res.json();
+        } catch (e) {
+            lastErr = e;
+        }
+    }
+    throw lastErr || new Error("All Piped instances failed");
+}
+
+async function searchViaPiped(q) {
+    let json;
+    try {
+        json = await pipedFetch(`/search?q=${encodeURIComponent(q)}&filter=music_songs`);
+    } catch {
+        json = await pipedFetch(`/search?q=${encodeURIComponent(q)}&filter=videos`);
+    }
+    const items = json.items || json || [];
+    return (Array.isArray(items) ? items : [])
+        .filter(it => it.url || it.id || it.videoId)
+        .map(it => {
+            const id = it.id || it.videoId ||
+                (it.url || "").replace(/^.*[?&]v=/, "").replace(/&.*/, "") ||
+                (it.url || "").split("/").pop();
+            return {
+                source: "piped",
+                id,
+                title: it.title || "Untitled",
+                artist: (it.uploaderName || it.uploader || it.author || "YouTube").toString(),
+                artwork: it.thumbnail || (it.thumbnails && it.thumbnails[0]) || null,
+                plays: it.views || it.viewCount || 0,
+                preview: false
+            };
+        })
+        .filter(t => t.id && t.title)
+        .slice(0, 25);
+}
+
+async function playViaPiped(id) {
+    const json = await pipedFetch(`/streams/${encodeURIComponent(id)}`);
+    const best = pickBestAudio(json.audioStreams || []);
+    if (!best || !best.url) throw new Error("No audio stream found");
+    return { url: best.url, title: json.title || null, artist: json.uploader || json.uploaderName || null };
+}
+
+async function getAudiusHost() {
+    if (_audiusHost) return _audiusHost;
+    try {
+        const res = await fetch("https://api.audius.co");
+        const json = await res.json();
+        const hosts = json.data || [];
+        _audiusHost = (hosts[0] || "https://discoveryprovider.audius.co").replace(/\/$/, "");
+    } catch {
+        _audiusHost = "https://discoveryprovider.audius.co";
+    }
+    return _audiusHost;
+}
+
+async function searchFreeMusic() {
+    const input = document.getElementById("music-search-input");
+    const status = document.getElementById("music-search-status");
+    const list = document.getElementById("music-search-results");
+    if (!input || !list) return;
+    const q = input.value.trim();
+    if (!q) {
+        showToast("Type a song, artist, or genre", "warn");
+        return;
+    }
+    if (!navigator.onLine) {
+        showToast("📡 Offline — use your local library", "warn");
+        return;
+    }
+    if (status) status.textContent = "Searching…";
+    list.innerHTML = "";
+    _musicResults = [];
+
+    // 1) YouTube via Piped, called directly from the browser — no local server needed
+    try {
+        const tracks = await searchViaPiped(q);
+        if (tracks.length) {
+            _musicResults = tracks;
+            if (status) status.textContent = _musicResults.length + " tracks (YouTube)";
+            renderMusicResults(list);
+            return;
+        }
+    } catch (e) {
+        console.warn("Piped search failed:", e);
+        if (status) status.textContent = "YouTube search unavailable — trying Audius…";
+    }
+
+    // 2) Audius fallback (no backend needed)
+    try {
+        const host = await getAudiusHost();
+        const res = await fetch(`${host}/v1/tracks/search?query=${encodeURIComponent(q)}&app_name=Momento&limit=25`);
+        const json = await res.json();
+        let tracks = (json.data || [])
+            .filter(t => t && t.id && t.title)
+            .sort((a, b) => (b.play_count || 0) - (a.play_count || 0))
+            .slice(0, 20);
+        if (tracks.length) {
+            _musicResults = tracks.map(t => ({
+                source: "audius",
+                id: t.id,
+                title: t.title,
+                artist: (t.user && (t.user.name || t.user.handle)) || "Unknown",
+                artwork: t.artwork && (t.artwork["150x150"] || t.artwork["480x480"]),
+                plays: t.play_count || 0,
+                preview: false
+            }));
+            if (status) status.textContent = _musicResults.length + " tracks (Audius · backend off)";
+            renderMusicResults(list);
+            return;
+        }
+    } catch (e) {
+        console.warn("Audius failed", e);
+    }
+
+    if (status) status.textContent = "No results — try another query";
+    showToast("No results from YouTube or Audius right now — try again in a bit", "warn");
+}
+
+function renderMusicResults(list) {
+    list.innerHTML = _musicResults.map((t, i) => {
+        const title = String(t.title || "Untitled").replace(/[<>&]/g, "");
+        const artist = String(t.artist || "").replace(/[<>&"]/g, "");
+        const plays = t.plays >= 1000 ? Math.round(t.plays / 1000) + "k" : (t.plays || "");
+        const art = t.artwork
+            ? `<img class="msi-art" src="${t.artwork}" alt="" loading="lazy" referrerpolicy="no-referrer">`
+            : `<div class="msi-art msi-art-ph">♪</div>`;
+        return `<li class="music-search-item">
+            ${art}
+            <div class="msi-meta"><strong>${title}</strong><span>${artist}${plays ? " · " + plays : ""}</span></div>
+            <button type="button" class="btn-primary" onclick="playMusicResult(${i})">Play</button>
+        </li>`;
+    }).join("");
+}
+
+async function playMusicResult(i) {
+    const t = _musicResults[i];
+    if (!t) return;
+    if (!navigator.onLine) {
+        showToast("📡 Offline — can't stream", "warn");
+        return;
+    }
+    const status = document.getElementById("music-search-status");
+    if (status) status.textContent = "Loading…";
+
+    try {
+        let url = null;
+        if (t.source === "piped") {
+            const data = await playViaPiped(t.id);
+            url = data.url;
+            if (data.title) t.title = data.title;
+            if (data.artist) t.artist = data.artist;
+        } else if (t.source === "audius") {
+            const host = await getAudiusHost();
+            url = `${host}/v1/tracks/${encodeURIComponent(t.id)}/stream?app_name=Momento`;
+        }
+        if (!url) throw new Error("no stream");
+
+        stopLocalPlay();
+        const audio = document.getElementById("stream-audio");
+        if (!audio) return;
+        audio.removeAttribute("crossorigin");
+        audio.src = url;
+        audio.volume = _musicVolume;
+        audio.load();
+        await audio.play();
+        _streamPlaying = true;
+        _archivePlaying = true;
+        _npSource = "archive";
+        showNowPlaying(t.title, t.artist || "", "archive");
+        if (status) status.textContent = "Playing";
+        audio.onended = () => {
+            _streamPlaying = false;
+            _archivePlaying = false;
+            updateNpPlayBtn();
+        };
+        audio.onerror = () => {
+            showToast("Couldn't play — try another track", "warn");
+            if (status) status.textContent = "Playback error";
+            _streamPlaying = false;
+            _archivePlaying = false;
+        };
+    } catch (e) {
+        console.error(e);
+        showToast("Playback failed — YouTube source may be temporarily down, try another track", "warn");
+        if (status) status.textContent = "Playback failed";
+    }
+}
+
+async function playArchiveByIndex(i) { return playMusicResult(i); }
+async function playArchiveItem() {}
+
+function toggleArchivePlay() {
+    const audio = document.getElementById("stream-audio");
+    if (!audio || !audio.src) return;
+    if (_streamPlaying || _archivePlaying) {
+        audio.pause();
+        _streamPlaying = false;
+        _archivePlaying = false;
+    } else {
+        audio.play().then(() => {
+            _streamPlaying = true;
+            _archivePlaying = true;
+        }).catch(() => {});
+    }
+    updateNpPlayBtn();
+}
+
+function stopStream() {
+    const audio = document.getElementById("stream-audio");
+    if (audio) { audio.pause(); audio.removeAttribute("src"); audio.load(); }
+    _streamPlaying = false;
+    _archivePlaying = false;
+    updateNpPlayBtn();
+}
+
+function openMusicDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(LOCAL_MUSIC_DB, 1);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains(LOCAL_MUSIC_STORE)) {
+                db.createObjectStore(LOCAL_MUSIC_STORE, { keyPath: "id" });
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function saveTrackToDB(track) {
+    const db = await openMusicDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(LOCAL_MUSIC_STORE, "readwrite");
+        tx.objectStore(LOCAL_MUSIC_STORE).put(track);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function loadTracksFromDB() {
+    try {
+        const db = await openMusicDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(LOCAL_MUSIC_STORE, "readonly");
+            const req = tx.objectStore(LOCAL_MUSIC_STORE).getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        });
+    } catch (e) {
+        console.warn("IDB load fail", e);
+        return [];
+    }
+}
+
+async function deleteTrackFromDB(id) {
+    const db = await openMusicDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(LOCAL_MUSIC_STORE, "readwrite");
+        tx.objectStore(LOCAL_MUSIC_STORE).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function initLocalLibrary() {
+    const rows = await loadTracksFromDB();
+    _localTracks = rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        artist: r.artist || "Local file",
+        blob: r.blob,
+        url: r.blob ? URL.createObjectURL(r.blob) : null
+    }));
+    renderLocalTrackList();
+}
+
+function renderLocalTrackList() {
+    const list = document.getElementById("local-track-list");
+    if (!list) return;
+    if (!_localTracks.length) {
+        list.innerHTML = `<li class="music-track-label">No tracks yet — add some files</li>`;
+        return;
+    }
+    list.innerHTML = _localTracks.map((t, i) => `
+        <li class="local-track-item ${_localPlaying && _localIndex === i ? "playing" : ""}">
+            <span class="local-track-name" title="${t.name.replace(/"/g, "")}">${t.name.replace(/[<>]/g, "")}</span>
+            <div class="local-track-actions">
+                <button type="button" class="btn-primary btn-sm" onclick="playLocalByIndex(${i})">${_localPlaying && _localIndex === i ? "⏸" : "▶"}</button>
+                <button type="button" class="btn-danger btn-sm" onclick="removeLocalTrack(${i})" title="Remove">✕</button>
+            </div>
+        </li>
+    `).join("");
+}
+
+async function loadLocalTracks(event) {
+    const files = event.target.files;
+    if (!files || !files.length) return;
+    for (const f of files) {
+        const id = Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+        const track = { id, name: f.name, artist: "Local file", blob: f };
+        await saveTrackToDB(track);
+        _localTracks.push({
+            id,
+            name: f.name,
+            artist: "Local file",
+            blob: f,
+            url: URL.createObjectURL(f)
+        });
+    }
+    renderLocalTrackList();
+    showToast(`Added ${files.length} track(s) to library`, "info");
+    event.target.value = "";
+}
+
+function playLocalByIndex(i) {
+    if (i < 0 || i >= _localTracks.length) return;
+    const audio = document.getElementById("local-audio");
+    if (!audio) return;
+    if (_localPlaying && _localIndex === i) {
+        audio.pause();
+        _localPlaying = false;
+        updateNpPlayBtn();
+        renderLocalTrackList();
+        return;
+    }
+    stopStream();
+    _localIndex = i;
+    const track = _localTracks[i];
+    if (!track.url && track.blob) track.url = URL.createObjectURL(track.blob);
+    audio.src = track.url;
+    audio.volume = _musicVolume;
+    audio.play().then(() => {
+        _localPlaying = true;
+        _npSource = "local";
+        showNowPlaying(track.name, track.artist || "Local file", "local");
+        updateNpPlayBtn();
+        renderLocalTrackList();
+    }).catch(err => {
+        console.error(err);
+        showToast("Couldn't play that file", "warn");
+    });
+    audio.onended = () => {
+        if (_localIndex < _localTracks.length - 1) playLocalByIndex(_localIndex + 1);
+        else {
+            _localPlaying = false;
+            updateNpPlayBtn();
+            renderLocalTrackList();
+        }
+    };
+}
+
+function toggleLocalPlayByIndex(i) {
+    playLocalByIndex(typeof i === "number" ? i : _localIndex);
+}
+
+function toggleLocalPlay() {
+    playLocalByIndex(_localIndex);
+}
+
+async function removeLocalTrack(i) {
+    const track = _localTracks[i];
+    if (!track) return;
+    if (_localPlaying && _localIndex === i) stopLocalPlay();
+    try { if (track.url) URL.revokeObjectURL(track.url); } catch (e) {}
+    await deleteTrackFromDB(track.id);
+    _localTracks.splice(i, 1);
+    if (_localIndex >= _localTracks.length) _localIndex = Math.max(0, _localTracks.length - 1);
+    renderLocalTrackList();
+}
+
+function stopLocalPlay() {
+    const audio = document.getElementById("local-audio");
+    if (audio) audio.pause();
+    _localPlaying = false;
+    updateNpPlayBtn();
+    renderLocalTrackList();
+}
+
+function nextLocalTrack(auto) {
+    if (!_localTracks.length) return;
+    const next = (_localIndex + 1) % _localTracks.length;
+    playLocalByIndex(next);
+}
+
 function closeProgressPanel() {
+    setTimeout(updateNowPlayingVisibility, 50);
     const panel = document.getElementById("progress-panel");
     if (panel) panel.classList.add("hidden");
 }
 
 function toggleTodoDrawer() {
+    setTimeout(updateNowPlayingVisibility, 50);
     const d = document.getElementById("todo-drawer");
     if (!d) return;
     d.classList.toggle("hidden");
@@ -1721,6 +2822,7 @@ function toggleTodoDrawer() {
 }
 
 function openTimelinePage() {
+    setTimeout(updateNowPlayingVisibility, 50);
     if (!isFeatureUnlocked("timeline")) {
         const info = getLevelInfo(data.xp || 0);
         const need = LEVEL_TABLE[FEATURE_UNLOCKS.timeline];
@@ -1835,14 +2937,6 @@ function openFocusMode(task, index) {
                         <button onclick="resetFocusTimer()">↺ Reset</button>
                         <button onclick="skipFocusPhase()">⏭ Skip</button>
                     </div>
-                    <div class="focus-ambient">
-                        <span>Ambient:</span>
-                        <button class="ambient-btn active" data-sound="none" onclick="setAmbient('none')">None</button>
-                        <button class="ambient-btn" data-sound="rain" onclick="setAmbient('rain')">🌧 Rain</button>
-                        <button class="ambient-btn" data-sound="brown" onclick="setAmbient('brown')">🟤 Brown</button>
-                        <button class="ambient-btn" data-sound="white" onclick="setAmbient('white')">⚪ White</button>
-                        <button class="ambient-btn" data-sound="forest" onclick="setAmbient('forest')">🌲 Forest</button>
-                    </div>
                     <div class="focus-micro">
                         <div class="focus-micro-header">
                             <strong>Micro-tasks</strong>
@@ -1865,7 +2959,6 @@ function openFocusMode(task, index) {
     updateFocusTimerDisplay();
     renderMicroTasks();
     modal.classList.remove("hidden");
-    setAmbient("none");
 }
 
 function closeFocusMode() {
@@ -1873,19 +2966,26 @@ function closeFocusMode() {
     if (modal) modal.classList.add("hidden");
     if (_focusTimerInterval) clearInterval(_focusTimerInterval);
     _focusIsRunning = false;
-    stopAmbient();
 }
 
 function updateFocusTimerDisplay() {
-    const el = document.getElementById("focus-timer");
-    if (!el) return;
     const m = Math.floor(_focusSecondsLeft / 60);
     const s = _focusSecondsLeft % 60;
-    el.textContent = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
-    const phase = document.getElementById("focus-phase");
-    if (phase) phase.textContent = _focusIsBreak ? "☕ Break Time" : "💪 Work Session";
-    const btn = document.getElementById("focus-start-btn");
-    if (btn) btn.textContent = _focusIsRunning ? "⏸ Pause" : "▶ Start";
+    const text = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    const phaseText = _focusIsBreak ? "☕ Break Time" : "💪 Work Session";
+    const startText = _focusIsRunning ? "⏸ Pause" : "▶ Start";
+    ["focus-timer", "music-focus-timer"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    });
+    ["focus-phase", "music-focus-phase"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = phaseText;
+    });
+    ["focus-start-btn", "music-focus-start"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = startText;
+    });
 }
 
 function toggleFocusTimer() {
@@ -1984,112 +3084,8 @@ function renderMicroTasks() {
     `).join("");
 }
 
-/* Ambient sound generators using Web Audio API */
-function stopAmbient() {
-    _ambientNodes.forEach(n => {
-        try { n.stop ? n.stop() : n.disconnect(); } catch(e){}
-    });
-    _ambientNodes = [];
-    if (_ambientAudioCtx) {
-        try { _ambientAudioCtx.close(); } catch(e){}
-        _ambientAudioCtx = null;
-    }
-    _currentAmbient = "none";
-    document.querySelectorAll(".ambient-btn").forEach(b => b.classList.remove("active"));
-    const noneBtn = document.querySelector('.ambient-btn[data-sound="none"]');
-    if (noneBtn) noneBtn.classList.add("active");
-}
-
-function setAmbient(type) {
-    stopAmbient();
-    _currentAmbient = type;
-    document.querySelectorAll(".ambient-btn").forEach(b => {
-        b.classList.toggle("active", b.dataset.sound === type);
-    });
-    if (type === "none") return;
-
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    _ambientAudioCtx = ctx;
-    const gain = ctx.createGain();
-    gain.gain.value = 0.18;
-    gain.connect(ctx.destination);
-
-    if (type === "brown" || type === "white") {
-        // Noise buffer
-        const bufferSize = 2 * ctx.sampleRate;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        let last = 0;
-        for (let i = 0; i < bufferSize; i++) {
-            const white = Math.random() * 2 - 1;
-            if (type === "brown") {
-                last = (last + 0.02 * white) / 1.02;
-                data[i] = last * 3.5;
-            } else {
-                data[i] = white;
-            }
-        }
-        const src = ctx.createBufferSource();
-        src.buffer = buffer;
-        src.loop = true;
-        src.connect(gain);
-        src.start();
-        _ambientNodes.push(src);
-    } else if (type === "rain") {
-        // Filtered noise + occasional drops
-        const bufferSize = 2 * ctx.sampleRate;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-        const src = ctx.createBufferSource();
-        src.buffer = buffer;
-        src.loop = true;
-        const filter = ctx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.value = 800;
-        filter.Q.value = 0.7;
-        src.connect(filter);
-        filter.connect(gain);
-        src.start();
-        _ambientNodes.push(src);
-        // Soft "drops"
-        const dropGain = ctx.createGain();
-        dropGain.gain.value = 0.08;
-        dropGain.connect(ctx.destination);
-        const makeDrop = () => {
-            if (_currentAmbient !== "rain") return;
-            const osc = ctx.createOscillator();
-            const g = ctx.createGain();
-            osc.frequency.value = 400 + Math.random() * 600;
-            g.gain.setValueAtTime(0.15, ctx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-            osc.connect(g);
-            g.connect(dropGain);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.3);
-            setTimeout(makeDrop, 200 + Math.random() * 800);
-        };
-        makeDrop();
-    } else if (type === "forest") {
-        // Soft wind-like filtered noise
-        const bufferSize = 2 * ctx.sampleRate;
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.4;
-        const src = ctx.createBufferSource();
-        src.buffer = buffer;
-        src.loop = true;
-        const filter = ctx.createBiquadFilter();
-        filter.type = "bandpass";
-        filter.frequency.value = 600;
-        filter.Q.value = 0.5;
-        src.connect(filter);
-        filter.connect(gain);
-        src.start();
-        _ambientNodes.push(src);
-    }
-}
-
+function stopAmbient() { /* removed */ }
+function setAmbient() { /* removed */ }
 
 /* =========================================================
    PERSISTENT TO-DO LIST
@@ -2104,7 +3100,8 @@ function addTodo() {
         id: Date.now() + Math.random().toString(36).slice(2,7),
         text,
         completed: false,
-        created: new Date().toISOString()
+        created: new Date().toISOString(),
+        createdAt: Date.now()
     });
     input.value = "";
     saveData();
@@ -2115,10 +3112,36 @@ function toggleTodo(id) {
     const t = (data.todos || []).find(x => x.id === id);
     if (!t) return;
     const was = t.completed;
-    t.completed = !t.completed;
-    const xpGain = 40;
-    if (t.completed && !was) {
-        data.xp = (data.xp || 0) + xpGain;
+    const baseXP = 40;
+
+    if (!was) {
+        // Completing — enforce min 5 minutes since created
+        const created = t.createdAt || (t.created ? Date.parse(t.created) : Date.now());
+        const elapsedMin = (Date.now() - created) / 60000;
+        const infoBefore = getLevelInfo(data.xp || 0);
+
+        if (elapsedMin < 5) {
+            // Anti-farm: delete the to-do + heavy penalty = half of this rank's step cost
+            const stepCost = infoBefore.needed || 100;
+            const penalty = Math.max(25, Math.round(stepCost / 2));
+            data.xp = Math.max(0, (data.xp || 0) - penalty);
+            data.todos = (data.todos || []).filter(x => x.id !== id);
+            const infoAfter = getLevelInfo(data.xp || 0);
+            saveData();
+            updateXPDisplay();
+            renderTodos();
+            showToast(`🚫 To-do under 5 min — deleted & −${penalty} XP (½ rank step)`, "warn");
+            if (infoAfter.levelIndex < infoBefore.levelIndex) {
+                showLevelDown(infoBefore.rank, infoAfter.rank);
+                enforceLocksAfterXPChange();
+            }
+            return;
+        }
+
+        // Normal complete
+        t.completed = true;
+        t.xpAwarded = baseXP;
+        data.xp = (data.xp || 0) + baseXP;
         data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
         const todayStr = new Date().toDateString();
         if (data.lastCompletedDate !== todayStr) {
@@ -2131,18 +3154,30 @@ function toggleTodo(id) {
             }
             data.lastCompletedDate = todayStr;
         }
-        const infoBefore = getLevelInfo((data.xp || 0) - xpGain);
         const infoAfter = getLevelInfo(data.xp || 0);
-        showXPPopup(xpGain, t.text, infoAfter);
+        showXPPopup(baseXP, t.text, infoAfter);
+        playRewardSound("complete");
         updateXPDisplay();
         if (infoAfter.levelIndex > infoBefore.levelIndex) {
             checkAndUnlockRewards(infoAfter.levelIndex);
             showLevelUp(infoAfter.rank);
+            playRewardSound("levelup");
         }
-    } else if (!t.completed && was) {
-        data.xp = Math.max(0, (data.xp || 0) - xpGain);
+    } else {
+        // Unchecking a legitimately completed to-do — claw back the +XP only
+        // (penalty path deletes the item, so we never get here for penalties)
+        const loss = typeof t.xpAwarded === "number" && t.xpAwarded > 0 ? t.xpAwarded : baseXP;
+        const infoBefore = getLevelInfo(data.xp || 0);
+        data.xp = Math.max(0, (data.xp || 0) - loss);
         data.totalTasksCompleted = Math.max(0, (data.totalTasksCompleted || 0) - 1);
+        t.completed = false;
+        t.xpAwarded = 0;
+        const infoAfter = getLevelInfo(data.xp || 0);
         updateXPDisplay();
+        if (infoAfter.levelIndex < infoBefore.levelIndex) {
+            showLevelDown(infoBefore.rank, infoAfter.rank);
+            enforceLocksAfterXPChange();
+        }
     }
     saveData();
     renderTodos();
@@ -2640,13 +3675,30 @@ function saveCurrentAsPreset() {
 }
 
 function applyNamedPreset(name) {
-    if (data.presets[name]) {
-        DAYS.forEach(day => data.schedules[day] = deepClone(data.presets[name][day] || []));
-        data.appliedRoutine = name;
-        saveData();
-        renderCurrentDay();
-        alert(`Applied preset: ${name}`);
+    if (!data.presets[name]) return;
+    if (!confirm(`Apply "${name}" to the entire week? XP from completed tasks will be removed.`)) return;
+    const infoBefore = getLevelInfo(data.xp || 0);
+    let lost = 0;
+    DAYS.forEach(day => {
+        if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true });
+    });
+    DAYS.forEach(day => {
+        data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
+            ...t, completed: false, xpAwarded: false, xpAmount: 0
+        }));
+    });
+    data.appliedRoutine = name;
+    saveData();
+    renderCurrentDay();
+    updateXPDisplay();
+    const infoAfter = getLevelInfo(data.xp || 0);
+    if (infoAfter.levelIndex < infoBefore.levelIndex) {
+        showLevelDown(infoBefore.rank, infoAfter.rank);
     }
+    enforceLocksAfterXPChange();
+    showSavedMessage(lost > 0
+        ? `✓ "${name}" applied (−${lost} XP clawed back)`
+        : `✓ "${name}" applied`);
 }
 
 function deletePreset(name) {
