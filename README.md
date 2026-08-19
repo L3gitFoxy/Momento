@@ -1,14 +1,14 @@
 ![momento](https://socialify.git.ci/l3gitfoxy/momento/image?custom_language=JavaScript&font=Source+Code+Pro&issues=1&language=1&name=1&pattern=Transparent&pulls=1&stargazers=1&theme=Dark)
 
-weekly time-block planner + daily check-in, runs entirely in the browser. no backend, no accounts, no tracking just localStorage and vanilla JS.
+weekly time-block planner + daily check-in, runs entirely in the browser. no backend, no accounts, no tracking—just localStorage and vanilla JS.
 
 ![Vanilla JS](https://img.shields.io/badge/JS-vanilla-yellow)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
 ## why
 
-most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is just one file (app), opens instantly, and keeps everything on your machine. No sign-in, log-in or anything of the kind!
+most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento opens instantly and keeps everything on your machine. No sign-in, log-in, or tracking of any kind!
 
 ## what is Momento?
 
@@ -18,22 +18,15 @@ Plan the day, play the day, level up. Built for anyone who gets more done when i
 
 ## files
 
-```
-index.html   UI/markup
-script.js    data model, presets, rendering, drag/drop, analytics
-style.css    dark theme, sidebar drawer, badges
-ai-chatbot.js integrated ai bot, helps out do things throughout the app
-electron-main.js main electron app logic
-package.json & package-lock.json useful for packing project in single .exe application
-./node_modules helper modules + electron
-./dist contains one file application
-./assets contains icon
-./music-server/server.js controls music servers
-
-Main file:
-
-**Momento Setup 3.0.2.exe**
-
+```text
+index.html                       UI / markup
+script.js                        data model, presets, rendering, drag/drop, analytics
+style.css                        dark theme, sidebar drawer, badges
+ai-chatbot.js                    integrated AI bot to assist throughout the app
+electron-main.js                 main Electron process logic
+package.json & package-lock.json configuration & build dependencies
+./assets                         application icons & images
+./music-server/server.js         local audio server setup
 ```
 
 
@@ -44,17 +37,32 @@ https://momento-silk.vercel.app
 
 **just open it:**
 ```bash
-git clone https://github.com/l3gitfoxy/momento.git
-cd momento/dist
-open Momento Setup 3.0.2.exe
+git clone https://github.com/L3gitFoxy/Momento.git
+cd Momento
+npm install
+npm start
 ```
 
 **just install the exe file** (needed if your browser blocks local file access for JS modules):
-- Download the exe setup file from the latest release and watch the magic happen!
+Option 1: Direct Download (Recommended)
+Download the .exe setup file directly from the Latest Release and run the installer.
 
-## contributing
+  OR
 
-it's a double-page app, poke around the main files (not inside node_modules or dist), send a PR. issues/feature ideas welcome too.
+Option 2: Build from Source
+If you want to compile the desktop executable yourself:
+
+```bash
+git clone https://github.com/L3gitFoxy/Momento.git
+cd Momento
+npm install
+npx electron-builder --win
+```
+
+## Contributing
+This is an Electron application, feel free to explore the source code in the main directories (avoid editing files inside node_modules or dist).
+
+Pull requests, bug reports, and feature suggestions are always welcome!
 
 ## license
 
