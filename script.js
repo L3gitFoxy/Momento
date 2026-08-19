@@ -4,222 +4,1059 @@
 
 const BUILT_IN_PRESETS = {
     "Student Daily Routine": {
-        Monday: [
-            { start: "07:00", end: "08:00", activity: "Wake up & Breakfast" },
-            { start: "08:00", end: "15:00", activity: "School / College Classes" },
-            { start: "15:00", end: "16:00", activity: "Lunch & Relaxation" },
-            { start: "16:00", end: "18:00", activity: "Study & Homework" },
-            { start: "18:00", end: "19:30", activity: "Exercise & Outdoor Activity" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Gaming / Free Time & Read" }
-        ],
-        Tuesday: [
-            { start: "07:00", end: "08:00", activity: "Wake up & Breakfast" },
-            { start: "08:00", end: "15:00", activity: "School / College Classes" },
-            { start: "15:00", end: "16:00", activity: "Lunch & Relaxation" },
-            { start: "16:00", end: "18:00", activity: "Study & Homework" },
-            { start: "18:00", end: "19:30", activity: "Exercise & Outdoor Activity" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Gaming / Free Time & Read" }
-        ],
-        Wednesday: [
-            { start: "07:00", end: "08:00", activity: "Wake up & Breakfast" },
-            { start: "08:00", end: "15:00", activity: "School / College Classes" },
-            { start: "15:00", end: "16:00", activity: "Lunch & Relaxation" },
-            { start: "16:00", end: "18:00", activity: "Study & Homework" },
-            { start: "18:00", end: "19:30", activity: "Exercise & Outdoor Activity" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Gaming / Free Time & Read" }
-        ],
-        Thursday: [
-            { start: "07:00", end: "08:00", activity: "Wake up & Breakfast" },
-            { start: "08:00", end: "15:00", activity: "School / College Classes" },
-            { start: "15:00", end: "16:00", activity: "Lunch & Relaxation" },
-            { start: "16:00", end: "18:00", activity: "Study & Homework" },
-            { start: "18:00", end: "19:30", activity: "Exercise & Outdoor Activity" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Gaming / Free Time & Read" }
-        ],
-        Friday: [
-            { start: "07:00", end: "08:00", activity: "Wake up & Breakfast" },
-            { start: "08:00", end: "15:00", activity: "School / College Classes" },
-            { start: "15:00", end: "16:00", activity: "Lunch & Relaxation" },
-            { start: "16:00", end: "18:00", activity: "Study & Homework" },
-            { start: "18:00", end: "19:30", activity: "Exercise & Outdoor Activity" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Weekend Movie / Gaming" }
-        ],
-        Saturday: [
-            { start: "08:30", end: "09:30", activity: "Breakfast" },
-            { start: "09:30", end: "12:00", activity: "Study & Revision" },
-            { start: "12:00", end: "13:00", activity: "Lunch" },
-            { start: "13:00", end: "17:00", activity: "Gaming / Personal Time" },
-            { start: "17:00", end: "19:00", activity: "Sports & Exercise" },
-            { start: "19:00", end: "20:30", activity: "Dinner & Relax" },
-            { start: "20:30", end: "22:30", activity: "Free Time" }
-        ],
-        Sunday: [
-            { start: "09:00", end: "10:00", activity: "Late Breakfast" },
-            { start: "10:00", end: "12:30", activity: "Free Time & Hobbies" },
-            { start: "12:30", end: "13:30", activity: "Lunch" },
-            { start: "13:30", end: "15:30", activity: "Light Study & Prep for Week" },
-            { start: "15:30", end: "18:00", activity: "Relax & Wind Down" },
-            { start: "18:00", end: "19:30", activity: "Exercise / Walk" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Read" }
-        ]
+      "Monday": [
+        {
+          start: "07:00",
+          end: "08:00",
+          activity: "Wake up & Breakfast",
+        },
+        {
+          start: "08:00",
+          end: "15:00",
+          activity: "School / College Classes",
+           
+        },
+        {
+          start: "15:00",
+          end: "16:00",
+          activity: "Lunch & Relaxation",
+           
+        },
+        {
+          start: "16:00",
+          end: "18:00",
+          activity: "Study & Homework",
+           
+        },
+        {
+          start: "18:00",
+          end: "19:30",
+          activity: "Exercise & Outdoor Activity",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Gaming / Free Time & Read",
+           
+        }
+      ],
+      "Tuesday": [
+        {
+          start: "07:00",
+          end: "08:00",
+          activity: "Wake up & Breakfast",
+           
+        },
+        {
+          start: "08:00",
+          end: "15:00",
+          activity: "School / College Classes",
+           
+        },
+        {
+          start: "15:00",
+          end: "16:00",
+          activity: "Lunch & Relaxation",
+           
+        },
+        {
+          start: "16:00",
+          end: "18:00",
+          activity: "Study & Homework",
+           
+        },
+        {
+          start: "18:00",
+          end: "19:30",
+          activity: "Exercise & Outdoor Activity",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Gaming / Free Time & Read",
+           
+        }
+      ],
+      "Wednesday": [
+        {
+          start: "07:00",
+          end: "08:00",
+          activity: "Wake up & Breakfast",
+           
+        },
+        {
+          start: "08:00",
+          end: "15:00",
+          activity: "School / College Classes",
+           
+        },
+        {
+          start: "15:00",
+          end: "16:00",
+          activity: "Lunch & Relaxation",
+           
+        },
+        {
+          start: "16:00",
+          end: "18:00",
+          activity: "Study & Homework",
+           
+        },
+        {
+          start: "18:00",
+          end: "19:30",
+          activity: "Exercise & Outdoor Activity",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Gaming / Free Time & Read",
+           
+        }
+      ],
+      "Thursday": [
+        {
+          start: "07:00",
+          end: "08:00",
+          activity: "Wake up & Breakfast",
+           
+        },
+        {
+          start: "08:00",
+          end: "15:00",
+          activity: "School / College Classes",
+           
+        },
+        {
+          start: "15:00",
+          end: "16:00",
+          activity: "Lunch & Relaxation",
+           
+        },
+        {
+          start: "16:00",
+          end: "18:00",
+          activity: "Study & Homework",
+           
+        },
+        {
+          start: "18:00",
+          end: "19:30",
+          activity: "Exercise & Outdoor Activity",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Gaming / Free Time & Read",
+           
+        }
+      ],
+      "Friday": [
+        {
+          start: "07:00",
+          end: "08:00",
+          activity: "Wake up & Breakfast",
+           
+        },
+        {
+          start: "08:00",
+          end: "15:00",
+          activity: "School / College Classes",
+           
+        },
+        {
+          start: "15:00",
+          end: "16:00",
+          activity: "Lunch & Relaxation",
+           
+        },
+        {
+          start: "16:00",
+          end: "18:00",
+          activity: "Study & Homework",
+           
+        },
+        {
+          start: "18:00",
+          end: "19:30",
+          activity: "Exercise & Outdoor Activity",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Weekend Movie / Gaming",
+           
+        }
+      ],
+      "Saturday": [
+        {
+          start: "08:30",
+          end: "09:30",
+          activity: "Breakfast",
+           
+        },
+        {
+          start: "09:30",
+          end: "12:00",
+          activity: "Study & Revision",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:00",
+          activity: "Lunch",
+           
+        },
+        {
+          start: "13:00",
+          end: "17:00",
+          activity: "Gaming / Personal Time",
+           
+        },
+        {
+          start: "17:00",
+          end: "19:00",
+          activity: "Sports & Exercise",
+           
+        },
+        {
+          start: "19:00",
+          end: "20:30",
+          activity: "Dinner & Relax",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:30",
+          activity: "Free Time",
+           
+        }
+      ],
+      "Sunday": [
+        {
+          start: "09:00",
+          end: "10:00",
+          activity: "Late Breakfast",
+           
+        },
+        {
+          start: "10:00",
+          end: "12:30",
+          activity: "Free Time & Hobbies",
+           
+        },
+        {
+          start: "12:30",
+          end: "13:30",
+          activity: "Lunch",
+           
+        },
+        {
+          start: "13:30",
+          end: "15:30",
+          activity: "Light Study & Prep for Week",
+           
+        },
+        {
+          start: "15:30",
+          end: "18:00",
+          activity: "Relax & Wind Down",
+           
+        },
+        {
+          start: "18:00",
+          end: "19:30",
+          activity: "Exercise / Walk",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Read & Sleep Early",
+           
+        }
+      ]
     },
-
     "9-to-5 Work & Productivity": {
-        Monday: [
-            { start: "07:00", end: "08:00", activity: "Morning Exercise & Breakfast" },
-            { start: "08:00", end: "09:00", activity: "Commute / Prep Workday" },
-            { start: "09:00", end: "12:00", activity: "Deep Work / Focus Blocks" },
-            { start: "12:00", end: "13:00", activity: "Lunch Break" },
-            { start: "13:00", end: "17:00", activity: "Meetings & Collaborative Work" },
-            { start: "17:00", end: "18:30", activity: "Exercise & Unwind" },
-            { start: "18:30", end: "19:30", activity: "Dinner" },
-            { start: "19:30", end: "22:00", activity: "Relax & Personal Projects" }
-        ],
-        Tuesday: [
-            { start: "07:00", end: "08:00", activity: "Morning Exercise & Breakfast" },
-            { start: "08:00", end: "09:00", activity: "Commute / Prep Workday" },
-            { start: "09:00", end: "12:00", activity: "Deep Work / Focus Blocks" },
-            { start: "12:00", end: "13:00", activity: "Lunch Break" },
-            { start: "13:00", end: "17:00", activity: "Meetings & Collaborative Work" },
-            { start: "17:00", end: "18:30", activity: "Exercise & Unwind" },
-            { start: "18:30", end: "19:30", activity: "Dinner" },
-            { start: "19:30", end: "22:00", activity: "Relax & Personal Projects" }
-        ],
-        Wednesday: [
-            { start: "07:00", end: "08:00", activity: "Morning Exercise & Breakfast" },
-            { start: "08:00", end: "09:00", activity: "Commute / Prep Workday" },
-            { start: "09:00", end: "12:00", activity: "Deep Work / Focus Blocks" },
-            { start: "12:00", end: "13:00", activity: "Lunch Break" },
-            { start: "13:00", end: "17:00", activity: "Meetings & Collaborative Work" },
-            { start: "17:00", end: "18:30", activity: "Exercise & Unwind" },
-            { start: "18:30", end: "19:30", activity: "Dinner" },
-            { start: "19:30", end: "22:00", activity: "Relax & Personal Projects" }
-        ],
-        Thursday: [
-            { start: "07:00", end: "08:00", activity: "Morning Exercise & Breakfast" },
-            { start: "08:00", end: "09:00", activity: "Commute / Prep Workday" },
-            { start: "09:00", end: "12:00", activity: "Deep Work / Focus Blocks" },
-            { start: "12:00", end: "13:00", activity: "Lunch Break" },
-            { start: "13:00", end: "17:00", activity: "Meetings & Collaborative Work" },
-            { start: "17:00", end: "18:30", activity: "Exercise & Unwind" },
-            { start: "18:30", end: "19:30", activity: "Dinner" },
-            { start: "19:30", end: "22:00", activity: "Relax & Personal Projects" }
-        ],
-        Friday: [
-            { start: "07:00", end: "08:00", activity: "Morning Exercise & Breakfast" },
-            { start: "08:00", end: "09:00", activity: "Commute / Prep Workday" },
-            { start: "09:00", end: "12:00", activity: "Deep Work / Focus Blocks" },
-            { start: "12:00", end: "13:00", activity: "Lunch Break" },
-            { start: "13:00", end: "17:00", activity: "Wrap Up Weekly Tasks" },
-            { start: "17:00", end: "18:30", activity: "Exercise & Unwind" },
-            { start: "18:30", end: "20:00", activity: "Dinner" },
-            { start: "20:00", end: "23:00", activity: "Weekend Social & Chill" }
-        ],
-        Saturday: [
-            { start: "08:30", end: "09:30", activity: "Breakfast" },
-            { start: "09:30", end: "12:30", activity: "Hobbies & Side Projects" },
-            { start: "12:30", end: "13:30", activity: "Lunch" },
-            { start: "13:30", end: "18:00", activity: "Free Time & Outings" },
-            { start: "18:00", end: "19:30", activity: "Physical Activity" },
-            { start: "19:30", end: "21:00", activity: "Dinner" }
-        ],
-        Sunday: [
-            { start: "09:00", end: "10:00", activity: "Breakfast" },
-            { start: "10:00", end: "13:00", activity: "Relax & Media" },
-            { start: "13:00", end: "14:00", activity: "Lunch" },
-            { start: "14:00", end: "17:00", activity: "Personal Errand / Planning" },
-            { start: "17:00", end: "18:30", activity: "Exercise / Walk" },
-            { start: "18:30", end: "20:00", activity: "Dinner" },
-            { start: "20:00", end: "22:00", activity: "Read & Wind Down" }
-        ]
+      "Monday": [
+        {
+          start: "07:00",
+          end: "08:00",
+          activity: "Morning Exercise & Breakfast",
+           
+        },
+        {
+          start: "08:00",
+          end: "09:00",
+          activity: "Commute / Prep Workday",
+           
+        },
+        {
+          start: "09:00",
+          end: "12:00",
+          activity: "Deep Work / Focus Blocks",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:00",
+          activity: "Lunch Break",
+           
+        },
+        {
+          start: "13:00",
+          end: "17:00",
+          activity: "Meetings & Collaborative Work",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise & Unwind",
+           
+        },
+        {
+          start: "18:30",
+          end: "19:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "19:30",
+          end: "22:00",
+          activity: "Relax & Personal Projects",
+           
+        }
+      ],
+      "Tuesday": [
+        {
+          start: "07:00",
+          end: "08:00",
+          activity: "Morning Exercise & Breakfast",
+           
+        },
+        {
+          start: "08:00",
+          end: "09:00",
+          activity: "Commute / Prep Workday",
+           
+        },
+        {
+          start: "09:00",
+          end: "12:00",
+          activity: "Deep Work / Focus Blocks",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:00",
+          activity: "Lunch Break",
+           
+        },
+        {
+          start: "13:00",
+          end: "17:00",
+          activity: "Meetings & Collaborative Work",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise & Unwind",
+           
+        },
+        {
+          start: "18:30",
+          end: "19:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "19:30",
+          end: "22:00",
+          activity: "Relax & Personal Projects",
+           
+        }
+      ],
+      "Wednesday": [
+        {
+          start: "07:00",
+          end: "08:00",
+          activity: "Morning Exercise & Breakfast",
+           
+        },
+        {
+          start: "08:00",
+          end: "09:00",
+          activity: "Commute / Prep Workday",
+           
+        },
+        {
+          start: "09:00",
+          end: "12:00",
+          activity: "Deep Work / Focus Blocks",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:00",
+          activity: "Lunch Break",
+           
+        },
+        {
+          start: "13:00",
+          end: "17:00",
+          activity: "Meetings & Collaborative Work",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise & Unwind",
+           
+        },
+        {
+          start: "18:30",
+          end: "19:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "19:30",
+          end: "22:00",
+          activity: "Relax & Personal Projects",
+           
+        }
+      ],
+      "Thursday": [
+        {
+          start: "07:00",
+          end: "08:00",
+          activity: "Morning Exercise & Breakfast",
+           
+        },
+        {
+          start: "08:00",
+          end: "09:00",
+          activity: "Commute / Prep Workday",
+           
+        },
+        {
+          start: "09:00",
+          end: "12:00",
+          activity: "Deep Work / Focus Blocks",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:00",
+          activity: "Lunch Break",
+           
+        },
+        {
+          start: "13:00",
+          end: "17:00",
+          activity: "Meetings & Collaborative Work",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise & Unwind",
+           
+        },
+        {
+          start: "18:30",
+          end: "19:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "19:30",
+          end: "22:00",
+          activity: "Relax & Personal Projects",
+           
+        }
+      ],
+      "Friday": [
+        {
+          start: "07:00",
+          end: "08:00",
+          activity: "Morning Exercise & Breakfast",
+           
+        },
+        {
+          start: "08:00",
+          end: "09:00",
+          activity: "Commute / Prep Workday",
+           
+        },
+        {
+          start: "09:00",
+          end: "12:00",
+          activity: "Deep Work / Focus Blocks",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:00",
+          activity: "Lunch Break",
+           
+        },
+        {
+          start: "13:00",
+          end: "17:00",
+          activity: "Wrap Up Weekly Tasks",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise & Unwind",
+           
+        },
+        {
+          start: "18:30",
+          end: "20:00",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:00",
+          end: "23:00",
+          activity: "Weekend Social & Chill",
+           
+        }
+      ],
+      "Saturday": [
+        {
+          start: "08:30",
+          end: "09:30",
+          activity: "Breakfast",
+           
+        },
+        {
+          start: "09:30",
+          end: "12:30",
+          activity: "Hobbies & Side Projects",
+           
+        },
+        {
+          start: "12:30",
+          end: "13:30",
+          activity: "Lunch",
+           
+        },
+        {
+          start: "13:30",
+          end: "18:00",
+          activity: "Free Time & Outings",
+           
+        },
+        {
+          start: "18:00",
+          end: "19:30",
+          activity: "Physical Activity",
+           
+        },
+        {
+          start: "19:30",
+          end: "21:00",
+          activity: "Dinner",
+           
+        }
+      ],
+      "Sunday": [
+        {
+          start: "09:00",
+          end: "10:00",
+          activity: "Breakfast",
+           
+        },
+        {
+          start: "10:00",
+          end: "13:00",
+          activity: "Relax & Media",
+           
+        },
+        {
+          start: "13:00",
+          end: "14:00",
+          activity: "Lunch",
+           
+        },
+        {
+          start: "14:00",
+          end: "17:00",
+          activity: "Personal Errand / Planning",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise / Walk",
+           
+        },
+        {
+          start: "18:30",
+          end: "20:00",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:00",
+          end: "22:00",
+          activity: "Read & Wind Down",
+           
+        }
+      ]
     },
-
     "Intensive Exam Prep": {
-        Monday: [
-            { start: "07:30", end: "08:30", activity: "Breakfast & Morning Prep" },
-            { start: "08:30", end: "11:30", activity: "Study Block 1 (Core Subject)" },
-            { start: "11:30", end: "12:00", activity: "Break / Walk" },
-            { start: "12:00", end: "13:30", activity: "Study Block 2 (Revision)" },
-            { start: "13:30", end: "14:30", activity: "Lunch Break" },
-            { start: "14:30", end: "17:00", activity: "Study Block 3 (Practice Tests)" },
-            { start: "17:00", end: "18:30", activity: "Exercise & Outdoor Break" },
-            { start: "18:30", end: "19:30", activity: "Study Block 4 (Light Review)" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Relax & Read" }
-        ],
-        Tuesday: [
-            { start: "07:30", end: "08:30", activity: "Breakfast & Morning Prep" },
-            { start: "08:30", end: "11:30", activity: "Study Block 1 (Core Subject)" },
-            { start: "11:30", end: "12:00", activity: "Break / Walk" },
-            { start: "12:00", end: "13:30", activity: "Study Block 2 (Revision)" },
-            { start: "13:30", end: "14:30", activity: "Lunch Break" },
-            { start: "14:30", end: "17:00", activity: "Study Block 3 (Practice Tests)" },
-            { start: "17:00", end: "18:30", activity: "Exercise & Outdoor Break" },
-            { start: "18:30", end: "19:30", activity: "Study Block 4 (Light Review)" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Relax & Read" }
-        ],
-        Wednesday: [
-            { start: "07:30", end: "08:30", activity: "Breakfast & Morning Prep" },
-            { start: "08:30", end: "11:30", activity: "Study Block 1 (Core Subject)" },
-            { start: "11:30", end: "12:00", activity: "Break / Walk" },
-            { start: "12:00", end: "13:30", activity: "Study Block 2 (Revision)" },
-            { start: "13:30", end: "14:30", activity: "Lunch Break" },
-            { start: "14:30", end: "17:00", activity: "Study Block 3 (Practice Tests)" },
-            { start: "17:00", end: "18:30", activity: "Exercise & Outdoor Break" },
-            { start: "18:30", end: "19:30", activity: "Study Block 4 (Light Review)" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Relax & Read" }
-        ],
-        Thursday: [
-            { start: "07:30", end: "08:30", activity: "Breakfast & Morning Prep" },
-            { start: "08:30", end: "11:30", activity: "Study Block 1 (Core Subject)" },
-            { start: "11:30", end: "12:00", activity: "Break / Walk" },
-            { start: "12:00", end: "13:30", activity: "Study Block 2 (Revision)" },
-            { start: "13:30", end: "14:30", activity: "Lunch Break" },
-            { start: "14:30", end: "17:00", activity: "Study Block 3 (Practice Tests)" },
-            { start: "17:00", end: "18:30", activity: "Exercise & Outdoor Break" },
-            { start: "18:30", end: "19:30", activity: "Study Block 4 (Light Review)" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Relax & Read" }
-        ],
-        Friday: [
-            { start: "07:30", end: "08:30", activity: "Breakfast & Morning Prep" },
-            { start: "08:30", end: "11:30", activity: "Study Block 1 (Core Subject)" },
-            { start: "11:30", end: "12:00", activity: "Break / Walk" },
-            { start: "12:00", end: "13:30", activity: "Study Block 2 (Revision)" },
-            { start: "13:30", end: "14:30", activity: "Lunch Break" },
-            { start: "14:30", end: "17:00", activity: "Study Block 3 (Practice Tests)" },
-            { start: "17:00", end: "18:30", activity: "Exercise & Outdoor Break" },
-            { start: "18:30", end: "19:30", activity: "Study Block 4 (Light Review)" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Relax & Read" }
-        ],
-        Saturday: [
-            { start: "08:00", end: "09:00", activity: "Breakfast" },
-            { start: "09:00", end: "12:00", activity: "Study Mock Exam" },
-            { start: "12:00", end: "13:00", activity: "Lunch" },
-            { start: "13:00", end: "16:00", activity: "Gaming / Free Time Break" },
-            { start: "16:00", end: "18:00", activity: "Light Study & Review Errors" },
-            { start: "18:00", end: "19:30", activity: "Exercise & Walk" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Relax" }
-        ],
-        Sunday: [
-            { start: "08:30", end: "09:30", activity: "Breakfast" },
-            { start: "09:30", end: "12:00", activity: "Study Summary & Prep for Next Week" },
-            { start: "12:00", end: "13:00", activity: "Lunch" },
-            { start: "13:00", end: "18:00", activity: "Rest & Recovery (Do whatever)" },
-            { start: "18:00", end: "19:30", activity: "Light Physical Activity / Walk" },
-            { start: "19:30", end: "20:30", activity: "Dinner" },
-            { start: "20:30", end: "22:00", activity: "Read" }
-        ]
+      "Monday": [
+        {
+          start: "07:30",
+          end: "08:30",
+          activity: "Breakfast & Morning Prep",
+           
+        },
+        {
+          start: "08:30",
+          end: "11:30",
+          activity: "Study Block 1 (Core Subject)",
+           
+        },
+        {
+          start: "11:30",
+          end: "12:00",
+          activity: "Break / Walk",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:30",
+          activity: "Study Block 2 (Revision)",
+           
+        },
+        {
+          start: "13:30",
+          end: "14:30",
+          activity: "Lunch Break",
+           
+        },
+        {
+          start: "14:30",
+          end: "17:00",
+          activity: "Study Block 3 (Practice Tests)",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise & Outdoor Break",
+           
+        },
+        {
+          start: "18:30",
+          end: "19:30",
+          activity: "Study Block 4 (Light Review)",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Relax & Read",
+           
+        }
+      ],
+      "Tuesday": [
+        {
+          start: "07:30",
+          end: "08:30",
+          activity: "Breakfast & Morning Prep",
+           
+        },
+        {
+          start: "08:30",
+          end: "11:30",
+          activity: "Study Block 1 (Core Subject)",
+           
+        },
+        {
+          start: "11:30",
+          end: "12:00",
+          activity: "Break / Walk",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:30",
+          activity: "Study Block 2 (Revision)",
+           
+        },
+        {
+          start: "13:30",
+          end: "14:30",
+          activity: "Lunch Break",
+           
+        },
+        {
+          start: "14:30",
+          end: "17:00",
+          activity: "Study Block 3 (Practice Tests)",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise & Outdoor Break",
+           
+        },
+        {
+          start: "18:30",
+          end: "19:30",
+          activity: "Study Block 4 (Light Review)",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Relax & Read",
+           
+        }
+      ],
+      "Wednesday": [
+        {
+          start: "07:30",
+          end: "08:30",
+          activity: "Breakfast & Morning Prep",
+           
+        },
+        {
+          start: "08:30",
+          end: "11:30",
+          activity: "Study Block 1 (Core Subject)",
+           
+        },
+        {
+          start: "11:30",
+          end: "12:00",
+          activity: "Break / Walk",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:30",
+          activity: "Study Block 2 (Revision)",
+           
+        },
+        {
+          start: "13:30",
+          end: "14:30",
+          activity: "Lunch Break",
+           
+        },
+        {
+          start: "14:30",
+          end: "17:00",
+          activity: "Study Block 3 (Practice Tests)",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise & Outdoor Break",
+           
+        },
+        {
+          start: "18:30",
+          end: "19:30",
+          activity: "Study Block 4 (Light Review)",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Relax & Read",
+           
+        }
+      ],
+      "Thursday": [
+        {
+          start: "07:30",
+          end: "08:30",
+          activity: "Breakfast & Morning Prep",
+           
+        },
+        {
+          start: "08:30",
+          end: "11:30",
+          activity: "Study Block 1 (Core Subject)",
+           
+        },
+        {
+          start: "11:30",
+          end: "12:00",
+          activity: "Break / Walk",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:30",
+          activity: "Study Block 2 (Revision)",
+           
+        },
+        {
+          start: "13:30",
+          end: "14:30",
+          activity: "Lunch Break",
+           
+        },
+        {
+          start: "14:30",
+          end: "17:00",
+          activity: "Study Block 3 (Practice Tests)",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise & Outdoor Break",
+           
+        },
+        {
+          start: "18:30",
+          end: "19:30",
+          activity: "Study Block 4 (Light Review)",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Relax & Read",
+           
+        }
+      ],
+      "Friday": [
+        {
+          start: "07:30",
+          end: "08:30",
+          activity: "Breakfast & Morning Prep",
+           
+        },
+        {
+          start: "08:30",
+          end: "11:30",
+          activity: "Study Block 1 (Core Subject)",
+           
+        },
+        {
+          start: "11:30",
+          end: "12:00",
+          activity: "Break / Walk",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:30",
+          activity: "Study Block 2 (Revision)",
+           
+        },
+        {
+          start: "13:30",
+          end: "14:30",
+          activity: "Lunch Break",
+           
+        },
+        {
+          start: "14:30",
+          end: "17:00",
+          activity: "Study Block 3 (Practice Tests)",
+           
+        },
+        {
+          start: "17:00",
+          end: "18:30",
+          activity: "Exercise & Outdoor Break",
+           
+        },
+        {
+          start: "18:30",
+          end: "19:30",
+          activity: "Study Block 4 (Light Review)",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Relax & Read",
+           
+        }
+      ],
+      "Saturday": [
+        {
+          start: "08:00",
+          end: "09:00",
+          activity: "Breakfast",
+           
+        },
+        {
+          start: "09:00",
+          end: "12:00",
+          activity: "Study Mock Exam",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:00",
+          activity: "Lunch",
+           
+        },
+        {
+          start: "13:00",
+          end: "16:00",
+          activity: "Gaming / Free Time Break",
+           
+        },
+        {
+          start: "16:00",
+          end: "18:00",
+          activity: "Light Study & Review Errors",
+           
+        },
+        {
+          start: "18:00",
+          end: "19:30",
+          activity: "Exercise & Walk",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Relax",
+           
+        }
+      ],
+      "Sunday": [
+        {
+          start: "08:30",
+          end: "09:30",
+          activity: "Breakfast",
+           
+        },
+        {
+          start: "09:30",
+          end: "12:00",
+          activity: "Study Summary & Prep for Next Week",
+           
+        },
+        {
+          start: "12:00",
+          end: "13:00",
+          activity: "Lunch",
+           
+        },
+        {
+          start: "13:00",
+          end: "18:00",
+          activity: "Rest & Recovery (Do whatever)",
+           
+        },
+        {
+          start: "18:00",
+          end: "19:30",
+          activity: "Light Physical Activity / Walk",
+           
+        },
+        {
+          start: "19:30",
+          end: "20:30",
+          activity: "Dinner",
+           
+        },
+        {
+          start: "20:30",
+          end: "22:00",
+          activity: "Read & Sleep Early",
+           
+        }
+      ]
     }
 };
 
@@ -233,7 +1070,7 @@ const DAYS = [
     "Sunday"
 ];
 
-const STORAGE_KEY = "SyncDay_data_v5";
+const STORAGE_KEY = "Momento_data_v5";
 
 const CATEGORY_KEYWORDS = {
     "📚 Study/Work": [
@@ -857,7 +1694,7 @@ function renderProgressTracker() {
 /* ========== PRESET IMPORT / EXPORT ========== */
 function exportPresets() {
     const payload = {
-        type: "SyncDay_presets",
+        type: "Momento_presets",
         version: 1,
         exportedAt: new Date().toISOString(),
         presets: {}
@@ -2284,7 +3121,7 @@ let _npSource = null;
 let _npTimer = null;
 let _archivePlaying = false;
 let _npWantVisible = false;
-const LOCAL_MUSIC_DB = "SyncDay_local_music";
+const LOCAL_MUSIC_DB = "Momento_local_music";
 const LOCAL_MUSIC_STORE = "tracks";
 
 function openMusicPage() {
@@ -2325,6 +3162,7 @@ function setMusicVolume(val) {
         const a = document.getElementById(id);
         if (a) a.volume = _musicVolume;
     });
+    setYouTubePlayerVolume(_musicVolume);
     const npVol = document.getElementById("np-volume");
     if (npVol) npVol.value = Math.round(_musicVolume * 100);
 }
@@ -2395,7 +3233,7 @@ function updateNpPlayBtn() {
 
 function toggleNowPlaying() {
     if (_npSource === "local") toggleLocalPlayByIndex(_localIndex);
-    else if (_npSource === "archive") toggleArchivePlay();
+    else if (_npSource === "archive" || _npSource === "youtube") toggleArchivePlay();
     updateNpPlayBtn();
 }
 
@@ -2415,10 +3253,17 @@ function formatAudioTime(sec) {
     return m + ":" + String(s).padStart(2, "0");
 }
 function updateNpTimes() {
-    const audio = document.getElementById(_npSource === "local" ? "local-audio" : "stream-audio");
     const cur = document.getElementById("np-current");
     const dur = document.getElementById("np-duration");
-    if (!audio || !cur || !dur) return;
+    if (!cur || !dur) return;
+    if (_npSource === "youtube") {
+        if (!_ytPlayer || !_ytPlayerReady) return;
+        cur.textContent = formatAudioTime(_ytPlayer.getCurrentTime ? _ytPlayer.getCurrentTime() : 0);
+        dur.textContent = formatAudioTime(_ytPlayer.getDuration ? _ytPlayer.getDuration() : 0);
+        return;
+    }
+    const audio = document.getElementById(_npSource === "local" ? "local-audio" : "stream-audio");
+    if (!audio) return;
     cur.textContent = formatAudioTime(audio.currentTime);
     dur.textContent = formatAudioTime(audio.duration);
 }
@@ -2426,36 +3271,29 @@ function updateNpTimes() {
 /* --- Free music search: Internet Archive netlabels (actual music) --- */
 
 
-/** Music: direct-from-browser Piped calls, no local server required */
+
+/** Music: desktop uses built-in API; browser uses Piped + YT embed */
+const MUSIC_API = () => localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787";
+
+/** Music: Piped search + YouTube embed + Audius — no local node server */
 const PIPED_INSTANCES = [
     "https://pipedapi.kavin.rocks",
+    "https://pipedapi.syncpundit.io",
     "https://pipedapi.adminforge.de",
     "https://api.piped.private.coffee",
-    "https://pipedapi.syncpundit.io",
+    "https://pipedapi.projekt.net.in",
 ];
 let _musicResults = [];
 let _audiusHost = null;
-
-function pickBestAudio(audioStreams) {
-    if (!Array.isArray(audioStreams) || !audioStreams.length) return null;
-    const scored = audioStreams
-        .filter(s => s.url)
-        .map(s => {
-            const mime = (s.mimeType || s.format || "").toLowerCase();
-            let score = s.bitrate || s.quality || 0;
-            if (mime.includes("mp4") || mime.includes("m4a") || mime.includes("aac")) score += 50000;
-            if (mime.includes("opus")) score += 20000;
-            return { s, score };
-        })
-        .sort((a, b) => b.score - a.score);
-    return scored[0] ? scored[0].s : null;
-}
+let _ytPlayer = null;
+let _ytPlayerReady = false;
+let _ytApiLoading = null;
 
 async function pipedFetch(pathAndQuery) {
     let lastErr;
     for (const base of PIPED_INSTANCES) {
         try {
-            const res = await fetch(base + pathAndQuery, { signal: AbortSignal.timeout(8000) });
+            const res = await fetch(base + pathAndQuery, { signal: AbortSignal.timeout(9000) });
             if (!res.ok) throw new Error("HTTP " + res.status);
             return await res.json();
         } catch (e) {
@@ -2465,40 +3303,199 @@ async function pipedFetch(pathAndQuery) {
     throw lastErr || new Error("All Piped instances failed");
 }
 
-async function searchViaPiped(q) {
-    let json;
-    try {
-        json = await pipedFetch(`/search?q=${encodeURIComponent(q)}&filter=music_songs`);
-    } catch {
-        json = await pipedFetch(`/search?q=${encodeURIComponent(q)}&filter=videos`);
-    }
-    const items = json.items || json || [];
-    return (Array.isArray(items) ? items : [])
-        .filter(it => it.url || it.id || it.videoId)
-        .map(it => {
-            const id = it.id || it.videoId ||
-                (it.url || "").replace(/^.*[?&]v=/, "").replace(/&.*/, "") ||
-                (it.url || "").split("/").pop();
-            return {
-                source: "piped",
-                id,
-                title: it.title || "Untitled",
-                artist: (it.uploaderName || it.uploader || it.author || "YouTube").toString(),
-                artwork: it.thumbnail || (it.thumbnails && it.thumbnails[0]) || null,
-                plays: it.views || it.viewCount || 0,
-                preview: false
-            };
-        })
-        .filter(t => t.id && t.title)
-        .slice(0, 25);
+function rankYoutubeItem(it) {
+    const title = String(it.title || "").toLowerCase();
+    const up = String(it.uploaderName || it.uploader || it.author || "").toLowerCase();
+    let score = Math.log10((it.views || it.viewCount || 1) + 1);
+    // Prefer official audio / topic / vevo — more often embeddable
+    if (/topic|vevo|official audio|official music|records|entertainment/.test(up)) score += 8;
+    if (/official audio|lyrics|audio only|topic/.test(title)) score += 5;
+    if (/official video|music video/.test(title)) score += 2;
+    // Deprioritize obvious junk
+    if (/podcast|interview|full album|nightcore|8d audio|slowed|reverb/.test(title)) score -= 6;
+    if (/live performance|concert|reaction/.test(title)) score -= 3;
+    return score;
 }
 
-async function playViaPiped(id) {
-    const json = await pipedFetch(`/streams/${encodeURIComponent(id)}`);
-    const best = pickBestAudio(json.audioStreams || []);
-    if (!best || !best.url) throw new Error("No audio stream found");
-    return { url: best.url, title: json.title || null, artist: json.uploader || json.uploaderName || null };
+async function searchViaPiped(q) {
+    // Bias search toward music results
+    const queries = [
+        `/search?q=${encodeURIComponent(q + " official audio")}&filter=music_songs`,
+        `/search?q=${encodeURIComponent(q)}&filter=music_songs`,
+        `/search?q=${encodeURIComponent(q + " topic")}&filter=videos`,
+        `/search?q=${encodeURIComponent(q)}&filter=videos`,
+    ];
+    let items = [];
+    for (const path of queries) {
+        try {
+            const json = await pipedFetch(path);
+            const batch = json.items || json || [];
+            if (Array.isArray(batch) && batch.length) {
+                items = items.concat(batch);
+                if (items.length >= 15) break;
+            }
+        } catch (e) { /* try next */ }
+    }
+    const seen = new Set();
+    const mapped = [];
+    for (const it of items) {
+        const id = it.id || it.videoId ||
+            (it.url || "").replace(/^.*[?&]v=/, "").replace(/&.*/, "") ||
+            (it.url || "").split("/").pop();
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        mapped.push({
+            source: "youtube",
+            id: String(id),
+            title: it.title || "Untitled",
+            artist: (it.uploaderName || it.uploader || it.author || "YouTube").toString(),
+            artwork: it.thumbnail || (it.thumbnails && it.thumbnails[0]) || null,
+            plays: it.views || it.viewCount || 0,
+            preview: false,
+            _rank: rankYoutubeItem(it)
+        });
+    }
+    mapped.sort((a, b) => (b._rank || 0) - (a._rank || 0));
+    return mapped.slice(0, 25);
 }
+
+function ensureYTPlayer() {
+    if (window.location.protocol === "file:") {
+        return Promise.reject(new Error(
+            "YouTube needs http:// not file:// — open Momento via a local server (e.g. npx serve .) or Live Server"
+        ));
+    }
+    if (_ytPlayer && _ytPlayerReady) return Promise.resolve(_ytPlayer);
+    if (_ytApiLoading) return _ytApiLoading;
+
+    _ytApiLoading = new Promise((resolve, reject) => {
+        const startPlayer = () => {
+            try {
+                if (!_ytPlayer) {
+                    const slot = document.getElementById("yt-player-slot");
+                    if (!slot) {
+                        const d = document.createElement("div");
+                        d.id = "yt-player-slot";
+                        d.style.cssText = "position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;";
+                        document.body.appendChild(d);
+                    }
+                    _ytPlayer = new YT.Player("yt-player-slot", {
+                        height: "1",
+                        width: "1",
+                        playerVars: {
+                            autoplay: 0,
+                            controls: 0,
+                            disablekb: 1,
+                            fs: 0,
+                            modestbranding: 1,
+                            playsinline: 1,
+                            rel: 0,
+                            origin: window.location.origin
+                        },
+                        events: {
+                            onReady: () => {
+                                _ytPlayerReady = true;
+                                resolve(_ytPlayer);
+                            },
+                            onStateChange: onYTPlayerStateChange,
+                            onError: () => { /* handled per-play */ }
+                        }
+                    });
+                } else {
+                    resolve(_ytPlayer);
+                }
+            } catch (e) {
+                _ytApiLoading = null;
+                reject(e);
+            }
+        };
+
+        if (window.YT && window.YT.Player) {
+            startPlayer();
+            return;
+        }
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+            if (typeof prev === "function") try { prev(); } catch (e) {}
+            startPlayer();
+        };
+        if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+            const tag = document.createElement("script");
+            tag.src = "https://www.youtube.com/iframe_api";
+            document.head.appendChild(tag);
+        }
+        setTimeout(() => {
+            if (!_ytPlayerReady) {
+                _ytApiLoading = null;
+                reject(new Error("YouTube player failed to load"));
+            }
+        }, 12000);
+    });
+    return _ytApiLoading;
+}
+
+function onYTPlayerStateChange(e) {
+    if (!window.YT) return;
+    if (e.data === YT.PlayerState.ENDED) {
+        _streamPlaying = false;
+        _archivePlaying = false;
+        updateNpPlayBtn();
+    } else if (e.data === YT.PlayerState.PLAYING) {
+        _streamPlaying = true;
+        _archivePlaying = true;
+        updateNpPlayBtn();
+    } else if (e.data === YT.PlayerState.PAUSED) {
+        _streamPlaying = false;
+        _archivePlaying = false;
+        updateNpPlayBtn();
+    }
+}
+
+async function playYouTubeVideo(videoId) {
+    const player = await ensureYTPlayer();
+    player.setVolume(Math.round(_musicVolume * 100));
+    // loadVideoById + wait for PLAYING or onError
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (ok, err) => {
+            if (settled) return;
+            settled = true;
+            try { player.removeEventListener("onStateChange", onState); } catch (e) {}
+            try { player.removeEventListener("onError", onErr); } catch (e) {}
+            clearTimeout(timer);
+            ok ? resolve() : reject(err || new Error("playback failed"));
+        };
+        const onState = (e) => {
+            if (e.data === YT.PlayerState.PLAYING) finish(true);
+        };
+        const onErr = (e) => {
+            // 100 = not found, 101/150 = embedding disabled
+            const code = e && e.data;
+            let msg = "video unavailable (private, region-locked, or removed)";
+            if (code === 101 || code === 150) msg = "embedding disabled by uploader";
+            else if (code === 100) msg = "video not found or private";
+            else if (code === 5) msg = "HTML5 player error";
+            finish(false, new Error(msg));
+        };
+        const timer = setTimeout(() => finish(false, new Error("timeout waiting for YouTube")), 10000);
+        player.addEventListener("onStateChange", onState);
+        player.addEventListener("onError", onErr);
+        try {
+            player.loadVideoById({ videoId: videoId, startSeconds: 0 });
+            // Some embeds need an explicit play
+            setTimeout(() => {
+                try { if (player.playVideo) player.playVideo(); } catch (e) {}
+            }, 400);
+        } catch (e) {
+            finish(false, e);
+        }
+    });
+}
+
+function pauseYouTubePlayer() { if (_ytPlayer && _ytPlayerReady) try { _ytPlayer.pauseVideo(); } catch(e){} }
+function resumeYouTubePlayer() { if (_ytPlayer && _ytPlayerReady) try { _ytPlayer.playVideo(); } catch(e){} }
+function stopYouTubePlayer() { if (_ytPlayer && _ytPlayerReady) try { _ytPlayer.stopVideo(); } catch(e){} }
+function setYouTubePlayerVolume(vol0to1) { if (_ytPlayer && _ytPlayerReady) try { _ytPlayer.setVolume(Math.round(vol0to1 * 100)); } catch(e){} }
 
 async function getAudiusHost() {
     if (_audiusHost) return _audiusHost;
@@ -2531,12 +3528,36 @@ async function searchFreeMusic() {
     list.innerHTML = "";
     _musicResults = [];
 
-    // 1) YouTube via Piped, called directly from the browser — no local server needed
+    // Desktop app / local music-server (built-in backend, no extra window in Electron)
+    try {
+        const res = await fetch(MUSIC_API() + "/api/search?q=" + encodeURIComponent(q), { signal: AbortSignal.timeout(12000) });
+        if (res.ok) {
+            const data = await res.json();
+            const tracks = (data.tracks || []).map(t => ({
+                source: "youtube",
+                id: t.id,
+                title: t.title,
+                artist: t.artist || "YouTube",
+                artwork: t.artwork,
+                plays: t.views || 0,
+                preview: false
+            }));
+            if (tracks.length) {
+                _musicResults = tracks;
+                if (status) status.textContent = tracks.length + " tracks";
+                renderMusicResults(list);
+                return;
+            }
+        }
+    } catch (e) {
+        /* backend not running — fall through to browser Piped */
+    }
+
     try {
         const tracks = await searchViaPiped(q);
         if (tracks.length) {
             _musicResults = tracks;
-            if (status) status.textContent = _musicResults.length + " tracks (YouTube)";
+            if (status) status.textContent = tracks.length + " tracks · ranked for playability";
             renderMusicResults(list);
             return;
         }
@@ -2545,12 +3566,11 @@ async function searchFreeMusic() {
         if (status) status.textContent = "YouTube search unavailable — trying Audius…";
     }
 
-    // 2) Audius fallback (no backend needed)
     try {
         const host = await getAudiusHost();
         const res = await fetch(`${host}/v1/tracks/search?query=${encodeURIComponent(q)}&app_name=Momento&limit=25`);
         const json = await res.json();
-        let tracks = (json.data || [])
+        const tracks = (json.data || [])
             .filter(t => t && t.id && t.title)
             .sort((a, b) => (b.play_count || 0) - (a.play_count || 0))
             .slice(0, 20);
@@ -2564,7 +3584,7 @@ async function searchFreeMusic() {
                 plays: t.play_count || 0,
                 preview: false
             }));
-            if (status) status.textContent = _musicResults.length + " tracks (Audius · backend off)";
+            if (status) status.textContent = tracks.length + " tracks (Audius)";
             renderMusicResults(list);
             return;
         }
@@ -2572,29 +3592,75 @@ async function searchFreeMusic() {
         console.warn("Audius failed", e);
     }
 
-    if (status) status.textContent = "No results — try another query";
-    showToast("No results from YouTube or Audius right now — try again in a bit", "warn");
+    if (status) status.textContent = "No results";
+    showToast("No tracks found — try another search", "warn");
 }
 
-function renderMusicResults(list) {
-    list.innerHTML = _musicResults.map((t, i) => {
-        const title = String(t.title || "Untitled").replace(/[<>&]/g, "");
-        const artist = String(t.artist || "").replace(/[<>&"]/g, "");
-        const plays = t.plays >= 1000 ? Math.round(t.plays / 1000) + "k" : (t.plays || "");
-        const art = t.artwork
-            ? `<img class="msi-art" src="${t.artwork}" alt="" loading="lazy" referrerpolicy="no-referrer">`
-            : `<div class="msi-art msi-art-ph">♪</div>`;
-        return `<li class="music-search-item">
-            ${art}
-            <div class="msi-meta"><strong>${title}</strong><span>${artist}${plays ? " · " + plays : ""}</span></div>
-            <button type="button" class="btn-primary" onclick="playMusicResult(${i})">Play</button>
-        </li>`;
-    }).join("");
+function renderMusicResults(listEl) {
+    listEl.innerHTML = "";
+    
+    _musicResults.forEach((track) => {
+        const li = document.createElement("li");
+        li.className = "music-search-result-item"; // Keep your original classes here
+        
+        li.innerHTML = `
+            <div class="music-track-details">
+                <strong>${escapeHtml(track.title)}</strong>
+                <span>${escapeHtml(track.artist)}</span>
+            </div>
+            <button type="button" class="btn-primary" onclick="playTrackById('${track.id}')">Play</button>
+        `;
+        listEl.appendChild(li);
+    });
 }
 
-async function playMusicResult(i) {
+// Safe play handler that finds the exact track by its unique ID, completely ignoring list position
+// Safe play handler: Finds the correct index by ID, then calls your native player
+async function playTrackById(trackId) {
+  const index = _musicResults.findIndex(t => t.id === trackId);
+  if (index === -1) {
+    showToast("Track not found", "warn");
+    return;
+  }
+  // Delegates to your robust player that already handles YouTube / Audius fallback
+  await playMusicResult(index);
+}
+
+
+// Simple HTML escaper helper if you don't already have one
+function escapeHtml(str) {
+    return (str || "").replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+}
+function tryPlayAudioUrl(audio, url, timeoutMs = 7000) {
+    return new Promise((resolve, reject) => {
+        let settled = false;
+        const done = (ok, err) => {
+            if (settled) return;
+            settled = true;
+            audio.removeEventListener("canplay", onCanPlay);
+            audio.removeEventListener("error", onError);
+            clearTimeout(timer);
+            ok ? resolve() : reject(err || new Error("playback failed"));
+        };
+        const onCanPlay = () => done(true);
+        const onError = () => done(false, audio.error);
+        const timer = setTimeout(() => done(false, new Error("timeout")), timeoutMs);
+        audio.addEventListener("canplay", onCanPlay);
+        audio.addEventListener("error", onError);
+        audio.src = url;
+        audio.volume = _musicVolume;
+        audio.load();
+        audio.play().catch(() => {});
+    });
+}
+
+async function playMusicResult(i, _triedIds) {
     const t = _musicResults[i];
     if (!t) return;
+    const triedIds = _triedIds instanceof Set ? _triedIds : new Set();
+    if (t.source === "youtube") triedIds.add(t.id);
     if (!navigator.onLine) {
         showToast("📡 Offline — can't stream", "warn");
         return;
@@ -2603,46 +3669,81 @@ async function playMusicResult(i) {
     if (status) status.textContent = "Loading…";
 
     try {
-        let url = null;
-        if (t.source === "piped") {
-            const data = await playViaPiped(t.id);
-            url = data.url;
-            if (data.title) t.title = data.title;
-            if (data.artist) t.artist = data.artist;
-        } else if (t.source === "audius") {
-            const host = await getAudiusHost();
-            url = `${host}/v1/tracks/${encodeURIComponent(t.id)}/stream?app_name=Momento`;
-        }
-        if (!url) throw new Error("no stream");
-
         stopLocalPlay();
+        if (t.source === "youtube") {
+            const audio = document.getElementById("stream-audio");
+            if (audio) { audio.pause(); audio.removeAttribute("src"); }
+            await playYouTubeVideo(t.id);
+            _streamPlaying = true;
+            _archivePlaying = true;
+            _npSource = "youtube";
+            showNowPlaying(t.title, t.artist || "YouTube", "youtube");
+            if (status) status.textContent = "Playing";
+            updateNpPlayBtn();
+            return;
+        }
+
+        // Audius
+        const host = await getAudiusHost();
+        const url = `${host}/v1/tracks/${encodeURIComponent(t.id)}/stream?app_name=Momento`;
+        stopYouTubePlayer();
         const audio = document.getElementById("stream-audio");
-        if (!audio) return;
+        if (!audio) throw new Error("no audio element");
         audio.removeAttribute("crossorigin");
-        audio.src = url;
-        audio.volume = _musicVolume;
-        audio.load();
-        await audio.play();
+        await tryPlayAudioUrl(audio, url);
         _streamPlaying = true;
         _archivePlaying = true;
         _npSource = "archive";
         showNowPlaying(t.title, t.artist || "", "archive");
         if (status) status.textContent = "Playing";
+        updateNpPlayBtn();
         audio.onended = () => {
             _streamPlaying = false;
             _archivePlaying = false;
             updateNpPlayBtn();
         };
-        audio.onerror = () => {
-            showToast("Couldn't play — try another track", "warn");
-            if (status) status.textContent = "Playback error";
-            _streamPlaying = false;
-            _archivePlaying = false;
-        };
     } catch (e) {
-        console.error(e);
-        showToast("Playback failed — YouTube source may be temporarily down, try another track", "warn");
-        if (status) status.textContent = "Playback failed";
+        console.warn("Play failed", e);
+        // Auto-try other YouTube results in the list (up to 6)
+        if (t.source === "youtube" && triedIds.size < 6) {
+            const nextIdx = _musicResults.findIndex(
+                (r, idx) => idx !== i && r.source === "youtube" && !triedIds.has(r.id)
+            );
+            if (nextIdx >= 0) {
+                if (status) status.textContent = "Blocked — trying another upload…";
+                return playMusicResult(nextIdx, triedIds);
+            }
+        }
+        // Last resort: Audius by title
+        if (t.source === "youtube") {
+            try {
+                const host = await getAudiusHost();
+                const res = await fetch(`${host}/v1/tracks/search?query=${encodeURIComponent(t.title)}&app_name=Momento&limit=3`);
+                const json = await res.json();
+                const alt = (json.data || []).find(x => x && x.id);
+                if (alt) {
+                    if (status) status.textContent = "YouTube blocked — Audius match";
+                    _musicResults[i] = {
+                        source: "audius",
+                        id: alt.id,
+                        title: alt.title,
+                        artist: (alt.user && (alt.user.name || alt.user.handle)) || "Unknown",
+                        artwork: alt.artwork && (alt.artwork["150x150"] || alt.artwork["480x480"]),
+                        plays: alt.play_count || 0,
+                        preview: false
+                    };
+                    return playMusicResult(i, triedIds);
+                }
+            } catch (e2) {
+                console.warn("Audius fallback failed", e2);
+            }
+        }
+        const detail = (e && e.message) ? e.message : "unknown";
+        showToast("Playback failed: " + detail, "warn");
+        if (status) status.textContent = "Playback failed: " + detail;
+        _streamPlaying = false;
+        _archivePlaying = false;
+        updateNpPlayBtn();
     }
 }
 
@@ -2650,6 +3751,19 @@ async function playArchiveByIndex(i) { return playMusicResult(i); }
 async function playArchiveItem() {}
 
 function toggleArchivePlay() {
+    if (_npSource === "youtube") {
+        if (_streamPlaying || _archivePlaying) {
+            pauseYouTubePlayer();
+            _streamPlaying = false;
+            _archivePlaying = false;
+        } else {
+            resumeYouTubePlayer();
+            _streamPlaying = true;
+            _archivePlaying = true;
+        }
+        updateNpPlayBtn();
+        return;
+    }
     const audio = document.getElementById("stream-audio");
     if (!audio || !audio.src) return;
     if (_streamPlaying || _archivePlaying) {
@@ -2666,6 +3780,7 @@ function toggleArchivePlay() {
 }
 
 function stopStream() {
+    if (_ytPlayer && _ytPlayerReady) stopYouTubePlayer();
     const audio = document.getElementById("stream-audio");
     if (audio) { audio.pause(); audio.removeAttribute("src"); audio.load(); }
     _streamPlaying = false;

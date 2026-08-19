@@ -1,0 +1,29 @@
+{
+  "name": "momento",
+  "version": "3.0.2",
+  "description": "Momento — offline-first schedule app with optional music",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "music": "node music-server/server.js",
+    "web": "npx --yes serve -p 3000 ."
+  },
+"build": {
+    "appId": "com.momento.app",
+    "productName": "Momento",
+    "icon": "assets/icon.ico",
+    "files": [
+      "**/*",
+      "music-server/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "author": "Momento",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3"
+  }
+}

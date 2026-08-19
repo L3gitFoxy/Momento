@@ -1,5 +1,5 @@
 /* =========================================================
-   MOMENTO AI CHATBOT ENGINE
+   SYNCDAY AI CHATBOT ENGINE
    ========================================================= */
 
 // ---------------------------------------------------------------------------
@@ -440,8 +440,6 @@ const AI_DATABASE = {
                     `• Hover or click the Tools tab to open\n` +
                     `• 🎨 Accent Theme — pick your colour\n` +
                     `• 🔔 Sound toggle — enable/disable chimes\n` +
-                    `• Completion chimes — plays when you finish a task\n` +
-                    `• Import / Export — share and apply schedules\n` +
                     `• 📊 Weekly Category Breakdown — hours per category\n` +
                     `• Preset Manager — save, apply, or delete presets\n` +
                     `• ✨ Create Preset From Scratch — build a preset day by day\n` +
@@ -495,7 +493,7 @@ const AI_DATABASE = {
                 }
 
                 // DEFAULT: Full Tour (If no specific keywords are matched)
-                return `📍 Here's a full tour of Momento:\n\n` +
+                return `📍 Here's a full tour of SyncDay:\n\n` +
                     `**🔝 Top Bar** (very top)\n` +
                     `• App title on the left, today's date next to it\n` +
                     `• Live clock on the right — updates every second\n\n` +
@@ -523,19 +521,12 @@ const AI_DATABASE = {
                     `• Hover or click the Tools tab to open\n` +
                     `• 🎨 Accent Theme — pick your colour\n` +
                     `• 🔔 Sound toggle — enable/disable chimes\n` +
-                    `• Completion chimes — plays when you finish a task\n` +
-                    `• Import / Export — share and apply schedules\n` +
                     `• 📊 Weekly Category Breakdown — hours per category\n` +
                     `• Preset Manager — save, apply, or delete presets\n` +
                     `• ✨ Create Preset From Scratch — build a preset day by day\n` +
                     `• 📊 Analyse My Week — check your week against a goal\n\n` +
                     `**🤖 AI button** (bottom-left, that's me!)\n` +
-                    `• Type commands to generate weeks, add/delete tasks, change themes\n\n` +
-                    `**Quality of Life Tools**\n` +
-                    `• To - Do List — manage your daily tasks\n` +
-                    `• Timeline — visualize and edit your day at a glance\n` +
-                    `• Week Review — analyze your weekly progress\n` +
-                    `• Focus and music — create a distraction-free environment, just you, your tasks and your favourite songs!\n` +
+                    `• Type commands to generate weeks, add/delete tasks, change themes\n` +
                     `• Type **"help"** for the full command list`;
             }
         },
@@ -562,7 +553,7 @@ const AI_DATABASE = {
                 try { saveData(); } catch(e) {}
                 try { renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch(e) {}
                 const blockCount = week[DAYS[0]] ? week[DAYS[0]].length : 0;
-                return `✅ Built a full 7-day **${intent}** schedule — ${blockCount} blocks/day. XP from the old week was taken back so you can't farm clears.`;
+                return `✅ Built a full 7-day **${intent}** schedule — ${blockCount} blocks/day. XP from the old week was clawed back so you can't farm clears.`;
             }
         },
 
@@ -589,7 +580,7 @@ const AI_DATABASE = {
                 });
                 data.appliedRoutine = `AI: ${lastRoutine.substring(0, 30)}`;
                 try { saveData(); renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch(e) {}
-                return `🔄 Regenerated a fresh **${lastRoutine}** week. Any XP from the old week was taken back — no farming!`;
+                return `🔄 Regenerated a fresh **${lastRoutine}** week. Any XP from the old week was clawed back — no farming!`;
             }
         },
 
@@ -699,7 +690,7 @@ const AI_DATABASE = {
                     count = tasks.filter(t => !t.completed).length;
                     try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
                     return lost > 0
-                        ? `🧹 Unchecked tasks on **${day}**. **−${lost} XP** taken back (no farming).`
+                        ? `🧹 Unchecked tasks on **${day}**. **−${lost} XP** clawed back (no farming).`
                         : `🧹 Unchecked tasks on **${day}**. Blocks remain.`;
                 }
                 tasks.forEach(t => {
@@ -735,7 +726,7 @@ const AI_DATABASE = {
                 // Restore schedules? clawbackDayXP only unchecks — good
                 try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
                 return lost > 0
-                    ? `🧹 Unchecked the whole week. **−${lost} XP** taken back.`
+                    ? `🧹 Unchecked the whole week. **−${lost} XP** clawed back.`
                     : `🧹 Unchecked all tasks across the week.`;
             }
         },
@@ -757,7 +748,7 @@ const AI_DATABASE = {
                 data.schedules[dayName] = [];
                 try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
                 return lost > 0
-                    ? `🗑️ Wiped ${count} block(s) from **${dayName}**. **−${lost} XP** taken back.`
+                    ? `🗑️ Wiped ${count} block(s) from **${dayName}**. **−${lost} XP** clawed back.`
                     : `🗑️ Wiped all ${count} block(s) from **${dayName}**.`;
             }
         },
@@ -1119,7 +1110,7 @@ function resolveLocalIntent(input, lower) {
             data.appliedRoutine = `AI: ${input.substring(0, 40)}`;
             try { saveData(); renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch (e) {}
             const n = (week[DAYS[0]] || []).length;
-            return `✅ Generated a week from **"${input}"** — ${n} blocks/day, mixed categories. Old XP taken back.`;
+            return `✅ Generated a week from **"${input}"** — ${n} blocks/day, mixed categories. Old XP clawed back.`;
         } catch (e) {}
     }
 

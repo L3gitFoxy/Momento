@@ -1,0 +1,13 @@
+directories:
+  output: dist
+  buildResources: build
+appId: com.syncday.app
+productName: SyncDay
+icon: assets/icon.ico
+files:
+  - filter:
+      - '**/*'
+      - music-server/**/*
+win:
+  target: nsis
+electronVersion: 43.4.1
