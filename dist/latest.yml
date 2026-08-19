@@ -1,8 +1,0 @@
-version: 3.0.2
-files:
-  - url: Momento-Setup-3.0.2.exe
-    sha512: yfDiNE5+mk1xsp/rSKPw2q3ifplwUufcJNXAFAA2T//SHzBE8hzvdE7pufLN9ytOWPHuFQGyOAdE+5k1xwe1HQ==
-    size: 103826779
-path: Momento-Setup-3.0.2.exe
-sha512: yfDiNE5+mk1xsp/rSKPw2q3ifplwUufcJNXAFAA2T//SHzBE8hzvdE7pufLN9ytOWPHuFQGyOAdE+5k1xwe1HQ==
-releaseDate: '2026-08-19T13:05:07.460Z'
