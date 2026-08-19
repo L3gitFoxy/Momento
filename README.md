@@ -2,20 +2,19 @@
 
 weekly time-block planner + daily check-in, runs entirely in the browser. no backend, no accounts, no tracking just localStorage and vanilla JS.
 
-![No Backend](https://img.shields.io/badge/backend-none-black)
 ![Vanilla JS](https://img.shields.io/badge/JS-vanilla-yellow)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
 ## why
 
-most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is ~4 files, opens instantly, and keeps everything on your machine.
+most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is just one file (app), opens instantly, and keeps everything on your machine. No sign-in, log-in or anything of the kind!
 
 ## what is Momento?
 
 Momento turns your week into something you actually want to open. Time blocks feel like game levels, checking them off drops XP, and ranks climb from Starter to Mythic — that little hit of progress is intentional. Streaks, unlockable themes, a focus mode with ambient sound, and a persistent to-do list keep the loop going without feeling like another boring planner. 
 
-Plan the day, play the day, level up. Built for students, hustlers, and anyone who gets more done when it feels like a game.
+Plan the day, play the day, level up. Built for anyone who gets more done when it feels like a game.
 
 ## files
 
@@ -24,9 +23,19 @@ index.html   UI/markup
 script.js    data model, presets, rendering, drag/drop, analytics
 style.css    dark theme, sidebar drawer, badges
 ai-chatbot.js integrated ai bot, helps out do things throughout the app
+electron-main.js main electron app logic
+package.json & package-lock.json useful for packing project in single .exe application
+./node_modules helper modules + electron
+./dist contains one file application
+./assets contains icon
+./music-server/server.js controls music servers
+
+Main file:
+
+**Momento Setup 3.0.2.exe**
+
 ```
 
-no build step. no node_modules. that's the whole app.
 
 ## running it
 
@@ -36,19 +45,16 @@ https://momento-silk.vercel.app
 **just open it:**
 ```bash
 git clone https://github.com/l3gitfoxy/momento.git
-cd momento
-open index.html
+cd momento/dist
+open Momento Setup 3.0.2.exe
 ```
 
-**or serve it** (needed if your browser blocks local file access for JS modules):
-```bash
-python3 -m http.server 8000
-# → http://localhost:8000
-```
+**just install the exe file** (needed if your browser blocks local file access for JS modules):
+- Download the exe setup file from the latest release and watch the magic happen!
 
 ## contributing
 
-it's a double-page app, poke around `script.js` and/or `ai-chatbot.js`, send a PR. issues/feature ideas welcome too.
+it's a double-page app, poke around the main files (not inside node_modules or dist), send a PR. issues/feature ideas welcome too.
 
 ## license
 

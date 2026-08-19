@@ -19,8 +19,8 @@ x64:
     - music-server/**/*
 nsis:
   script: |-
-    !include "C:\Users\Debashis\Downloads\files-6d894eb8\node_modules\app-builder-lib\templates\nsis\include\StdUtils.nsh"
-    !addincludedir "C:\Users\Debashis\Downloads\files-6d894eb8\node_modules\app-builder-lib\templates\nsis\include"
+    !include "D:\Schedule\node_modules\app-builder-lib\templates\nsis\include\StdUtils.nsh"
+    !addincludedir "D:\Schedule\node_modules\app-builder-lib\templates\nsis\include"
     !macro _isUpdated _a _b _t _f
       ${StdUtils.TestParameter} $R9 "updated"
       StrCmp "$R9" "true" `${_t}` `${_f}`
@@ -92,7 +92,7 @@ nsis:
       !insertmacro MUI_LANGUAGE "Vietnamese"
     !macroend
 
-    !include "C:\Users\Debashis\AppData\Local\Temp\t-2YawsQ\1-messages.nsh"
+    !include "C:\Users\Debashis\AppData\Local\Temp\t-6Pvetb\1-messages.nsh"
     !addplugindir /x86-unicode "C:\Users\Debashis\AppData\Local\electron-builder\Cache\nsis-resources-3.4.1\nsis-resources-3.4.1-2jx2y\plugins\x86-unicode"
 
     Var newStartMenuLink

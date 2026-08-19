@@ -1,8 +1,8 @@
 directories:
   output: dist
   buildResources: build
-appId: com.syncday.app
-productName: SyncDay
+appId: com.momento.app
+productName: Momento
 icon: assets/icon.ico
 files:
   - filter:
