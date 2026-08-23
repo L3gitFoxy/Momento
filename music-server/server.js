@@ -1,8 +1,5 @@
-/**
- * Momento Music Backend
- * Standalone:  node server.js
- * Electron:    require("./music-server/server").startMusicServer(port)
- */
+
+
 const http = require("http");
 const https = require("https");
 const { URL } = require("url");
@@ -125,12 +122,12 @@ function createHandler() {
         const tracks = (Array.isArray(items) ? items : [])
           .filter((it) => {
             const type = (it.type || "").toLowerCase();
-            // Strictly allow only video/stream types
+            
             if (type && type !== "stream" && type !== "video") return false;
             return it.url || it.id || it.videoId;
           })
           .map((it) => {
-            // Extract clean YouTube ID safely
+            
             let id = it.id || it.videoId || "";
             const rawUrl = it.url || "";
             
@@ -143,7 +140,7 @@ function createHandler() {
               }
             }
 
-            // Drop bad IDs (channels, playlists)
+            
             if (!id || id.startsWith("UC") || id.startsWith("PL") || id.startsWith("RD") || id.length < 5) {
               return null;
             }
@@ -158,7 +155,7 @@ function createHandler() {
             };
           })
           .filter((t) => t !== null && t.id && t.title)
-          .slice(0, 15); // Limit to top 15 clean results to avoid random clutter
+          .slice(0, 15); 
 
         sendJson(res, 200, { tracks });
         return;
@@ -183,13 +180,13 @@ function createHandler() {
         });
         return;
       }
-      // If it's not an API route, serve the frontend files statically
+      
       const publicDir = path.join(__dirname, "..");
       let filePath = path.join(publicDir, u.pathname === "/" ? "index.html" : u.pathname);
 
       fs.readFile(filePath, (err, content) => {
         if (err) {
-          // Fallback to index.html for Single Page Applications (SPA support)
+          
           fs.readFile(path.join(publicDir, "index.html"), (err2, indexContent) => {
             if (err2) {
               sendJson(res, 404, { error: "Not found" });
@@ -201,7 +198,7 @@ function createHandler() {
           return;
         }
 
-        // Map file extensions to correct MIME types
+        
         const ext = path.extname(filePath).toLowerCase();
         const mimeTypes = {
           ".html": "text/html",

@@ -11,18 +11,17 @@
 
 <body>
 
-    <!-- Fixed XP pill — top-left of SCREEN -->
+    
     <button type="button" id="xp-pill" class="xp-pill xp-pill-fixed" onclick="openProgressPanel()" title="Progress & Rewards">
         <span class="xp-pill-rank" id="xp-pill-rank">Starter I</span>
         <span class="xp-pill-bar"><span class="xp-pill-fill" id="xp-pill-fill" style="width:0%"></span></span>
         <span class="xp-pill-pct" id="xp-pill-pct">0 left</span>
     </button>
 
-
-    <!-- Single App Shell -->
+    
     <div class="card">
 
-        <!-- Top Bar -->
+        
         <div class="top-bar">
             <div class="top-bar-left">
                 <span class="app-title">Momento</span>
@@ -40,15 +39,15 @@
             </div>
         </div>
 
-        <!-- Now / Next chips -->
+        
         <div id="next-task-badge"></div>
 
         <div class="divider"></div>
 
-        <!-- Day Tabs -->
+        
         <div class="day-tabs" id="day-tabs-container"></div>
 
-        <!-- Day Nav -->
+        
         <div class="nav-header">
             <button class="nav-btn" onclick="changeDay(-1)">&#9664; Prev</button>
             <span id="current-day-label" class="day-label">Monday</span>
@@ -56,18 +55,18 @@
             <button type="button" onclick="copyCurrentDayTo()" class="nav-btn">&#128203; Copy To...</button>
         </div>
 
-        <!-- Routine / Date info -->
+        
         <div class="schedule-info-banner">
             <span id="applied-routine-label">Routine: Custom</span>
             <span id="applied-date-label">Date: --</span>
         </div>
 
-        <!-- Check-in prompt (inline) -->
+        
         <p id="today-prompt" class="checkin-prompt"></p>
 
         <div class="divider"></div>
 
-        <!-- Quick actions: To-Dos + Timeline (high visibility) -->
+        
         <div class="quick-actions">
             <button type="button" class="quick-action-btn" onclick="toggleTodoDrawer()">
                 📋 To-Dos <span id="todo-count-badge" class="todo-count-badge">0</span>
@@ -83,21 +82,21 @@
             </button>
         </div>
 
-        <!-- Tasks -->
+        
         <div id="task-container"></div>
         <button onclick="addTaskRow()" class="add-block-btn">+ Add Time Block</button>
 
-        <!-- Daily Notes -->
+        
         <div class="notes-section">
             <label for="daily-notes"><strong>Notes / Focus:</strong></label>
             <textarea id="daily-notes" placeholder="e.g. Bring gym clothes, focus on chapter 4..."></textarea>
         </div>
 
-        <!-- Save -->
+        
         <button class="save-master-btn" onclick="saveSchedule()">Save &amp; Sort</button>
         <div id="save-status" class="save-status">&#10003; Saved!</div>
 
-        <!-- App overview / bio -->
+        
         <div class="app-bio">
             <div class="app-bio-title">🗓️ What is Momento?</div>
             <p>
@@ -115,14 +114,14 @@
 
     </div>
 
-    <!-- COLLAPSIBLE SIDEBAR DRAWER -->
+    
     <div id="preset-sidebar" class="preset-sidebar">
         <button type="button" id="sidebar-toggle-btn" class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Presets">
             <span id="sidebar-arrow">&#9664;</span> Tools
         </button>
 
         <div class="sidebar-content">
-            <!-- PRESET MANAGEMENT SECTION -->
+            
             <div class="preset-manager">
                 <h3>&#9881;&#65039; Preset Manager</h3>
 
@@ -150,40 +149,40 @@
 
             <h3>&#9881;&#65039; Control Panel</h3>
 
-            <!-- Theme Accent Picker (dynamic — locked themes show lock) -->
+            
             <div class="sidebar-group">
                 <label>&#127912; Accent Theme</label>
                 <div class="theme-swatches" id="theme-swatches"></div>
                 <p class="theme-hint">Locked themes unlock via XP ranks</p>
             </div>
 
-            <!-- Chime / sound picker -->
+            
             <div class="sidebar-group">
                 <label>&#127911; Completion Chimes</label>
                 <div class="chime-swatches" id="chime-swatches"></div>
                 <p class="theme-hint">Special chimes unlock via ranks — click to preview</p>
             </div>
 
-            <!-- Audio -->
+            
             <div class="sidebar-group">
                 <label>&#128276; Transition Alerts</label>
                 <button type="button" id="notif-toggle-btn" class="btn-info" onclick="toggleNotifications()">Enable Audio Alerts</button>
             </div>
 
-            <!-- Weekly Analytics -->
+            
             <div class="sidebar-group">
                 <label>&#128202; Weekly Category Breakdown</label>
                 <div id="weekly-analytics-container"></div>
             </div>
 
-            <!-- Master Preset -->
+            
             <div class="sidebar-group">
                 <label>Master Preset (Full Week)</label>
                 <select id="preset-select"></select>
                 <button type="button" class="btn-primary" onclick="applyPreset()">Apply Preset</button>
             </div>
 
-            <!-- Single Day Preset -->
+            
             <div class="sidebar-group">
                 <label>Single Day Template</label>
                 <select id="single-day-preset-select"></select>
@@ -192,8 +191,7 @@
                 </button>
             </div>
 
-
-            <!-- Delete Preset -->
+            
             <div class="sidebar-group">
                 <label>Delete Custom Preset</label>
                 <select id="delete-preset-select"></select>
@@ -202,7 +200,7 @@
         </div>
     </div>
 
-    <!-- FLOATING AI CHATBOT -->
+    
     <div id="ai-chat-widget">
         <button id="ai-chat-toggle" onclick="toggleChatWindow()">&#129302;</button>
 
@@ -221,7 +219,7 @@
         </div>
     </div>
 
-    <!-- ANALYSER MODAL -->
+    
     <div id="analyser-modal" class="modal-overlay hidden">
         <div class="modal-box analyser-box">
             <div class="modal-header">
@@ -247,7 +245,7 @@
         </div>
     </div>
 
-    <!-- PREVIEW MODAL -->
+    
     <div id="preview-modal" class="modal-overlay hidden">
         <div class="modal-box analyser-box">
             <div class="modal-header">
@@ -266,7 +264,7 @@
         </div>
     </div>
 
-    <!-- PRESET BUILDER MODAL -->
+    
     <div id="scratch-preset-modal" class="modal-overlay hidden">
         <div class="modal-box builder-box">
             <div class="modal-header">
@@ -298,8 +296,7 @@
 
     
 
-
-    <!-- PROGRESS / REWARDS PANEL -->
+    
     <div id="progress-panel" class="modal-overlay hidden">
         <div class="modal-box progress-box">
             <div class="modal-header">
@@ -327,7 +324,7 @@
     </div>
 
     
-    <!-- WEEKLY REVIEW -->
+    
     <div id="weekly-review-panel" class="modal-overlay hidden">
         <div class="modal-box progress-box">
             <div class="modal-header">
@@ -335,7 +332,7 @@
                 <button onclick="closeWeeklyReview()" class="close-btn">&#10005;</button>
             </div>
             <div class="modal-body" id="weekly-review-body">
-                <!-- filled by JS -->
+                
             </div>
             <div class="modal-footer">
                 <button onclick="closeWeeklyReview()" class="btn-cancel">Close</button>
@@ -343,8 +340,8 @@
         </div>
     </div>
 
-    <!-- MUSIC DOCK -->
-    <!-- FULL-SCREEN MUSIC / FOCUS PAGE -->
+    
+    
     <div id="music-page" class="music-page hidden">
         <div class="music-page-header">
             <div>
@@ -405,7 +402,7 @@
         <audio id="local-audio" preload="metadata"></audio>
     </div>
 
-    <!-- Persistent now-playing badge (bottom-right) -->
+    
     <div id="now-playing-bar" class="now-playing-bar hidden">
         <div class="np-info">
             <div class="np-title" id="np-title">—</div>
@@ -419,7 +416,7 @@
         </div>
     </div>
 
-    <!-- TO-DO DRAWER -->
+    
     <div id="todo-drawer" class="todo-drawer hidden">
         <div class="todo-drawer-header">
             <strong>📋 Persistent To-Dos</strong>
@@ -433,7 +430,7 @@
         </div>
     </div>
 
-    <!-- TIMELINE FULL PAGE -->
+    
     <div id="timeline-page" class="timeline-page hidden">
         <div class="timeline-page-header">
             <div>

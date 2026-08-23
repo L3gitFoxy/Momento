@@ -1,6 +1,4 @@
-/* =========================================================
-   MOMENTO - ULTIMATE TIME BLOCK SCHEDULER (V5 COMPLETE)
-   ========================================================= */
+
 
 const BUILT_IN_PRESETS = {
     "Student Daily Routine": {
@@ -1108,7 +1106,6 @@ const CATEGORY_KEYWORDS = {
     ]
 };
 
-/* APP STATE */
 let data = {
     schedules: {},
     notes: {},
@@ -1122,8 +1119,8 @@ let data = {
     streak: 0,
     lastCompletedDate: null,
     totalTasksCompleted: 0,
-    todos: [],          // persistent to-do list {id, text, completed, created}
-    rewardsUnlocked: [], // cosmetic / feature rewards
+    todos: [],          
+    rewardsUnlocked: [], 
     preferredChime: "default"
 };
 
@@ -1132,7 +1129,6 @@ let draggedRowIndex = null;
 let scratchPresetData = {};
 let activeBuilderDay = "Monday";
 
-/* STARTUP */
 document.addEventListener("DOMContentLoaded", () => {
     loadData();
     checkAutoWeeklyReset();
@@ -1149,7 +1145,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateFeatureLocks();
     if (typeof initLocalLibrary === "function") initLocalLibrary();
 
-    /* SIDEBAR HOVER & TOGGLE LISTENERS */
+    
     const sidebar = document.getElementById("preset-sidebar");
     const arrow = document.getElementById("sidebar-arrow");
 
@@ -1170,16 +1166,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000);
 });
 
-
-/* =========================================================
-   STARTER WEEK TEMPLATE GENERATOR
-   ========================================================= */
-
    
 function generateFilledWeek() {
     const filledWeek = {};
 
-    // Standard Weekday Schedule Template
+    
     const weekdayTemplate = [
         { title: "Morning Routine & Coffee", start: "08:00", end: "09:00", tag: "Health", completed: false },
         { title: "Deep Work Focus Block", start: "09:30", end: "12:00", tag: "Work", completed: false },
@@ -1188,14 +1179,14 @@ function generateFilledWeek() {
         { title: "Evening Review & Reset", start: "18:00", end: "19:00", tag: "Personal", completed: false }
     ];
 
-    // Relaxed Weekend Schedule Template
+    
     const weekendTemplate = [
         { title: "Morning Workout & Breakfast", start: "09:00", end: "10:30", tag: "Health", completed: false },
         { title: "Hobbies & Personal Time", start: "11:00", end: "14:00", tag: "Personal", completed: false },
         { title: "Social & Chill Time", start: "16:00", end: "19:00", tag: "General", completed: false }
     ];
 
-    // Build unique task objects for all 7 days
+    
     DAYS.forEach(day => {
         const isWeekend = (day === "Saturday" || day === "Sunday");
         const template = isWeekend ? weekendTemplate : weekdayTemplate;
@@ -1212,7 +1203,6 @@ function generateFilledWeek() {
     return filledWeek;
 }
 
-/* HELPERS */
 function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
 function getTodayIndex() {
@@ -1244,7 +1234,6 @@ function detectCategory(taskText) {
     return "📌 General";
 }
 
-/* NAVIGATION CONTROLS */
 function changeDay(amount) {
     data.currentDay += amount;
     if (data.currentDay < 0) data.currentDay = 6;
@@ -1271,7 +1260,6 @@ function copyCurrentDayTo() {
     renderWeeklyAnalytics();
 }
 
-/* AUTO WEEKLY RESET */
 function checkAutoWeeklyReset() {
     const currentWeek = getWeekIdentifier();
     if (data.lastResetWeek && data.lastResetWeek !== currentWeek) {
@@ -1290,7 +1278,6 @@ function checkAutoWeeklyReset() {
     }
 }
 
-/* LOAD / SAVE DATA */
 function convertPreset(preset) {
     const converted = {};
     DAYS.forEach(day => {
@@ -1329,7 +1316,7 @@ function loadData() {
     } catch (error) {
         console.error("Could not load Momento data:", error);
     }
-    // Prune rewards that are no longer earned at current rank
+    
     try { if (typeof syncRewardsToLevel === "function") syncRewardsToLevel(); } catch (e) {}
 
     Object.entries(BUILT_IN_PRESETS).forEach(([name, preset]) => {
@@ -1357,9 +1344,8 @@ function ensureDays() {
     });
 }
 
-/* THEME SYSTEM — full page recolor + locked rewards */
 const THEME_CATALOG = [
-    // Only Purple starts unlocked
+    
     { id: "purple", name: "Purple", color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108,92,231,0.25)",
       bg: "#120f1d", card: "#1a1528", border: "#2d2250", text: "#e2def8", muted: "#6e6a8a", unlocked: true },
     { id: "cyan", name: "Cyan", color: "#00cec9", hover: "#00b894", alpha: "rgba(0,206,201,0.25)",
@@ -1396,8 +1382,8 @@ const THEME_CATALOG = [
 function isThemeUnlocked(theme) {
     if (!theme) return false;
     if (theme.id === "purple") return true;
-    // Rank-gated: if theme has a reward entry, require current level >= that rank
-    // (level-down re-locks themes)
+    
+    
     if (theme.rewardId) {
         const reward = (typeof REWARD_CATALOG !== "undefined")
             ? REWARD_CATALOG.find(r => r.id === theme.rewardId) : null;
@@ -1425,7 +1411,7 @@ function setThemeById(id) {
 }
 
 function setAccentColor(color, hover, alpha) {
-    // legacy support — map to closest catalog entry
+    
     const match = THEME_CATALOG.find(t => t.color.toLowerCase() === (color||"").toLowerCase());
     if (match) { setThemeById(match.id); return; }
     data.theme = { color, hover, alpha };
@@ -1438,7 +1424,7 @@ function applySavedTheme() {
     const id = data.themeId || "purple";
     let theme = THEME_CATALOG.find(t => t.id === id);
     if (!theme || !isThemeUnlocked(theme)) {
-        theme = THEME_CATALOG[0]; // fallback purple
+        theme = THEME_CATALOG[0]; 
         data.themeId = "purple";
     }
     const root = document.documentElement;
@@ -1450,14 +1436,14 @@ function applySavedTheme() {
     root.style.setProperty("--border-color", theme.border);
     root.style.setProperty("--text-color", theme.text);
     root.style.setProperty("--muted-color", theme.muted);
-    // derived surfaces so tabs/rows/buttons follow theme (not stuck on purple)
+    
     root.style.setProperty("--surface", theme.card);
     root.style.setProperty("--surface-hover", theme.border);
     root.style.setProperty("--input-bg", theme.bg.includes("gradient") ? theme.card : theme.bg);
     root.style.setProperty("--title-color", theme.text);
     root.style.setProperty("--heading-color", theme.color);
 
-    // Body + main card
+    
     document.body.style.background = theme.bg;
     document.body.style.color = theme.text;
     document.querySelectorAll(".card").forEach(el => {
@@ -1465,7 +1451,7 @@ function applySavedTheme() {
         el.style.borderColor = theme.border;
     });
 
-    // Fixed XP pill
+    
     const pill = document.getElementById("xp-pill");
     if (pill) {
         pill.style.background = theme.card;
@@ -1473,7 +1459,7 @@ function applySavedTheme() {
         pill.style.color = theme.text;
     }
 
-    // Tools sidebar
+    
     const sidebar = document.getElementById("preset-sidebar");
     if (sidebar) {
         sidebar.style.background = theme.card;
@@ -1481,14 +1467,14 @@ function applySavedTheme() {
         sidebar.style.borderColor = theme.border;
     }
 
-    // Timeline full page
+    
     const tlPage = document.getElementById("timeline-page");
     if (tlPage) {
         tlPage.style.background = theme.bg;
         tlPage.style.color = theme.text;
     }
 
-    // Todo drawer
+    
     const todoDrawer = document.getElementById("todo-drawer");
     if (todoDrawer) {
         todoDrawer.style.background = theme.card;
@@ -1496,14 +1482,14 @@ function applySavedTheme() {
         todoDrawer.style.borderColor = theme.border;
     }
 
-    // Modals (progress, analyser, preview, scratch, focus)
+    
     document.querySelectorAll(".modal-box, .modal-overlay .modal-box").forEach(el => {
         el.style.background = theme.card;
         el.style.borderColor = theme.border;
         el.style.color = theme.text;
     });
 
-    // AI chat window
+    
     const chatWin = document.getElementById("ai-chat-window");
     if (chatWin) {
         chatWin.style.background = theme.card;
@@ -1552,10 +1538,9 @@ function renderThemeSwatches() {
     });
 }
 
-/* RENDERING & DAY TABS */
 function isChimeUnlocked(chime) {
     if (!chime || chime.id === "default") return true;
-    // Rank-gated only — level-down re-locks (do NOT use sticky hasReward)
+    
     const feature = chime.unlockFeature;
     if (feature && FEATURE_UNLOCKS[feature] !== undefined) {
         const info = getLevelInfo(data.xp || 0);
@@ -1591,12 +1576,11 @@ function renderChimeSwatches() {
             data.preferredChime = ch.id;
             saveData();
             renderChimeSwatches();
-            playRewardSound(ch.id === "default" ? "complete" : ch.id, true); // preview
+            playRewardSound(ch.id === "default" ? "complete" : ch.id, true); 
         };
         container.appendChild(btn);
     });
 }
-
 
 function buildDayTabs() {
     const container = document.getElementById("day-tabs-container");
@@ -1665,7 +1649,6 @@ function getDateForDay(dayName) {
     return date.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
 }
 
-/* PROGRESS TRACKER */
 function renderProgressTracker() {
     const day = DAYS[data.currentDay];
     const tasks = data.schedules[day] || [];
@@ -1691,7 +1674,6 @@ function renderProgressTracker() {
     badge.textContent = `📊 Progress: ${completed}/${tasks.length} completed (${percent}%)`;
 }
 
-/* ========== PRESET IMPORT / EXPORT ========== */
 function exportPresets() {
     const payload = {
         type: "Momento_presets",
@@ -1699,7 +1681,7 @@ function exportPresets() {
         exportedAt: new Date().toISOString(),
         presets: {}
     };
-    // Export custom presets only (skip built-ins unless user has edits)
+    
     Object.keys(data.presets || {}).forEach(name => {
         payload.presets[name] = data.presets[name];
     });
@@ -1726,7 +1708,7 @@ function importPresets(event) {
             if (parsed && parsed.presets && typeof parsed.presets === "object") {
                 incoming = parsed.presets;
             } else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                // raw { "My Week": { Monday: [...] } }
+                
                 const first = Object.values(parsed)[0];
                 if (first && typeof first === "object") incoming = parsed;
             }
@@ -1734,7 +1716,7 @@ function importPresets(event) {
             let added = 0;
             Object.keys(incoming).forEach(name => {
                 if (!name || typeof incoming[name] !== "object") return;
-                // Don't overwrite built-ins
+                
                 if (Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name)) {
                     const alt = name + " (imported)";
                     data.presets[alt] = incoming[name];
@@ -1760,8 +1742,6 @@ function exportData() {
     exportPresets();
 }
 
-
-/* DRAG & DROP TASK RENDERER */
 function renderTasks() {
     const container = document.getElementById("task-container");
     if (!container) return;
@@ -1788,12 +1768,12 @@ function createTaskRow(task, index) {
     row.className = "task-row";
     row.draggable = true;
 
-    // Drag Handle
+    
     const dragHandle = document.createElement("span");
     dragHandle.className = "drag-handle";
     dragHandle.textContent = "⣿";
 
-    // Drag Events
+    
     row.addEventListener("dragstart", () => {
         draggedRowIndex = index;
         row.classList.add("dragging");
@@ -1815,7 +1795,7 @@ function createTaskRow(task, index) {
 
     row.addEventListener("dragend", () => row.classList.remove("dragging"));
 
-    // Checkbox
+    
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = !!task.completed;
@@ -1829,9 +1809,9 @@ function createTaskRow(task, index) {
         const wasCompleted = !!task.completed;
         const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay;
 
-        // Block completing / uncompleting on any day that is not today
+        
         if (data.currentDay !== todayIdx) {
-            checkbox.checked = wasCompleted; // revert
+            checkbox.checked = wasCompleted; 
             showToast("⛔ You can only check off tasks on today's day!", "warn");
             return;
         }
@@ -1842,7 +1822,7 @@ function createTaskRow(task, index) {
                 showToast("⛔ Finish earlier tasks first — no skipping ahead!", "warn");
                 return;
             }
-            // Can't check off tasks starting more than 1 hour in the future
+            
             const nowM = new Date().getHours() * 60 + new Date().getMinutes();
             const startM = timeToMinutes(task.start);
             if (startM - nowM > 60) {
@@ -1857,7 +1837,7 @@ function createTaskRow(task, index) {
         } else if (!checkbox.checked && wasCompleted) {
             task.completed = false;
             if (!task.isSleep) {
-                // Always claw back — even if completed before this session (no xpAwarded flag)
+                
                 if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
                 task.xpAwarded = true;
                 revokeXPForTask(task);
@@ -1872,7 +1852,7 @@ function createTaskRow(task, index) {
         enforceLocksAfterXPChange();
     });
 
-    // Start — use text + pattern so typing multi-digit times is reliable
+    
     const start = document.createElement("input");
     start.type = "text";
     start.className = "time-input";
@@ -1882,7 +1862,7 @@ function createTaskRow(task, index) {
     start.title = "Start time (HH:MM)";
     const commitStart = () => {
         let v = start.value.trim();
-        // auto-insert colon if user types 4 digits
+        
         if (/^\d{4}$/.test(v)) v = v.slice(0,2) + ":" + v.slice(2);
         if (/^\d{1,2}:\d{2}$/.test(v)) {
             const [h,m] = v.split(":").map(Number);
@@ -1890,21 +1870,21 @@ function createTaskRow(task, index) {
                 task.start = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
                 start.value = task.start;
                 saveData();
-                // soft update only — do NOT full re-render while focused
+                
                 renderWeeklyAnalytics();
                 updateNextTask();
                 updateActiveTask();
                 return;
             }
         }
-        // invalid → restore
+        
         start.value = task.start || "09:00";
     };
     start.addEventListener("blur", commitStart);
     start.addEventListener("keydown", e => {
         if (e.key === "Enter") { e.preventDefault(); start.blur(); }
     });
-    // live auto-colon while typing
+    
     start.addEventListener("input", () => {
         let v = start.value.replace(/[^0-9:]/g, "");
         if (v.length === 2 && !v.includes(":") && start.dataset.prevLen !== "3") {
@@ -1914,7 +1894,7 @@ function createTaskRow(task, index) {
         start.value = v.slice(0,5);
     });
 
-    // End
+    
     const end = document.createElement("input");
     end.type = "text";
     end.className = "time-input";
@@ -1952,7 +1932,7 @@ function createTaskRow(task, index) {
         end.value = v.slice(0,5);
     });
 
-    // Activity Input
+    
     const activity = document.createElement("input");
     activity.type = "text";
     activity.placeholder = "What are you doing?";
@@ -1964,12 +1944,12 @@ function createTaskRow(task, index) {
         renderWeeklyAnalytics();
     });
 
-    // Category Badge
+    
     const categoryBadge = document.createElement("span");
     categoryBadge.className = "category-badge";
     categoryBadge.textContent = detectCategory(task.task);
 
-    // Delete Button
+    
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "delete-btn";
     deleteBtn.textContent = "🗑️";
@@ -2008,27 +1988,23 @@ function addTaskRow() {
     renderWeeklyAnalytics();
 }
 
-/* SLEEP BLOCK AUTO-FILL
-   If the last block of a day is not a sleep block, auto-add
-   Sleep 😴 from that block's end to the next day's first block start.
-   Runs on every save & render so it stays in sync. */
 function ensureSleepBlock() {
     DAYS.forEach((day, i) => {
         const tasks = data.schedules[day];
         if (!tasks || tasks.length === 0) return;
 
-        // Remove any existing auto-sleep blocks first to avoid duplicates
+        
         const withoutSleep = tasks.filter(t => !(t.isSleep));
         data.schedules[day] = withoutSleep;
 
         const last = withoutSleep[withoutSleep.length - 1];
         if (!last) return;
 
-        // Already ends with a sleep-like task typed by the user — skip
+        
         const isSleepTask = t => /sleep|zzz|bed/i.test(t.task || "");
         if (isSleepTask(last)) return;
 
-        // Find next day's first non-sleep block start as the wake time
+        
         const nextDay = DAYS[(i + 1) % DAYS.length];
         const nextTasks = (data.schedules[nextDay] || []).filter(t => !t.isSleep && !/sleep|zzz|bed/i.test(t.task || ""));
         const wakeTime = nextTasks.length > 0 ? nextTasks[0].start : "07:00";
@@ -2055,7 +2031,6 @@ function saveSchedule() {
     showSavedMessage("✓ Saved & Sorted Successfully!");
 }
 
-/* WEEKLY TIME ANALYTICS */
 function renderWeeklyAnalytics() {
     const container = document.getElementById("weekly-analytics-container");
     if (!container) return;
@@ -2136,7 +2111,6 @@ function updateNotifBtnLabel() {
     }
 }
 
-/* PRESETS & DRAWER */
 function toggleSidebar() {
     setTimeout(updateNowPlayingVisibility, 50);
     const sidebar = document.getElementById("preset-sidebar");
@@ -2258,7 +2232,6 @@ function deleteSelectedPreset() {
     showSavedMessage(`✓ "${name}" deleted.`);
 }
 
-/* LIVE CLOCK & STATUS CHIPS */
 let _lastFlapTime = "";
 
 function setFlapDigit(key, value) {
@@ -2268,7 +2241,7 @@ function setFlapDigit(key, value) {
     const next = String(value);
     if (card.textContent === next) return;
     el.classList.remove("flap-flip");
-    void el.offsetWidth; // reflow
+    void el.offsetWidth; 
     card.textContent = next;
     el.classList.add("flap-flip");
 }
@@ -2280,7 +2253,7 @@ function updateClock() {
     const ampm = h >= 12 ? "PM" : "AM";
     h = h % 12;
     if (h === 0) h = 12;
-    const hStr = String(h).padStart(2, " "); // leading space for single-digit hours
+    const hStr = String(h).padStart(2, " "); 
     const mStr = String(m).padStart(2, "0");
     const stamp = hStr + mStr + ampm;
     if (stamp !== _lastFlapTime) {
@@ -2290,7 +2263,7 @@ function updateClock() {
         setFlapDigit("m1", mStr[0]);
         setFlapDigit("m2", mStr[1]);
         setFlapDigit("ampm", ampm);
-        // Hide empty leading hour flap when hour is 1–9
+        
         const h1 = document.querySelector('[data-flap="h1"]');
         if (h1) h1.classList.toggle("flap-empty", hStr[0] === " ");
     }
@@ -2355,7 +2328,7 @@ function updateNextTask() {
         const left = timeToMinutes(active.end) - current;
         html += `<div class="status-chip chip-now"><span class="chip-label">NOW</span><span class="chip-text">${active.task || "Untitled"}</span><span class="chip-time">(${formatDuration(left)} left)</span></div>`;
     } else {
-        // Default to IDLE when nothing is in progress
+        
         const idleText = next
             ? "Nothing right now — you're free until the next block"
             : "No active or upcoming tasks left for today";
@@ -2369,7 +2342,6 @@ function updateNextTask() {
     badge.innerHTML = html;
 }
 
-/* CHECK-IN CARD */
 function updateCheckin() {
     const prompt = document.getElementById("today-prompt");
     if (!prompt) return;
@@ -2395,16 +2367,8 @@ function showSavedMessage(message) {
     setTimeout(() => status.classList.remove("show"), 2200);
 }
 
-/* =========================================================
-   XP, STREAKS & FOCUS MODE
-   ========================================================= */
-
-
-/* =========================================================
-   LEVEL / RANK SYSTEM + REWARDS
-   ========================================================= */
 const RANK_TIERS = [
-    // Each step within a tier costs the same; each tier costs more than the last
+    
     { name: "Starter",            sub: ["I","II","III","IV","V"], xpPer: 100  },
     { name: "Beginner",           sub: ["1","2","3","4","5"],     xpPer: 200  },
     { name: "Amateur",            sub: ["1","2","3","4","5"],     xpPer: 350  },
@@ -2416,9 +2380,7 @@ const RANK_TIERS = [
     { name: "Legend",             sub: ["1","2","3","4","5"],     xpPer: 5000 },
     { name: "Mythic",             sub: ["I","II","III","IV","V"], xpPer: 8000 }
 ];
-// Total to max ≈ 100*5 + 200*5 + ... + 8000*5 ≈ 106,000 XP
 
-// Pre-compute cumulative thresholds
 const LEVEL_TABLE = [];
 (function buildLevelTable() {
     let cum = 0;
@@ -2452,7 +2414,7 @@ function getLevelInfo(xp) {
         }
         prev = LEVEL_TABLE[i].xpNeeded;
     }
-    // Max rank
+    
     const last = LEVEL_TABLE[LEVEL_TABLE.length - 1];
     return {
         rank: last.rank + "+",
@@ -2466,46 +2428,45 @@ function getLevelInfo(xp) {
 }
 
 const REWARD_CATALOG = [
-    // Starter (0–4) — sparse: only a taste
+    
     { id: "xp_boost_s3",      atLevel: 2,  name: "+20 Bonus XP",          desc: "One-time +20 XP at Starter III", bonusXP: 20 },
     { id: "theme_cyan",       atLevel: 4,  name: "Cyan Theme",            desc: "Unlock the Cyan colour theme" },
-    // Beginner (5–9)
+    
     { id: "xp_boost_b2",      atLevel: 6,  name: "+35 Bonus XP",          desc: "One-time +35 XP at Beginner 2", bonusXP: 35 },
     { id: "feature_timeline", atLevel: 7,  name: "Timeline Visualizer",   desc: "Unlock the day timeline visualizer" },
     { id: "theme_coral",      atLevel: 9,  name: "Coral Theme",           desc: "Unlock the Coral colour theme" },
-    // Amateur (10–14)
+    
     { id: "sound_levelup",    atLevel: 10, name: "Level-Up Fanfare",      desc: "Special arpeggio when you level up" },
     { id: "feature_analyser", atLevel: 12, name: "Week Analyser",         desc: "Unlock Analyse My Week" },
     { id: "theme_amber",      atLevel: 14, name: "Amber Theme",           desc: "Unlock the Amber colour theme" },
-    // Above Average Kid (15–19)
+    
     { id: "confetti",         atLevel: 15, name: "Confetti Celebration",  desc: "Confetti on big XP gains" },
     { id: "theme_green",      atLevel: 17, name: "Green Theme",           desc: "Unlock the Green colour theme" },
     { id: "sound_victory",    atLevel: 19, name: "Victory Fanfare",       desc: "Special chime on task complete" },
-    // Skilled (20–24)
+    
     { id: "theme_rose",       atLevel: 20, name: "Rose Theme",            desc: "Unlock the Rose colour theme" },
     { id: "focus_plus",       atLevel: 22, name: "Focus+ Modes",          desc: "Extra timer lengths (15/45/60)" },
     { id: "xp_boost_skilled", atLevel: 24, name: "+100 Bonus XP",         desc: "One-time +100 XP at Skilled 5", bonusXP: 100 },
-    // Expert (25–29)
+    
     { id: "theme_gold",       atLevel: 26, name: "Gold Theme",            desc: "Unlock the Gold colour theme" },
     { id: "sound_chill",      atLevel: 28, name: "Chill Chime",            desc: "Softer completion tone" },
-    // Exemplar (30–34)
+    
     { id: "theme_ocean",      atLevel: 30, name: "Ocean Theme",           desc: "Unlock the Ocean colour theme" },
     { id: "badge_legend",     atLevel: 32, name: "Legend Badge",          desc: "Show a Legend badge on your progress pill" },
     { id: "theme_forest",     atLevel: 34, name: "Forest Theme",          desc: "Unlock the Forest colour theme" },
-    // Master (35–39)
+    
     { id: "theme_neon",       atLevel: 36, name: "Neon Theme",            desc: "Unlock the Neon colour theme" },
     { id: "xp_boost_master",  atLevel: 38, name: "+250 Bonus XP",         desc: "One-time +250 XP at Master 4", bonusXP: 250 },
-    // Legend (40–44)
+    
     { id: "theme_midnight",   atLevel: 40, name: "Midnight Theme",        desc: "Unlock the Midnight colour theme" },
     { id: "theme_sunset",     atLevel: 42, name: "Sunset Gradient",       desc: "Unlock the Sunset gradient theme" },
     { id: "theme_aurora",     atLevel: 44, name: "Aurora Gradient",       desc: "Unlock the Aurora gradient theme" },
-    // Mythic (45–49)
+    
     { id: "theme_candy",      atLevel: 46, name: "Candy Gradient",        desc: "Unlock the Candy gradient theme" },
     { id: "theme_mythic",     atLevel: 48, name: "Mythic Aura",           desc: "Special Mythic glow on the XP pill" },
     { id: "title_mythic",     atLevel: 49, name: "Mythic Title",          desc: "Unlock the Mythic title under Momento" },
 ];
 
-/** Feature unlock requirements by reward id / levelIndex */
 const CHIME_CATALOG = [
     { id: "default",  name: "Classic",   rewardId: null,           unlockFeature: null },
     { id: "victory",  name: "Victory",   rewardId: "sound_victory", unlockFeature: "sound_victory" },
@@ -2514,17 +2475,17 @@ const CHIME_CATALOG = [
 ];
 
 const FEATURE_UNLOCKS = {
-    timeline: 7,        // Beginner 3
-    analyser: 12,       // Amateur 3
-    ai_generate: 0,     // free
-    ai_theme: 0,        // free (individual themes still rank-gated)
-    ai_regenerate: 4,   // Starter V
-    ai_clear_day: 3,    // Starter IV
-    ai_clear_week: 7,   // Beginner 3
-    ai_bulk_edit: 6,    // Beginner 2
-    sound_victory: 19,  // Above Average Kid 5
-    sound_levelup: 10,  // Amateur 1
-    sound_chill: 28,    // Expert 4
+    timeline: 7,        
+    analyser: 12,       
+    ai_generate: 0,     
+    ai_theme: 0,        
+    ai_regenerate: 4,   
+    ai_clear_day: 3,    
+    ai_clear_week: 7,   
+    ai_bulk_edit: 6,    
+    sound_victory: 19,  
+    sound_levelup: 10,  
+    sound_chill: 28,    
 };
 
 function checkAndUnlockRewards(levelIndex) {
@@ -2569,7 +2530,7 @@ function updateFeatureLocks() {
             analyseBtn.title = "";
         }
     }
-    // Close timeline page if locked after demotion
+    
     if (!isFeatureUnlocked("timeline")) {
         const page = document.getElementById("timeline-page");
         if (page && !page.classList.contains("hidden")) {
@@ -2580,7 +2541,7 @@ function updateFeatureLocks() {
 }
 
 function showRewardUnlock(reward) {
-    const DURATION = 7000; // ms visible
+    const DURATION = 7000; 
     const el = document.createElement("div");
     el.className = "reward-toast";
     el.innerHTML = `
@@ -2593,7 +2554,7 @@ function showRewardUnlock(reward) {
         if (fill) {
             fill.style.transition = "none";
             fill.style.width = "100%";
-            // next frame → animate to 0
+            
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     fill.style.transition = `width ${DURATION}ms linear`;
@@ -2614,7 +2575,6 @@ function isRewardUnlockedByRank(idOrReward) {
     return info.levelIndex >= r.atLevel;
 }
 
-/** Sticky list kept in sync with current rank (prunes locked-again rewards) */
 function hasReward(id) {
     return isRewardUnlockedByRank(id);
 }
@@ -2627,9 +2587,8 @@ function syncRewardsToLevel() {
         .map(r => r.id);
 }
 
-
 function awardXPForTask(task) {
-    if (task.xpAwarded) return; // already paid out — anti-farm
+    if (task.xpAwarded) return; 
     const xpGain = calcTaskXP(task);
 
     data.xp = (data.xp || 0) + xpGain;
@@ -2637,7 +2596,7 @@ function awardXPForTask(task) {
     task.xpAwarded = true;
     task.xpAmount = xpGain;
 
-    // Streak logic
+    
     const todayStr = new Date().toDateString();
     if (data.lastCompletedDate !== todayStr) {
         const yesterday = new Date();
@@ -2664,7 +2623,7 @@ function awardXPForTask(task) {
 }
 
 function showXPPopup(xpGain, taskName, levelInfo) {
-    // Remove existing popup if any
+    
     const existing = document.getElementById("xp-popup");
     if (existing) existing.remove();
 
@@ -2687,7 +2646,7 @@ function showXPPopup(xpGain, taskName, levelInfo) {
     `;
     document.body.appendChild(popup);
     if (hasReward("confetti") && xpGain >= 60) {
-        // simple confetti burst
+        
         for (let i = 0; i < 24; i++) {
             const conf = document.createElement("div");
             conf.className = "confetti-piece";
@@ -2716,7 +2675,12 @@ function calcTaskXP(task) {
     const startM = timeToMinutes(task.start);
     const endM = timeToMinutes(task.end);
     let dur = endM > startM ? endM - startM : (endM + 1440 - startM);
-    return Math.min(120, Math.max(25, Math.round(dur / 3) + 15));
+    let base = Math.min(120, Math.max(25, Math.round(dur / 3) + 15));
+    const cat = detectCategory(task.task || task.activity || "");
+    let mult = 1;
+    if (cat === "📚 Study/Work" || cat.includes("Study/Work")) mult = 2;
+    else if (cat === "🏃 Exercise" || cat.includes("Exercise")) mult = 1.5;
+    return Math.round(base * mult);
 }
 
 function revokeXPForTask(task) {
@@ -2740,8 +2704,6 @@ function revokeXPForTask(task) {
     }
 }
 
-
-/** Earlier non-sleep tasks on this day must be completed first */
 function canCompleteTaskInOrder(day, task) {
     const tasks = data.schedules[day] || [];
     const startM = timeToMinutes(task.start);
@@ -2778,17 +2740,16 @@ function showToast(msg, kind) {
     el.textContent = msg;
     document.body.appendChild(el);
     setTimeout(() => el.classList.add("show"), 20);
-    // Longer so errors / penalties are readable
+    
     setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 450); }, 7000);
 }
 
-/** After XP changes: re-lock features + force theme switch if needed */
 function enforceLocksAfterXPChange() {
     syncRewardsToLevel();
     if (typeof updateFeatureLocks === "function") updateFeatureLocks();
     if (typeof renderThemeSwatches === "function") renderThemeSwatches();
     if (typeof renderChimeSwatches === "function") renderChimeSwatches();
-    // Preferred chime locked after demotion?
+    
     const pref = data.preferredChime || "default";
     if (pref !== "default") {
         const ch = CHIME_CATALOG.find(x => x.id === pref);
@@ -2798,7 +2759,7 @@ function enforceLocksAfterXPChange() {
             showToast("🔔 Chime locked again — switched to Classic", "info");
         }
     }
-    // Theme still equipped but no longer unlocked?
+    
     const id = data.themeId || "purple";
     if (id === "purple") return;
     const theme = (typeof THEME_CATALOG !== "undefined")
@@ -2809,7 +2770,7 @@ function enforceLocksAfterXPChange() {
 }
 
 function showThemeLockedPopup(theme) {
-    // Auto-switch to purple immediately — no "pick later"
+    
     setThemeById("purple");
     if (document.getElementById("theme-locked-popup")) return;
 
@@ -2840,7 +2801,6 @@ function showThemeLockedPopup(theme) {
     document.body.appendChild(el);
 }
 
-/** Claw back XP for every completed task that had been awarded on a day */
 function clawbackDayXP(day, opts) {
     opts = opts || {};
     const silent = !!opts.silent;
@@ -2848,7 +2808,7 @@ function clawbackDayXP(day, opts) {
     let total = 0;
     const infoBefore = getLevelInfo(data.xp || 0);
     tasks.forEach(t => {
-        // Treat any completed non-sleep task as having been paid (incl. pre-session)
+        
         if ((t.xpAwarded || t.completed) && !t.isSleep) {
             const loss = t.xpAmount || calcTaskXP(t);
             data.xp = Math.max(0, (data.xp || 0) - loss);
@@ -2894,11 +2854,10 @@ function clearWeekSchedules() {
     return total;
 }
 
-/** Special chimes — unlocked via rewards / rank */
 function playRewardSound(kind, forcePreview) {
-    // forcePreview = play even if alerts off (toolbar preview)
+    
     if (!forcePreview && !data.notificationsEnabled && kind !== "down") return;
-    // On normal complete, use preferred chime if unlocked
+    
     let tone = kind;
     if (kind === "complete") {
         const pref = data.preferredChime || "default";
@@ -2940,7 +2899,7 @@ function playRewardSound(kind, forcePreview) {
         } else {
             playChime();
         }
-    } catch (e) { /* ignore */ }
+    } catch (e) {  }
 }
 
 function updateXPDisplay() {
@@ -2952,7 +2911,7 @@ function updateXPDisplay() {
     const pctEl = document.getElementById("xp-pill-pct");
     if (rankEl) rankEl.textContent = info.rank;
     if (fillEl) {
-        // force reflow so bar always paints even at 0%
+        
         fillEl.style.width = "0%";
         void fillEl.offsetWidth;
         fillEl.style.width = Math.max(pct, pct > 0 ? pct : 0) + "%";
@@ -2983,7 +2942,7 @@ function openProgressPanel() {
     document.getElementById("progress-streak").textContent =
         `🔥 Streak: ${data.streak || 0} day${(data.streak||0)===1?"":"s"}`;
 
-    // Full rank ladder
+    
     const ranksEl = document.getElementById("ranks-ladder");
     if (ranksEl) {
         ranksEl.innerHTML = LEVEL_TABLE.map((lv, i) => {
@@ -2992,7 +2951,7 @@ function openProgressPanel() {
             const reached = have >= lv.xpNeeded;
             const current = i === info.levelIndex && have < (LEVEL_TABLE[LEVEL_TABLE.length-1].xpNeeded);
             const isCurrent = (!reached && have >= prev) || (i === info.levelIndex && have < lv.xpNeeded);
-            // actually current is the one we're working on
+            
             const working = have >= prev && have < lv.xpNeeded;
             const cls = reached ? "rank-done" : working ? "rank-current" : "rank-locked";
             const icon = reached ? "✓" : working ? "▶" : "·";
@@ -3005,7 +2964,7 @@ function openProgressPanel() {
         }).join("");
     }
 
-    // Rewards with clear unlock rank + remaining XP
+    
     const list = document.getElementById("rewards-list");
     if (list) {
         list.innerHTML = REWARD_CATALOG.map(r => {
@@ -3028,11 +2987,9 @@ function openProgressPanel() {
         }).join("");
     }
     panel.classList.remove("hidden");
-    updateXPDisplay(); // keep pill bar in sync
+    updateXPDisplay(); 
 }
 
-
-/* ========== WEEKLY REVIEW ========== */
 function computeWeeklyReview() {
     let totalBlocks = 0;
     let completedBlocks = 0;
@@ -3049,7 +3006,7 @@ function computeWeeklyReview() {
     let bestScore = -1;
     DAYS.forEach(day => {
         const d = perDay[day];
-        // Prefer higher completion count, then %
+        
         const score = d.done * 1000 + d.pct;
         if (d.total > 0 && score > bestScore) {
             bestScore = score;
@@ -3108,8 +3065,6 @@ function closeWeeklyReview() {
     const panel = document.getElementById("weekly-review-panel");
     if (panel) panel.classList.add("hidden");
 }
-
-
 
 /* ========== MUSIC PAGE + NOW PLAYING (no API keys) ========== */
 let _musicVolume = 0.4;
@@ -3269,8 +3224,6 @@ function updateNpTimes() {
 }
 
 /* --- Free music search: Internet Archive netlabels (actual music) --- */
-
-
 
 /** Music: desktop uses built-in API; browser uses Piped + YT embed */
 const MUSIC_API = () => localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787";
@@ -3626,7 +3579,6 @@ async function playTrackById(trackId) {
   await playMusicResult(index);
 }
 
-
 // Simple HTML escaper helper if you don't already have one
 function escapeHtml(str) {
     return (str || "").replace(/[&<>'"]/g, 
@@ -3704,7 +3656,7 @@ async function playMusicResult(i, _triedIds) {
         };
     } catch (e) {
         console.warn("Play failed", e);
-        // Auto-try other YouTube results in the list (up to 6)
+        
         if (t.source === "youtube" && triedIds.size < 6) {
             const nextIdx = _musicResults.findIndex(
                 (r, idx) => idx !== i && r.source === "youtube" && !triedIds.has(r.id)
@@ -3714,7 +3666,7 @@ async function playMusicResult(i, _triedIds) {
                 return playMusicResult(nextIdx, triedIds);
             }
         }
-        // Last resort: Audius by title
+        
         if (t.source === "youtube") {
             try {
                 const host = await getAudiusHost();
@@ -3788,7 +3740,6 @@ function stopStream() {
     updateNpPlayBtn();
 }
 
-/* --- Local library with IndexedDB persistence --- */
 function openMusicDB() {
     return new Promise((resolve, reject) => {
         const req = indexedDB.open(LOCAL_MUSIC_DB, 1);
@@ -4048,7 +3999,6 @@ function timelineRemoveBlock(index) {
     renderWeeklyAnalytics();
 }
 
-/* ---------- FOCUS MODE / POMODORO ---------- */
 let _focusTimerInterval = null;
 let _focusSecondsLeft = 25 * 60;
 let _focusIsRunning = false;
@@ -4067,7 +4017,7 @@ function openFocusMode(task, index) {
     _focusIsRunning = false;
     if (_focusTimerInterval) clearInterval(_focusTimerInterval);
 
-    // Build / show modal
+    
     let modal = document.getElementById("focus-modal");
     if (!modal) {
         modal = document.createElement("div");
@@ -4150,7 +4100,7 @@ function toggleFocusTimer() {
                 clearInterval(_focusTimerInterval);
                 _focusIsRunning = false;
                 playChime();
-                // Switch phase
+                
                 if (_focusIsBreak) {
                     _focusIsBreak = false;
                     _focusSecondsLeft = 25 * 60;
@@ -4235,12 +4185,9 @@ function renderMicroTasks() {
     `).join("");
 }
 
-function stopAmbient() { /* removed */ }
-function setAmbient() { /* removed */ }
+function stopAmbient() {  }
+function setAmbient() {  }
 
-/* =========================================================
-   PERSISTENT TO-DO LIST
-   ========================================================= */
 function addTodo() {
     const input = document.getElementById("todo-input");
     if (!input) return;
@@ -4266,13 +4213,13 @@ function toggleTodo(id) {
     const baseXP = 40;
 
     if (!was) {
-        // Completing — enforce min 5 minutes since created
+        
         const created = t.createdAt || (t.created ? Date.parse(t.created) : Date.now());
         const elapsedMin = (Date.now() - created) / 60000;
         const infoBefore = getLevelInfo(data.xp || 0);
 
         if (elapsedMin < 5) {
-            // Anti-farm: delete the to-do + heavy penalty = half of this rank's step cost
+            
             const stepCost = infoBefore.needed || 100;
             const penalty = Math.max(25, Math.round(stepCost / 2));
             data.xp = Math.max(0, (data.xp || 0) - penalty);
@@ -4289,7 +4236,7 @@ function toggleTodo(id) {
             return;
         }
 
-        // Normal complete
+        
         t.completed = true;
         t.xpAwarded = baseXP;
         data.xp = (data.xp || 0) + baseXP;
@@ -4315,8 +4262,8 @@ function toggleTodo(id) {
             playRewardSound("levelup");
         }
     } else {
-        // Unchecking a legitimately completed to-do — claw back the +XP only
-        // (penalty path deletes the item, so we never get here for penalties)
+        
+        
         const loss = typeof t.xpAwarded === "number" && t.xpAwarded > 0 ? t.xpAwarded : baseXP;
         const infoBefore = getLevelInfo(data.xp || 0);
         data.xp = Math.max(0, (data.xp || 0) - loss);
@@ -4364,9 +4311,6 @@ function renderTodos() {
     `).join("");
 }
 
-/* =========================================================
-   TIMELINE VISUALIZER — vertical (Google Calendar style)
-   ========================================================= */
 let _tlDrag = null;
 
 function renderTimeline() {
@@ -4379,14 +4323,14 @@ function renderTimeline() {
     const wrap = document.createElement("div");
     wrap.className = "tl-vertical-wrap";
 
-    // Hour gutter + track
+    
     const gutter = document.createElement("div");
     gutter.className = "tl-gutter";
     const track = document.createElement("div");
     track.className = "tl-vtrack";
 
-    // 24 hours, each hour = 48px → total 1152px
-    const PX_PER_MIN = 64 / 60; // 64px per hour — roomier
+    
+    const PX_PER_MIN = 64 / 60; 
 
     for (let h = 0; h < 24; h++) {
         const hourLbl = document.createElement("div");
@@ -4403,7 +4347,7 @@ function renderTimeline() {
     track.style.height = (24 * 64) + "px";
     gutter.style.height = (24 * 64) + "px";
 
-    // Now line
+    
     if (data.currentDay === getTodayIndex()) {
         const now = new Date();
         const mins = now.getHours() * 60 + now.getMinutes();
@@ -4510,10 +4454,6 @@ function formatMinutes(m) {
     return String(Math.floor(m / 60)).padStart(2,"0") + ":" + String(m % 60).padStart(2,"0");
 }
 
-/* =========================================================
-   WEEK ANALYSER
-   ========================================================= */
-
 const ANALYSER_INTENTS = {
     relax: {
         label: "Relax / Holiday",
@@ -4614,19 +4554,19 @@ function runAnalysis() {
         const tasks = (data.schedules[day] || []).filter(t => t.task);
         if (tasks.length === 0) return;
 
-        // --- Sleep check ---
+        
         const sleepTask = tasks.find(t => /sleep|zzz|bed/i.test(t.task) || t.isSleep);
         let sleepHours = 0;
         if (sleepTask) {
             const s = timeToMinutes(sleepTask.start);
             const e = timeToMinutes(sleepTask.end);
-            // sleep crosses midnight: end < start means it wraps
+            
             sleepHours = e <= s ? (e + 1440 - s) / 60 : (e - s) / 60;
         }
         const sleepOk = sleepHours >= cfg.minSleepHours;
         const sleepWarn = sleepHours > 0 && sleepHours < cfg.minSleepHours;
 
-        // --- Category breakdown for this day ---
+        
         const dayMins = {};
         let totalMins = 0;
         tasks.forEach(t => {
@@ -4640,10 +4580,10 @@ function runAnalysis() {
 
         const pct = cat => totalMins > 0 ? Math.round(((dayMins[cat] || 0) / totalMins) * 100) : 0;
 
-        // --- Intent-specific checks ---
+        
         const checks = [];
 
-        // Sleep
+        
         if (sleepHours === 0) {
             checks.push({ icon: "icon-warn", sym: "⚠️", text: "No sleep block detected" });
             totalIssues++;
@@ -4654,7 +4594,7 @@ function runAnalysis() {
             checks.push({ icon: "icon-ok", sym: "✅", text: `Sleep: ${sleepHours.toFixed(1)}h ✓` });
         }
 
-        // Work/study check
+        
         if (cfg.minWorkPct) {
             const wp = pct("📚 Study/Work");
             if (wp < cfg.minWorkPct) {
@@ -4665,7 +4605,7 @@ function runAnalysis() {
             }
         }
 
-        // Relax check
+        
         if (cfg.minRelaxPct) {
             const rp = pct("🎮 Gaming/Relax");
             if (rp < cfg.minRelaxPct) {
@@ -4676,7 +4616,7 @@ function runAnalysis() {
             }
         }
 
-        // Exercise check
+        
         if (cfg.minExercisePct) {
             const ep = pct("🏃 Exercise");
             if (ep < cfg.minExercisePct) {
@@ -4687,7 +4627,7 @@ function runAnalysis() {
             }
         }
 
-        // Too much work on a relax week
+        
         if (cfg.maxWorkPct !== undefined) {
             const wp = pct("📚 Study/Work");
             if (wp > cfg.maxWorkPct) {
@@ -4775,10 +4715,6 @@ function keepPreview() {
     closePreview();
     showSavedMessage(`✓ Applied: ${ANALYSER_INTENTS[_analyserIntent]?.label}`);
 }
-
-/* =========================================================
-   PRESET MANAGEMENT & FROM-SCRATCH BUILDER LOGIC
-   ========================================================= */
 
 function renderPresetsManager() {
     const listContainer = document.getElementById("presets-manager-list");
@@ -4942,7 +4878,6 @@ function saveScratchPreset() {
     alert(`Successfully created preset "${title}"!`);
 }
 
-/* GLOBAL EVENT LISTENERS */
 document.addEventListener("input", event => {
     if (event.target.id === "daily-notes") {
         data.notes[DAYS[data.currentDay]] = event.target.value;
@@ -4985,5 +4920,4 @@ document.addEventListener("click", (e) => {
         toggleSidebar();
     }
 });
-
 

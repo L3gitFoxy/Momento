@@ -1,8 +1,5 @@
-/* =========================================================
-   MOMENTO - STYLESHEET
-   ========================================================= */
 
-/* CSS Variables */
+
 :root {
     --accent-color: #6c5ce7;
     --accent-hover: #5b4cc4;
@@ -12,7 +9,7 @@
     --border-color: #2d2250;
     --text-color: #e2def8;
     --muted-color: var(--muted-color, #6e6a8a);
-    /* derived surfaces — updated by JS theme apply */
+    
     --surface: #231b36;
     --surface-hover: #2d2444;
     --input-bg: #120f1d;
@@ -50,7 +47,6 @@ h2, h3 {
     margin-top: 0;
 }
 
-/* Top Bar */
 .top-bar {
     display: flex;
     justify-content: space-between;
@@ -82,7 +78,6 @@ h2, h3 {
     font-weight: 600;
 }
 
-/* Split-flap style clock */
 .flap-clock {
     display: inline-flex;
     align-items: center;
@@ -149,7 +144,7 @@ h2, h3 {
 @keyframes colonBlink {
     50% { opacity: 0.25; }
 }
-/* AM/PM matches digit tiles: same gradient, border, mono font */
+
 .flap-ampm {
     margin-left: 4px;
     display: flex;
@@ -214,7 +209,6 @@ label {
     color: var(--muted-color, #b1a7d8);
 }
 
-/* Day Navigation Tabs */
 .day-tabs {
     display: flex;
     gap: 6px;
@@ -251,7 +245,6 @@ label {
     box-shadow: 0 0 7px var(--accent-light);
 }
 
-/* Nav Header & Schedule Banners */
 .nav-header {
     display: flex;
     justify-content: space-between;
@@ -289,8 +282,6 @@ label {
     font-weight: bold;
 }
 
-
-/* Task Rows & Form Control */
 .task-row {
     display: flex;
     gap: 10px;
@@ -353,7 +344,6 @@ input[type="text"] {
     flex: 1 1 0;
     min-width: 0;
 }
-
 
 input[type="checkbox"] {
     width: 18px;
@@ -421,7 +411,6 @@ button:hover {
     transform: translateY(0);
 }
 
-/* Daily Notes & Progress Badges */
 .notes-section {
     margin-top: 20px;
 }
@@ -449,7 +438,6 @@ button:hover {
     border: 1px solid rgba(162, 155, 254, 0.2);
 }
 
-/* Status Chips */
 #next-task-badge {
     display: flex;
     flex-wrap: wrap;
@@ -513,9 +501,6 @@ button:hover {
     font-size: 0.82rem;
 }
 
-
-
-/* Sidebar Drawer & Controls */
 .preset-sidebar {
     position: fixed;
     top: 0;
@@ -610,7 +595,6 @@ button:hover {
     border-color: #ffffff;
 }
 
-/* Preset Manager */
 .preset-manager {
     padding: 10px 0;
     color: var(--text-color, #fff);
@@ -660,7 +644,6 @@ button:hover {
     padding: 10px;
 }
 
-/* Analyser Modal */
 .analyser-box {
     max-width: 600px;
     max-height: 85vh;
@@ -792,7 +775,6 @@ button:hover {
 
 .btn-icon:hover { opacity: 1; }
 
-/* Weekly Analytics */
 .analytics-bar-item {
     display: flex;
     flex-direction: column;
@@ -821,7 +803,6 @@ button:hover {
     transition: width 0.3s ease;
 }
 
-/* Modals & Scratch Builder */
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -945,7 +926,6 @@ button:hover {
     font-size: 0.82rem;
 }
 
-/* AI Chatbot Widget */
 #ai-chat-widget {
     position: fixed;
     bottom: 25px;
@@ -1036,9 +1016,6 @@ button:hover {
     align-self: flex-start;
 }
 
-
-
-
 .user-msg {
     background: var(--accent-color);
     color: white;
@@ -1071,7 +1048,6 @@ button:hover {
     cursor: pointer;
 }
 
-/* Mobile Responsiveness */
 @media (max-width: 600px) {
     body { padding: 20px 10px; }
     .card { padding: 18px; }
@@ -1081,9 +1057,6 @@ button:hover {
     .nav-header { gap: 8px; }
     .nav-btn { padding: 6px 8px; font-size: 12px; }
 }
-/* =========================================================
-   XP POPUP & FOCUS MODE STYLES
-   ========================================================= */
 
 .xp-display {
     font-size: 0.8rem;
@@ -1148,7 +1121,6 @@ button:hover {
     transform: scale(1.05);
 }
 
-/* Active task hover bulge */
 .task-row.active-now {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1158,7 +1130,6 @@ button:hover {
     border-color: #00cec9;
 }
 
-/* Focus Mode Modal */
 .focus-box {
     max-width: 480px;
     width: 95%;
@@ -1233,7 +1204,6 @@ button:hover {
     border-color: var(--accent-color);
 }
 
-/* Micro-tasks — embedded in focus panel (not a nested cut-off card) */
 .focus-micro {
     width: 100%;
     background: transparent;
@@ -1339,8 +1309,6 @@ button:hover {
     flex-direction: column;
 }
 
-
-/* Time text inputs */
 .time-input {
     width: 72px !important;
     min-width: 72px;
@@ -1349,7 +1317,6 @@ button:hover {
     letter-spacing: 0.5px;
 }
 
-/* ========== Persistent To-Dos ========== */
 .todo-section, .timeline-section {
     margin-top: 18px;
     background: var(--bg-color, #171223);
@@ -1440,7 +1407,6 @@ button:hover {
     cursor: pointer;
 }
 
-/* ========== Timeline Visualizer ========== */
 .timeline-viz {
     position: relative;
     margin-top: 4px;
@@ -1523,7 +1489,6 @@ button:hover {
 .tl-handle-right { right: 0; }
 .tl-handle:hover { background: rgba(255,255,255,0.25); }
 
-/* Level / Reward UI extras */
 .xp-popup-rank {
     font-size: 1rem;
     font-weight: 700;
@@ -1625,7 +1590,6 @@ button:hover {
     100% { transform: translateY(120px) rotate(360deg); opacity: 0; }
 }
 
-/* ========== XP Pill (minimal, top-left) ========== */
 .xp-pill {
     display: inline-flex;
     align-items: center;
@@ -1680,7 +1644,6 @@ button:hover {
     75% { transform: translateX(4px); }
 }
 
-/* ========== Quick action buttons ========== */
 .quick-actions {
     display: flex;
     gap: 10px;
@@ -1722,7 +1685,6 @@ button:hover {
     padding: 0 5px;
 }
 
-/* ========== To-Do Drawer ========== */
 .todo-drawer {
     position: fixed;
     top: 0;
@@ -1763,7 +1725,6 @@ button:hover {
     margin: 0 0 12px;
 }
 
-/* ========== Timeline Full Page ========== */
 .timeline-page {
     position: fixed;
     inset: 0;
@@ -1825,7 +1786,6 @@ button:hover {
     margin-right: 8px;
 }
 
-/* ========== Progress Panel ========== */
 .progress-box { max-width: 440px; }
 .progress-rank-big {
     font-size: 1.6rem;
@@ -1881,7 +1841,6 @@ button:hover {
 .xp-bar-wrap.small { height: 5px; margin: 4px 0 2px; }
 .reward-prog { font-size: 0.7rem; color: var(--muted-color); }
 
-/* Theme swatches locked / active */
 .swatch-locked {
     opacity: 0.45;
     cursor: not-allowed !important;
@@ -1901,11 +1860,9 @@ button:hover {
     margin: 6px 0 0;
 }
 
-/* Hide old embedded sections if any leftover */
 .todo-section, .timeline-section { display: none !important; }
 .xp-display { display: none !important; }
 
-/* Fixed XP pill — top-left of SCREEN (bigger, themeable) */
 .xp-pill-fixed {
     position: fixed !important;
     top: 12px;
@@ -1956,7 +1913,6 @@ button:hover {
     white-space: nowrap;
 }
 
-/* Theme swatches wrap */
 .theme-swatches {
     display: flex;
     flex-wrap: wrap;
@@ -1976,7 +1932,6 @@ button:hover {
     content: " 🔒";
 }
 
-/* Vertical Timeline */
 .timeline-viz-vertical {
     overflow: auto;
     max-height: calc(100vh - 140px);
@@ -2082,7 +2037,6 @@ button:hover {
     margin-top: 4px;
 }
 
-/* Progress panel — ranks ladder */
 .progress-box {
     max-width: 520px !important;
     max-height: 90vh;
@@ -2138,7 +2092,6 @@ button:hover {
     letter-spacing: 0.5px;
 }
 
-/* Timeline page two-column */
 .timeline-page-body {
     display: flex;
     gap: 16px;
@@ -2216,7 +2169,6 @@ button:hover {
     .timeline-side { width: 100%; max-height: 200px; }
 }
 
-/* App bio / overview */
 .app-bio {
     margin-top: 22px;
     padding: 16px 18px;
@@ -2246,7 +2198,6 @@ button:hover {
     font-weight: 700;
 }
 
-/* Theme chips (richer theme picker) */
 .theme-swatches {
     display: flex !important;
     flex-wrap: wrap !important;
@@ -2302,7 +2253,6 @@ button:hover {
     margin: 8px 0 0;
 }
 
-/* Level-down / uh-oh card */
 .leveldown-card {
     position: fixed;
     inset: 0;
@@ -2343,7 +2293,6 @@ button:hover {
     margin-bottom: 16px;
 }
 
-/* Toasts */
 .sync-toast {
     position: fixed;
     bottom: 28px;
@@ -2371,7 +2320,6 @@ button:hover {
 .sync-toast.toast-warn { border-color: #e17055; }
 .sync-toast.toast-info { border-color: var(--accent-color); }
 
-/* Chime picker chips (toolbar) */
 .chime-swatches {
     display: flex;
     flex-wrap: wrap;
@@ -2412,7 +2360,6 @@ button:hover {
     font-weight: 600;
 }
 
-/* Theme pick buttons inside locked popup */
 .theme-pick-row {
     display: flex;
     flex-wrap: wrap;
@@ -2445,7 +2392,6 @@ button:hover {
     display: inline-block;
 }
 
-/* Preset import/export */
 .preset-io-row {
     display: flex;
     flex-wrap: wrap;
@@ -2459,7 +2405,6 @@ button:hover {
     padding: 8px 10px;
 }
 
-/* Weekly review */
 .review-hero {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -2515,9 +2460,6 @@ button:hover {
     font-size: 0.72rem;
 }
 
-
-
-/* Full-screen music / focus page */
 .music-page {
     position: fixed;
     inset: 0;
@@ -2663,7 +2605,6 @@ button:hover {
     color: #fff;
 }
 
-/* Ambient buttons */
 .music-ambient-row {
     display: flex;
     flex-wrap: wrap;
@@ -2697,7 +2638,6 @@ button:hover {
     color: var(--muted-color);
 }
 
-/* Now-playing bar — bottom left, always when playing */
 .now-playing-bar {
     position: fixed;
     bottom: 16px;
@@ -2770,7 +2710,6 @@ button:hover {
     .review-hero { grid-template-columns: repeat(2, 1fr); }
 }
 
-
 .music-page-grid-2 {
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
@@ -2819,7 +2758,6 @@ button:hover {
     min-width: 36px;
 }
 
-/* Micro-tasks cleaned up */
 .focus-micro {
     margin-top: 12px;
     padding-top: 12px;
@@ -2878,7 +2816,6 @@ button:hover {
     font-family: inherit;
 }
 
-/* Final micro-task embed overrides */
 .music-focus-panel .focus-micro {
     background: transparent !important;
     border-radius: 0 !important;
