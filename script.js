@@ -1,5 +1,3 @@
-
-
 const BUILT_IN_PRESETS = {
     "Student Daily Routine": {
       "Monday": [
