@@ -1960,21 +1960,128 @@ function createTaskRow(task, index) {
         renderWeeklyAnalytics();
     });
 
+    if (!Array.isArray(task.microTasks)) task.microTasks = [];
+
+    const microToggle = document.createElement("button");
+    microToggle.type = "button";
+    microToggle.className = "micro-toggle";
+    microToggle.title = "Micro-tasks for this block";
+    microToggle.textContent = task._microOpen ? "▾" : "▸";
+    microToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        task._microOpen = !task._microOpen;
+        microToggle.textContent = task._microOpen ? "▾" : "▸";
+        microPanel.classList.toggle("open", !!task._microOpen);
+    });
+
+    const focusBtn = document.createElement("button");
+    focusBtn.type = "button";
+    focusBtn.className = "block-focus-btn";
+    focusBtn.textContent = "🎯";
+    focusBtn.title = "Start focus timer on this block";
+    focusBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        startBlockFocus(task, index);
+    });
+
+    row.appendChild(microToggle);
     row.appendChild(dragHandle);
     row.appendChild(checkbox);
     row.appendChild(start);
     row.appendChild(end);
     row.appendChild(activity);
+    row.appendChild(focusBtn);
     row.appendChild(deleteBtn);
 
     if (task.completed) row.classList.add("completed");
     if (task.isSleep) row.classList.add("sleep-block");
     if (data.currentDay === getTodayIndex() && isTaskActive(task)) {
         row.classList.add("active-now");
-        row.title = "Active now — open Focus & Music to focus on this task";
+        row.title = "Active now — click 🎯 to focus";
     }
 
-    container.appendChild(row);
+    const wrap = document.createElement("div");
+    wrap.className = "task-block-wrap";
+    wrap.appendChild(row);
+
+    const microPanel = document.createElement("div");
+    microPanel.className = "micro-panel" + (task._microOpen ? " open" : "");
+    const microList = document.createElement("ul");
+    microList.className = "block-micro-list";
+    const renderMicros = () => {
+        microList.innerHTML = "";
+        (task.microTasks || []).forEach((m, mi) => {
+            const li = document.createElement("li");
+            li.className = "block-micro-item" + (m.done ? " done" : "");
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.checked = !!m.done;
+            cb.addEventListener("change", () => {
+                m.done = cb.checked;
+                li.classList.toggle("done", !!m.done);
+                saveData();
+            });
+            const span = document.createElement("span");
+            span.textContent = m.text;
+            const rm = document.createElement("button");
+            rm.type = "button";
+            rm.className = "micro-remove";
+            rm.textContent = "✕";
+            rm.addEventListener("click", () => {
+                task.microTasks.splice(mi, 1);
+                saveData();
+                renderMicros();
+            });
+            li.appendChild(cb);
+            li.appendChild(span);
+            li.appendChild(rm);
+            microList.appendChild(li);
+        });
+    };
+    renderMicros();
+    const microAdd = document.createElement("div");
+    microAdd.className = "block-micro-add";
+    const microInput = document.createElement("input");
+    microInput.type = "text";
+    microInput.placeholder = "Add micro-task…";
+    const microAddBtn = document.createElement("button");
+    microAddBtn.type = "button";
+    microAddBtn.textContent = "+";
+    const addMicro = () => {
+        const text = microInput.value.trim();
+        if (!text) return;
+        task.microTasks.push({ text, done: false });
+        microInput.value = "";
+        saveData();
+        renderMicros();
+    };
+    microAddBtn.addEventListener("click", addMicro);
+    microInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); addMicro(); }
+    });
+    microAdd.appendChild(microInput);
+    microAdd.appendChild(microAddBtn);
+    microPanel.appendChild(microList);
+    microPanel.appendChild(microAdd);
+    wrap.appendChild(microPanel);
+
+    container.appendChild(wrap);
+}
+
+function startBlockFocus(task, index) {
+    if (typeof openMusicPage === "function") openMusicPage();
+    if (typeof openFocusMode === "function") {
+        openFocusMode(task, index);
+    } else {
+        _focusTaskRef = { task, index, day: DAYS[data.currentDay] };
+    }
+    const label = document.getElementById("music-focus-task");
+    if (label) label.textContent = task.task || "Focus block";
+    if (!_focusIsRunning && typeof toggleFocusTimer === "function") {
+        if (_focusSecondsLeft <= 0) _focusSecondsLeft = 25 * 60;
+        toggleFocusTimer();
+    }
+    showToast("Focus timer linked to this block", "info");
 }
 
 function addTaskRow() {
@@ -2586,15 +2693,16 @@ function syncRewardsToLevel() {
 }
 
 function awardXPForTask(task) {
-    if (task.xpAwarded) return; 
-    const xpGain = calcTaskXP(task);
+    if (task.xpAwarded) return;
+    let xpGain = calcTaskXP(task);
+    const streakBonus = Math.min(30, Math.max(0, (data.streak || 0)));
+    xpGain += streakBonus;
 
     data.xp = (data.xp || 0) + xpGain;
     data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
     task.xpAwarded = true;
     task.xpAmount = xpGain;
 
-    
     const todayStr = new Date().toDateString();
     if (data.lastCompletedDate !== todayStr) {
         const yesterday = new Date();
@@ -2602,22 +2710,37 @@ function awardXPForTask(task) {
         if (data.lastCompletedDate === yesterday.toDateString()) {
             data.streak = (data.streak || 0) + 1;
         } else {
+            const broken = data.streak || 0;
+            if (broken > 1 && data.lastCompletedDate) {
+                const penalty = Math.min(200, broken * 5);
+                data.xp = Math.max(0, (data.xp || 0) - penalty);
+                showToast(`Streak broken (${broken}d) −${penalty} XP`, "warn");
+            }
             data.streak = 1;
         }
         data.lastCompletedDate = todayStr;
     }
 
-    const infoBefore = getLevelInfo((data.xp || 0) - xpGain);
+    const infoBefore = getLevelInfo(Math.max(0, (data.xp || 0) - xpGain));
     const infoAfter = getLevelInfo(data.xp || 0);
     saveData();
     showXPPopup(xpGain, task.task || "Task", infoAfter);
     updateXPDisplay();
     playRewardSound("complete");
+    triggerCompletionFx(infoAfter);
     if (infoAfter.levelIndex > infoBefore.levelIndex) {
         checkAndUnlockRewards(infoAfter.levelIndex);
         showLevelUp(infoAfter.rank);
         playRewardSound("levelup");
     }
+}
+
+function triggerCompletionFx(levelInfo) {
+    const tier = (levelInfo && levelInfo.rank) ? String(levelInfo.rank).split(" ")[0].toLowerCase() : "starter";
+    document.body.classList.remove("fx-complete");
+    void document.body.offsetWidth;
+    document.body.classList.add("fx-complete", "rank-" + tier);
+    setTimeout(() => document.body.classList.remove("fx-complete"), 700);
 }
 
 function showXPPopup(xpGain, taskName, levelInfo) {
@@ -2909,7 +3032,6 @@ function updateXPDisplay() {
     const pctEl = document.getElementById("xp-pill-pct");
     if (rankEl) rankEl.textContent = info.rank;
     if (fillEl) {
-        
         fillEl.style.width = "0%";
         void fillEl.offsetWidth;
         fillEl.style.width = Math.max(pct, pct > 0 ? pct : 0) + "%";
@@ -2918,7 +3040,40 @@ function updateXPDisplay() {
     if (pctEl) pctEl.textContent = toNext > 0 ? `${toNext} left` : "MAX";
     const pill = document.getElementById("xp-pill");
     if (pill) {
-        pill.title = `${info.rank}\n${info.currentXP}/${info.needed} XP this rank\n${toNext} XP left to next\nClick for full progress`;
+        pill.title = `${info.rank}\n${info.currentXP}/${info.needed} XP this rank\n${toNext} XP left to next\nStreak ${data.streak || 0}🔥\nClick for full progress`;
+    }
+    applyRankCosmetics(info);
+}
+
+function applyRankCosmetics(info) {
+    info = info || getLevelInfo(data.xp || 0);
+    const tier = String(info.rank || "Starter").split(" ")[0].toLowerCase().replace(/[^a-z]/g, "") || "starter";
+    const tiers = ["starter","beginner","amateur","aboveaveragekid","skilled","expert","exemplar","master","legend","mythic"];
+    document.body.classList.forEach(c => {
+        if (c.startsWith("rank-")) document.body.classList.remove(c);
+    });
+    document.body.classList.add("rank-" + tier);
+    document.body.setAttribute("data-rank", info.rank || "");
+    document.body.setAttribute("data-rank-tier", tier);
+    const pill = document.getElementById("xp-pill");
+    if (pill) {
+        pill.classList.forEach(c => { if (c.startsWith("rank-")) pill.classList.remove(c); });
+        pill.classList.add("rank-" + tier);
+    }
+    const clock = document.getElementById("live-clock");
+    if (clock) {
+        clock.classList.forEach(c => { if (c.startsWith("clock-skin-")) clock.classList.remove(c); });
+        if (info.levelIndex >= 25) clock.classList.add("clock-skin-expert");
+        else if (info.levelIndex >= 15) clock.classList.add("clock-skin-skilled");
+        else if (info.levelIndex >= 5) clock.classList.add("clock-skin-beginner");
+        else clock.classList.add("clock-skin-starter");
+    }
+    const sidebar = document.getElementById("preset-sidebar");
+    if (sidebar) {
+        sidebar.classList.forEach(c => { if (c.startsWith("skin-")) sidebar.classList.remove(c); });
+        if (info.levelIndex >= 40) sidebar.classList.add("skin-mythic");
+        else if (info.levelIndex >= 20) sidebar.classList.add("skin-expert");
+        else if (info.levelIndex >= 8) sidebar.classList.add("skin-amateur");
     }
 }
 
@@ -4098,11 +4253,11 @@ function toggleFocusTimer() {
                 clearInterval(_focusTimerInterval);
                 _focusIsRunning = false;
                 playChime();
-                
                 if (_focusIsBreak) {
                     _focusIsBreak = false;
                     _focusSecondsLeft = 25 * 60;
                 } else {
+                    awardFocusSessionBonus();
                     _focusIsBreak = true;
                     _focusSecondsLeft = 5 * 60;
                 }
@@ -4114,6 +4269,29 @@ function toggleFocusTimer() {
         }, 1000);
     }
     updateFocusTimerDisplay();
+}
+
+function awardFocusSessionBonus() {
+    let bonus = 15;
+    const ref = _focusTaskRef;
+    if (ref && ref.task && typeof isTaskActive === "function" && isTaskActive(ref.task)) {
+        bonus = 35;
+        showToast(`Focus complete on active block +${bonus} XP`, "info");
+    } else {
+        showToast(`Focus session complete +${bonus} XP`, "info");
+    }
+    const before = data.xp || 0;
+    data.xp = before + bonus;
+    const infoBefore = getLevelInfo(before);
+    const infoAfter = getLevelInfo(data.xp);
+    saveData();
+    updateXPDisplay();
+    playRewardSound("complete");
+    if (infoAfter.levelIndex > infoBefore.levelIndex) {
+        checkAndUnlockRewards(infoAfter.levelIndex);
+        showLevelUp(infoAfter.rank);
+        playRewardSound("levelup");
+    }
 }
 
 function resetFocusTimer() {
@@ -4246,6 +4424,12 @@ function toggleTodo(id) {
             if (data.lastCompletedDate === yesterday.toDateString()) {
                 data.streak = (data.streak || 0) + 1;
             } else {
+                const broken = data.streak || 0;
+                if (broken > 1 && data.lastCompletedDate) {
+                    const penalty = Math.min(200, broken * 5);
+                    data.xp = Math.max(0, (data.xp || 0) - penalty);
+                    showToast(`Streak broken (${broken}d) −${penalty} XP`, "warn");
+                }
                 data.streak = 1;
             }
             data.lastCompletedDate = todayStr;

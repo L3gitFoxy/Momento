@@ -1,6 +1,6 @@
 {
   "name": "momento",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Momento — offline-first schedule app with optional music",
   "main": "electron-main.js",
   "scripts": {
