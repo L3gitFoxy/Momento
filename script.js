@@ -1774,18 +1774,21 @@ function createTaskRow(task, index) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = !!task.completed;
+
+    
     const isToday = (typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay) === data.currentDay;
     if (!isToday) {
         checkbox.disabled = true;
         checkbox.title = "Only today's tasks can be checked off";
     }
+
     checkbox.addEventListener("change", () => {
         const day = DAYS[data.currentDay];
         const wasCompleted = !!task.completed;
         const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay;
 
         if (data.currentDay !== todayIdx) {
-            checkbox.checked = wasCompleted; 
+            checkbox.checked = wasCompleted;
             showToast("⛔ You can only check off tasks on today's day!", "warn");
             return;
         }
@@ -1804,7 +1807,14 @@ function createTaskRow(task, index) {
                 return;
             }
             task.completed = true;
+            console.log("[DEBUG] Task completed:", task.task, "isSleep:", task.isSleep, "xpAwarded before:", task.xpAwarded);
+
+            // IMPORTANT: Reset xpAwarded when re-completing a task
+            task.xpAwarded = false;
+            task.xpAmount = 0;
+
             if (!task.isSleep) {
+                console.log("[DEBUG] Calling awardXPForTask...");
                 awardXPForTask(task);
             }
         } else if (!checkbox.checked && wasCompleted) {
@@ -2639,7 +2649,14 @@ function syncRewardsToLevel() {
 }
 
 function awardXPForTask(task) {
-    if (task.xpAwarded) return;
+    console.log("[DEBUG] awardXPForTask called, task.xpAwarded:", task.xpAwarded, "task.completed:", task.completed, "task:", task.task);
+
+    if (task.xpAwarded) {
+        console.log("[DEBUG] Task already awarded XP, skipping");
+        return;
+    }
+
+    console.log("[DEBUG] Calculating and awarding XP...");
     let xpGain = calcTaskXP(task);
     const streakBonus = Math.min(30, Math.max(0, (data.streak || 0)));
     xpGain += streakBonus;
@@ -2690,13 +2707,24 @@ function triggerCompletionFx(levelInfo) {
 }
 
 function showXPPopup(xpGain, taskName, levelInfo) {
+    console.log("[DEBUG] showXPPopup called with:", { xpGain, taskName, levelInfo });
+
     const existing = document.getElementById("xp-popup");
-    if (existing) existing.remove();
+    if (existing) {
+        console.log("[DEBUG] Removing existing popup");
+        existing.remove();
+    }
 
     levelInfo = levelInfo || getLevelInfo(data.xp || 0);
     const popup = document.createElement("div");
     popup.id = "xp-popup";
     popup.className = "xp-popup";
+
+    // Start with opacity 0 to force animation in Electron
+    popup.style.opacity = "0";
+
+    console.log("[DEBUG] Created popup element:", popup);
+
     popup.innerHTML = `
         <div class="xp-popup-content">
             <div class="xp-popup-emoji">🎉</div>
@@ -2710,7 +2738,11 @@ function showXPPopup(xpGain, taskName, levelInfo) {
             <button class="xp-popup-btn" onclick="document.getElementById('xp-popup').remove()">WOOHOO!</button>
         </div>
     `;
+
     document.body.appendChild(popup);
+    console.log("[DEBUG] Popup appended to body, current opacity:", popup.style.opacity);
+    console.log("[DEBUG] Popup computed style:", window.getComputedStyle(popup).display, window.getComputedStyle(popup).opacity);
+
     if (hasReward("confetti") && xpGain >= 60) {
         for (let i = 0; i < 24; i++) {
             const conf = document.createElement("div");
@@ -2721,9 +2753,21 @@ function showXPPopup(xpGain, taskName, levelInfo) {
             popup.appendChild(conf);
         }
     }
-    setTimeout(() => {
-        if (document.getElementById("xp-popup")) document.getElementById("xp-popup").remove();
-    }, 8000);
+
+    // Force a reflow to ensure the popup is in the DOM before animating
+    void popup.offsetWidth;
+
+    // Trigger fade-in animation after a small delay (fixes Electron timing issue)
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            popup.style.opacity = "1";
+            popup.style.transition = "opacity 0.25s ease";
+            console.log("[DEBUG] Opacity set to 1, transition applied");
+        });
+    });
+
+    // Don't auto-remove - let user click WOOHOO button to dismiss
+    // Remove the auto-timeout completely so popup stays until user clicks
 }
 
 function showLevelUp(rank) {
@@ -3636,16 +3680,32 @@ async function searchFreeMusic() {
 
 function renderMusicResults(listEl) {
     listEl.innerHTML = "";
-    _musicResults.forEach((track) => {
+    console.log("[DEBUG RENDER] Rendering", _musicResults.length, "music results");
+    _musicResults.forEach((track, index) => {
+        console.log(`[DEBUG RENDER] Rendering track ${index}: id=${track.id}, title=${track.title}`);
         const li = document.createElement("li");
         li.className = "music-search-result-item";
-        li.innerHTML = `
-            <div class="music-track-details">
-                <strong>${escapeHtml(track.title)}</strong>
-                <span>${escapeHtml(track.artist)}</span>
-            </div>
-            <button type="button" class="btn-primary" onclick="playTrackById('${track.id}')">Play</button>
+
+        const details = document.createElement("div");
+        details.className = "music-track-details";
+        details.innerHTML = `
+            <strong>${escapeHtml(track.title)}</strong>
+            <span>${escapeHtml(track.artist)}</span>
         `;
+
+        const playBtn = document.createElement("button");
+        playBtn.type = "button";
+        playBtn.className = "btn-primary";
+        playBtn.textContent = "Play";
+
+        // Use event listener instead of inline onclick to avoid template literal issues in Electron
+        playBtn.addEventListener("click", () => {
+            console.log(`[DEBUG CLICK] Button clicked for track ${index}, id=${track.id}`);
+            playTrackById(track.id);
+        });
+
+        li.appendChild(details);
+        li.appendChild(playBtn);
         listEl.appendChild(li);
     });
 }
@@ -3653,7 +3713,23 @@ function renderMusicResults(listEl) {
 
 
 async function playTrackById(trackId) {
-  const index = _musicResults.findIndex(t => t.id === trackId);
+  console.log("[DEBUG MUSIC] playTrackById called with:", trackId, "type:", typeof trackId);
+  console.log("[DEBUG MUSIC] _musicResults:", _musicResults);
+
+  // Convert trackId to string for comparison, since it comes from HTML onclick attribute
+  const trackIdStr = String(trackId);
+
+  // Debug: check each track
+  _musicResults.forEach((t, idx) => {
+    const tIdStr = String(t.id);
+    const matches = tIdStr === trackIdStr;
+    console.log(`[DEBUG MUSIC] Track ${idx}: id="${tIdStr}" vs target="${trackIdStr}" | Match: ${matches}`);
+  });
+
+  const index = _musicResults.findIndex(t => String(t.id) === trackIdStr);
+
+  console.log("[DEBUG MUSIC] Found index:", index);
+
   if (index === -1) {
     showToast("Track not found", "warn");
     return;
