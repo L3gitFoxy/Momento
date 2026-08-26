@@ -1,5 +1,3 @@
-
-
 const http = require("http");
 const https = require("https");
 const { URL } = require("url");
@@ -56,7 +54,7 @@ async function withInstances(pathAndQuery) {
       return { json, base };
     } catch (e) { lastErr = e; }
   }
-  throw lastErr || new Error("All Piped instances failed");
+  throw lastErr || new Error("Search services temporarily unavailable");
 }
 
 function pickBestAudio(audioStreams) {
@@ -100,12 +98,12 @@ function createHandler() {
     const u = new URL(req.url, "http://127.0.0.1");
     try {
       if (u.pathname === "/api/health") {
-        sendJson(res, 200, { ok: true, service: "Momento Music Backend" });
+        sendJson(res, 200, { ok: true, service: "Momento Music" });
         return;
       }
       if (u.pathname === "/api/search") {
         const rawQ = (u.searchParams.get("q") || "").trim();
-        if (!rawQ) return sendJson(res, 400, { error: "Missing q" });
+        if (!rawQ) return sendJson(res, 400, { error: "Please enter a search term" });
 
         let json;
         try {
@@ -117,20 +115,18 @@ function createHandler() {
             ({ json } = await withInstances(`/search?q=${encodeURIComponent(rawQ + " official")}&filter=videos`));
           }
         }
-        
+
         const items = (json.items || json) || [];
         const tracks = (Array.isArray(items) ? items : [])
           .filter((it) => {
             const type = (it.type || "").toLowerCase();
-            
             if (type && type !== "stream" && type !== "video") return false;
             return it.url || it.id || it.videoId;
           })
           .map((it) => {
-            
             let id = it.id || it.videoId || "";
             const rawUrl = it.url || "";
-            
+
             if (!id && rawUrl) {
               if (rawUrl.includes("v=")) {
                 const match = rawUrl.match(/[?&]v=([^&]+)/);
@@ -140,7 +136,6 @@ function createHandler() {
               }
             }
 
-            
             if (!id || id.startsWith("UC") || id.startsWith("PL") || id.startsWith("RD") || id.length < 5) {
               return null;
             }
@@ -148,25 +143,25 @@ function createHandler() {
             return {
               id: id.trim(),
               title: (it.title || "Untitled").trim(),
-              artist: (it.uploaderName || it.uploader || it.author || "YouTube").toString().trim(),
+              artist: (it.uploaderName || it.uploader || it.author || "Unknown").toString().trim(),
               artwork: it.thumbnail || (it.thumbnails && it.thumbnails[0]) || null,
               duration: it.duration || it.lengthSeconds || null,
               source: "youtube",
             };
           })
           .filter((t) => t !== null && t.id && t.title)
-          .slice(0, 15); 
+          .slice(0, 15);
 
         sendJson(res, 200, { tracks });
         return;
       }
       if (u.pathname === "/api/play") {
         const id = (u.searchParams.get("id") || "").trim();
-        if (!id) return sendJson(res, 400, { error: "Missing id" });
+        if (!id) return sendJson(res, 400, { error: "Track ID required" });
         const { json } = await withInstances(`/streams/${encodeURIComponent(id)}`);
         const best = pickBestAudio(json.audioStreams || []);
         if (!best || !best.url) {
-          sendJson(res, 404, { error: "No audio stream found" });
+          sendJson(res, 404, { error: "Track unavailable" });
           return;
         }
         sendJson(res, 200, {
@@ -180,16 +175,15 @@ function createHandler() {
         });
         return;
       }
-      
+
       const publicDir = path.join(__dirname, "..");
       let filePath = path.join(publicDir, u.pathname === "/" ? "index.html" : u.pathname);
 
       fs.readFile(filePath, (err, content) => {
         if (err) {
-          
           fs.readFile(path.join(publicDir, "index.html"), (err2, indexContent) => {
             if (err2) {
-              sendJson(res, 404, { error: "Not found" });
+              sendJson(res, 404, { error: "Page not found" });
             } else {
               res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
               res.end(indexContent);
@@ -198,7 +192,6 @@ function createHandler() {
           return;
         }
 
-        
         const ext = path.extname(filePath).toLowerCase();
         const mimeTypes = {
           ".html": "text/html",
@@ -218,7 +211,7 @@ function createHandler() {
       return;
     } catch (e) {
       console.error(e);
-      sendJson(res, 502, { error: "Upstream failed", detail: String(e.message || e) });
+      sendJson(res, 502, { error: "Service temporarily unavailable", detail: String(e.message || e) });
     }
   };
 }
@@ -230,7 +223,7 @@ function startMusicServer(port = DEFAULT_PORT) {
     server.listen(port, "127.0.0.1", () => {
       const addr = server.address();
       const p = typeof addr === "object" && addr ? addr.port : port;
-      console.log("[Momento] Music API on http://127.0.0.1:" + p);
+      console.log("[Momento] Music service ready on http://127.0.0.1:" + p);
       resolve({ server, port: p });
     });
   });

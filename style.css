@@ -2890,6 +2890,9 @@ button:hover {
     font-size: 0.9rem;
     opacity: 0.4;
     transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .task-row:hover .block-focus-btn,
 .task-row.active-now .block-focus-btn {

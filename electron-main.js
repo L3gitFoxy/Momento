@@ -1,15 +1,12 @@
-
-
 const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
-const { startMusicServer } = require('./music-server/server'); 
+const { startMusicServer } = require('./music-server/server');
 
 let mainWindow = null;
 let musicServer = null;
 const MUSIC_PORT = 8787;
 
 async function createWindow() {
-  
   try {
     const started = await startMusicServer(MUSIC_PORT);
     musicServer = started.server;
@@ -29,15 +26,13 @@ async function createWindow() {
       contextIsolation: true,
       webSecurity: true,
     },
-    show: false, 
+    show: false,
   });
 
-  
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
   });
 
-  
   mainWindow.webContents.on("did-finish-load", () => {
     mainWindow.webContents.executeJavaScript(`
       try {
@@ -47,7 +42,6 @@ async function createWindow() {
     `).catch(() => {});
   });
 
-  
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: "deny" };
@@ -57,7 +51,6 @@ async function createWindow() {
     mainWindow = null;
   });
 
-  
   await mainWindow.loadURL(`http://127.0.0.1:${MUSIC_PORT}`);
 }
 app.whenReady().then(createWindow);

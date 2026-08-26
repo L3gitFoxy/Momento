@@ -1,3 +1,5 @@
+
+
 const BUILT_IN_PRESETS = {
     "Student Daily Routine": {
       "Monday": [
@@ -1143,7 +1145,6 @@ document.addEventListener("DOMContentLoaded", () => {
     updateFeatureLocks();
     if (typeof initLocalLibrary === "function") initLocalLibrary();
 
-    
     const sidebar = document.getElementById("preset-sidebar");
     const arrow = document.getElementById("sidebar-arrow");
 
@@ -1164,11 +1165,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1000);
 });
 
-   
 function generateFilledWeek() {
     const filledWeek = {};
 
-    
     const weekdayTemplate = [
         { title: "Morning Routine & Coffee", start: "08:00", end: "09:00", tag: "Health", completed: false },
         { title: "Deep Work Focus Block", start: "09:30", end: "12:00", tag: "Work", completed: false },
@@ -1177,14 +1176,12 @@ function generateFilledWeek() {
         { title: "Evening Review & Reset", start: "18:00", end: "19:00", tag: "Personal", completed: false }
     ];
 
-    
     const weekendTemplate = [
         { title: "Morning Workout & Breakfast", start: "09:00", end: "10:30", tag: "Health", completed: false },
         { title: "Hobbies & Personal Time", start: "11:00", end: "14:00", tag: "Personal", completed: false },
         { title: "Social & Chill Time", start: "16:00", end: "19:00", tag: "General", completed: false }
     ];
 
-    
     DAYS.forEach(day => {
         const isWeekend = (day === "Saturday" || day === "Sunday");
         const template = isWeekend ? weekendTemplate : weekdayTemplate;
@@ -1314,7 +1311,6 @@ function loadData() {
     } catch (error) {
         console.error("Could not load Momento data:", error);
     }
-    
     try { if (typeof syncRewardsToLevel === "function") syncRewardsToLevel(); } catch (e) {}
 
     Object.entries(BUILT_IN_PRESETS).forEach(([name, preset]) => {
@@ -1343,7 +1339,6 @@ function ensureDays() {
 }
 
 const THEME_CATALOG = [
-    
     { id: "purple", name: "Purple", color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108,92,231,0.25)",
       bg: "#120f1d", card: "#1a1528", border: "#2d2250", text: "#e2def8", muted: "#6e6a8a", unlocked: true },
     { id: "cyan", name: "Cyan", color: "#00cec9", hover: "#00b894", alpha: "rgba(0,206,201,0.25)",
@@ -1380,8 +1375,6 @@ const THEME_CATALOG = [
 function isThemeUnlocked(theme) {
     if (!theme) return false;
     if (theme.id === "purple") return true;
-    
-    
     if (theme.rewardId) {
         const reward = (typeof REWARD_CATALOG !== "undefined")
             ? REWARD_CATALOG.find(r => r.id === theme.rewardId) : null;
@@ -1409,7 +1402,6 @@ function setThemeById(id) {
 }
 
 function setAccentColor(color, hover, alpha) {
-    
     const match = THEME_CATALOG.find(t => t.color.toLowerCase() === (color||"").toLowerCase());
     if (match) { setThemeById(match.id); return; }
     data.theme = { color, hover, alpha };
@@ -1434,14 +1426,12 @@ function applySavedTheme() {
     root.style.setProperty("--border-color", theme.border);
     root.style.setProperty("--text-color", theme.text);
     root.style.setProperty("--muted-color", theme.muted);
-    
     root.style.setProperty("--surface", theme.card);
     root.style.setProperty("--surface-hover", theme.border);
     root.style.setProperty("--input-bg", theme.bg.includes("gradient") ? theme.card : theme.bg);
     root.style.setProperty("--title-color", theme.text);
     root.style.setProperty("--heading-color", theme.color);
 
-    
     document.body.style.background = theme.bg;
     document.body.style.color = theme.text;
     document.querySelectorAll(".card").forEach(el => {
@@ -1449,7 +1439,6 @@ function applySavedTheme() {
         el.style.borderColor = theme.border;
     });
 
-    
     const pill = document.getElementById("xp-pill");
     if (pill) {
         pill.style.background = theme.card;
@@ -1457,7 +1446,6 @@ function applySavedTheme() {
         pill.style.color = theme.text;
     }
 
-    
     const sidebar = document.getElementById("preset-sidebar");
     if (sidebar) {
         sidebar.style.background = theme.card;
@@ -1465,14 +1453,12 @@ function applySavedTheme() {
         sidebar.style.borderColor = theme.border;
     }
 
-    
     const tlPage = document.getElementById("timeline-page");
     if (tlPage) {
         tlPage.style.background = theme.bg;
         tlPage.style.color = theme.text;
     }
 
-    
     const todoDrawer = document.getElementById("todo-drawer");
     if (todoDrawer) {
         todoDrawer.style.background = theme.card;
@@ -1480,14 +1466,12 @@ function applySavedTheme() {
         todoDrawer.style.borderColor = theme.border;
     }
 
-    
     document.querySelectorAll(".modal-box, .modal-overlay .modal-box").forEach(el => {
         el.style.background = theme.card;
         el.style.borderColor = theme.border;
         el.style.color = theme.text;
     });
 
-    
     const chatWin = document.getElementById("ai-chat-window");
     if (chatWin) {
         chatWin.style.background = theme.card;
@@ -1538,7 +1522,6 @@ function renderThemeSwatches() {
 
 function isChimeUnlocked(chime) {
     if (!chime || chime.id === "default") return true;
-    
     const feature = chime.unlockFeature;
     if (feature && FEATURE_UNLOCKS[feature] !== undefined) {
         const info = getLevelInfo(data.xp || 0);
@@ -1679,7 +1662,6 @@ function exportPresets() {
         exportedAt: new Date().toISOString(),
         presets: {}
     };
-    
     Object.keys(data.presets || {}).forEach(name => {
         payload.presets[name] = data.presets[name];
     });
@@ -1706,7 +1688,6 @@ function importPresets(event) {
             if (parsed && parsed.presets && typeof parsed.presets === "object") {
                 incoming = parsed.presets;
             } else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                
                 const first = Object.values(parsed)[0];
                 if (first && typeof first === "object") incoming = parsed;
             }
@@ -1714,7 +1695,6 @@ function importPresets(event) {
             let added = 0;
             Object.keys(incoming).forEach(name => {
                 if (!name || typeof incoming[name] !== "object") return;
-                
                 if (Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name)) {
                     const alt = name + " (imported)";
                     data.presets[alt] = incoming[name];
@@ -1766,12 +1746,10 @@ function createTaskRow(task, index) {
     row.className = "task-row";
     row.draggable = true;
 
-    
     const dragHandle = document.createElement("span");
     dragHandle.className = "drag-handle";
     dragHandle.textContent = "⣿";
 
-    
     row.addEventListener("dragstart", () => {
         draggedRowIndex = index;
         row.classList.add("dragging");
@@ -1793,7 +1771,6 @@ function createTaskRow(task, index) {
 
     row.addEventListener("dragend", () => row.classList.remove("dragging"));
 
-    
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = !!task.completed;
@@ -1807,7 +1784,6 @@ function createTaskRow(task, index) {
         const wasCompleted = !!task.completed;
         const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay;
 
-        
         if (data.currentDay !== todayIdx) {
             checkbox.checked = wasCompleted; 
             showToast("⛔ You can only check off tasks on today's day!", "warn");
@@ -1820,7 +1796,6 @@ function createTaskRow(task, index) {
                 showToast("⛔ Finish earlier tasks first — no skipping ahead!", "warn");
                 return;
             }
-            
             const nowM = new Date().getHours() * 60 + new Date().getMinutes();
             const startM = timeToMinutes(task.start);
             if (startM - nowM > 60) {
@@ -1835,7 +1810,6 @@ function createTaskRow(task, index) {
         } else if (!checkbox.checked && wasCompleted) {
             task.completed = false;
             if (!task.isSleep) {
-                
                 if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
                 task.xpAwarded = true;
                 revokeXPForTask(task);
@@ -1850,7 +1824,6 @@ function createTaskRow(task, index) {
         enforceLocksAfterXPChange();
     });
 
-    
     const start = document.createElement("input");
     start.type = "text";
     start.className = "time-input";
@@ -1860,7 +1833,6 @@ function createTaskRow(task, index) {
     start.title = "Start time (HH:MM)";
     const commitStart = () => {
         let v = start.value.trim();
-        
         if (/^\d{4}$/.test(v)) v = v.slice(0,2) + ":" + v.slice(2);
         if (/^\d{1,2}:\d{2}$/.test(v)) {
             const [h,m] = v.split(":").map(Number);
@@ -1868,21 +1840,18 @@ function createTaskRow(task, index) {
                 task.start = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
                 start.value = task.start;
                 saveData();
-                
                 renderWeeklyAnalytics();
                 updateNextTask();
                 updateActiveTask();
                 return;
             }
         }
-        
         start.value = task.start || "09:00";
     };
     start.addEventListener("blur", commitStart);
     start.addEventListener("keydown", e => {
         if (e.key === "Enter") { e.preventDefault(); start.blur(); }
     });
-    
     start.addEventListener("input", () => {
         let v = start.value.replace(/[^0-9:]/g, "");
         if (v.length === 2 && !v.includes(":") && start.dataset.prevLen !== "3") {
@@ -1892,7 +1861,6 @@ function createTaskRow(task, index) {
         start.value = v.slice(0,5);
     });
 
-    
     const end = document.createElement("input");
     end.type = "text";
     end.className = "time-input";
@@ -1930,7 +1898,6 @@ function createTaskRow(task, index) {
         end.value = v.slice(0,5);
     });
 
-    
     const activity = document.createElement("input");
     activity.type = "text";
     activity.placeholder = "What are you doing?";
@@ -1942,12 +1909,10 @@ function createTaskRow(task, index) {
         renderWeeklyAnalytics();
     });
 
-    
     const categoryBadge = document.createElement("span");
     categoryBadge.className = "category-badge";
     categoryBadge.textContent = detectCategory(task.task);
 
-    
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "delete-btn";
     deleteBtn.textContent = "🗑️";
@@ -2098,18 +2063,15 @@ function ensureSleepBlock() {
         const tasks = data.schedules[day];
         if (!tasks || tasks.length === 0) return;
 
-        
         const withoutSleep = tasks.filter(t => !(t.isSleep));
         data.schedules[day] = withoutSleep;
 
         const last = withoutSleep[withoutSleep.length - 1];
         if (!last) return;
 
-        
         const isSleepTask = t => /sleep|zzz|bed/i.test(t.task || "");
         if (isSleepTask(last)) return;
 
-        
         const nextDay = DAYS[(i + 1) % DAYS.length];
         const nextTasks = (data.schedules[nextDay] || []).filter(t => !t.isSleep && !/sleep|zzz|bed/i.test(t.task || ""));
         const wakeTime = nextTasks.length > 0 ? nextTasks[0].start : "07:00";
@@ -2368,7 +2330,6 @@ function updateClock() {
         setFlapDigit("m1", mStr[0]);
         setFlapDigit("m2", mStr[1]);
         setFlapDigit("ampm", ampm);
-        
         const h1 = document.querySelector('[data-flap="h1"]');
         if (h1) h1.classList.toggle("flap-empty", hStr[0] === " ");
     }
@@ -2433,7 +2394,6 @@ function updateNextTask() {
         const left = timeToMinutes(active.end) - current;
         html += `<div class="status-chip chip-now"><span class="chip-label">NOW</span><span class="chip-text">${active.task || "Untitled"}</span><span class="chip-time">(${formatDuration(left)} left)</span></div>`;
     } else {
-        
         const idleText = next
             ? "Nothing right now — you're free until the next block"
             : "No active or upcoming tasks left for today";
@@ -2473,7 +2433,6 @@ function showSavedMessage(message) {
 }
 
 const RANK_TIERS = [
-    
     { name: "Starter",            sub: ["I","II","III","IV","V"], xpPer: 100  },
     { name: "Beginner",           sub: ["1","2","3","4","5"],     xpPer: 200  },
     { name: "Amateur",            sub: ["1","2","3","4","5"],     xpPer: 350  },
@@ -2519,7 +2478,6 @@ function getLevelInfo(xp) {
         }
         prev = LEVEL_TABLE[i].xpNeeded;
     }
-    
     const last = LEVEL_TABLE[LEVEL_TABLE.length - 1];
     return {
         rank: last.rank + "+",
@@ -2533,40 +2491,30 @@ function getLevelInfo(xp) {
 }
 
 const REWARD_CATALOG = [
-    
     { id: "xp_boost_s3",      atLevel: 2,  name: "+20 Bonus XP",          desc: "One-time +20 XP at Starter III", bonusXP: 20 },
     { id: "theme_cyan",       atLevel: 4,  name: "Cyan Theme",            desc: "Unlock the Cyan colour theme" },
-    
     { id: "xp_boost_b2",      atLevel: 6,  name: "+35 Bonus XP",          desc: "One-time +35 XP at Beginner 2", bonusXP: 35 },
     { id: "feature_timeline", atLevel: 7,  name: "Timeline Visualizer",   desc: "Unlock the day timeline visualizer" },
     { id: "theme_coral",      atLevel: 9,  name: "Coral Theme",           desc: "Unlock the Coral colour theme" },
-    
     { id: "sound_levelup",    atLevel: 10, name: "Level-Up Fanfare",      desc: "Special arpeggio when you level up" },
     { id: "feature_analyser", atLevel: 12, name: "Week Analyser",         desc: "Unlock Analyse My Week" },
     { id: "theme_amber",      atLevel: 14, name: "Amber Theme",           desc: "Unlock the Amber colour theme" },
-    
     { id: "confetti",         atLevel: 15, name: "Confetti Celebration",  desc: "Confetti on big XP gains" },
     { id: "theme_green",      atLevel: 17, name: "Green Theme",           desc: "Unlock the Green colour theme" },
     { id: "sound_victory",    atLevel: 19, name: "Victory Fanfare",       desc: "Special chime on task complete" },
-    
     { id: "theme_rose",       atLevel: 20, name: "Rose Theme",            desc: "Unlock the Rose colour theme" },
     { id: "focus_plus",       atLevel: 22, name: "Focus+ Modes",          desc: "Extra timer lengths (15/45/60)" },
     { id: "xp_boost_skilled", atLevel: 24, name: "+100 Bonus XP",         desc: "One-time +100 XP at Skilled 5", bonusXP: 100 },
-    
     { id: "theme_gold",       atLevel: 26, name: "Gold Theme",            desc: "Unlock the Gold colour theme" },
     { id: "sound_chill",      atLevel: 28, name: "Chill Chime",            desc: "Softer completion tone" },
-    
     { id: "theme_ocean",      atLevel: 30, name: "Ocean Theme",           desc: "Unlock the Ocean colour theme" },
     { id: "badge_legend",     atLevel: 32, name: "Legend Badge",          desc: "Show a Legend badge on your progress pill" },
     { id: "theme_forest",     atLevel: 34, name: "Forest Theme",          desc: "Unlock the Forest colour theme" },
-    
     { id: "theme_neon",       atLevel: 36, name: "Neon Theme",            desc: "Unlock the Neon colour theme" },
     { id: "xp_boost_master",  atLevel: 38, name: "+250 Bonus XP",         desc: "One-time +250 XP at Master 4", bonusXP: 250 },
-    
     { id: "theme_midnight",   atLevel: 40, name: "Midnight Theme",        desc: "Unlock the Midnight colour theme" },
     { id: "theme_sunset",     atLevel: 42, name: "Sunset Gradient",       desc: "Unlock the Sunset gradient theme" },
     { id: "theme_aurora",     atLevel: 44, name: "Aurora Gradient",       desc: "Unlock the Aurora gradient theme" },
-    
     { id: "theme_candy",      atLevel: 46, name: "Candy Gradient",        desc: "Unlock the Candy gradient theme" },
     { id: "theme_mythic",     atLevel: 48, name: "Mythic Aura",           desc: "Special Mythic glow on the XP pill" },
     { id: "title_mythic",     atLevel: 49, name: "Mythic Title",          desc: "Unlock the Mythic title under Momento" },
@@ -2635,7 +2583,6 @@ function updateFeatureLocks() {
             analyseBtn.title = "";
         }
     }
-    
     if (!isFeatureUnlocked("timeline")) {
         const page = document.getElementById("timeline-page");
         if (page && !page.classList.contains("hidden")) {
@@ -2659,7 +2606,6 @@ function showRewardUnlock(reward) {
         if (fill) {
             fill.style.transition = "none";
             fill.style.width = "100%";
-            
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     fill.style.transition = `width ${DURATION}ms linear`;
@@ -2744,7 +2690,6 @@ function triggerCompletionFx(levelInfo) {
 }
 
 function showXPPopup(xpGain, taskName, levelInfo) {
-    
     const existing = document.getElementById("xp-popup");
     if (existing) existing.remove();
 
@@ -2767,7 +2712,6 @@ function showXPPopup(xpGain, taskName, levelInfo) {
     `;
     document.body.appendChild(popup);
     if (hasReward("confetti") && xpGain >= 60) {
-        
         for (let i = 0; i < 24; i++) {
             const conf = document.createElement("div");
             conf.className = "confetti-piece";
@@ -2861,7 +2805,6 @@ function showToast(msg, kind) {
     el.textContent = msg;
     document.body.appendChild(el);
     setTimeout(() => el.classList.add("show"), 20);
-    
     setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 450); }, 7000);
 }
 
@@ -2870,7 +2813,6 @@ function enforceLocksAfterXPChange() {
     if (typeof updateFeatureLocks === "function") updateFeatureLocks();
     if (typeof renderThemeSwatches === "function") renderThemeSwatches();
     if (typeof renderChimeSwatches === "function") renderChimeSwatches();
-    
     const pref = data.preferredChime || "default";
     if (pref !== "default") {
         const ch = CHIME_CATALOG.find(x => x.id === pref);
@@ -2880,7 +2822,6 @@ function enforceLocksAfterXPChange() {
             showToast("🔔 Chime locked again — switched to Classic", "info");
         }
     }
-    
     const id = data.themeId || "purple";
     if (id === "purple") return;
     const theme = (typeof THEME_CATALOG !== "undefined")
@@ -2891,7 +2832,6 @@ function enforceLocksAfterXPChange() {
 }
 
 function showThemeLockedPopup(theme) {
-    
     setThemeById("purple");
     if (document.getElementById("theme-locked-popup")) return;
 
@@ -2929,7 +2869,6 @@ function clawbackDayXP(day, opts) {
     let total = 0;
     const infoBefore = getLevelInfo(data.xp || 0);
     tasks.forEach(t => {
-        
         if ((t.xpAwarded || t.completed) && !t.isSleep) {
             const loss = t.xpAmount || calcTaskXP(t);
             data.xp = Math.max(0, (data.xp || 0) - loss);
@@ -2976,9 +2915,7 @@ function clearWeekSchedules() {
 }
 
 function playRewardSound(kind, forcePreview) {
-    
     if (!forcePreview && !data.notificationsEnabled && kind !== "down") return;
-    
     let tone = kind;
     if (kind === "complete") {
         const pref = data.preferredChime || "default";
@@ -3095,7 +3032,6 @@ function openProgressPanel() {
     document.getElementById("progress-streak").textContent =
         `🔥 Streak: ${data.streak || 0} day${(data.streak||0)===1?"":"s"}`;
 
-    
     const ranksEl = document.getElementById("ranks-ladder");
     if (ranksEl) {
         ranksEl.innerHTML = LEVEL_TABLE.map((lv, i) => {
@@ -3104,7 +3040,6 @@ function openProgressPanel() {
             const reached = have >= lv.xpNeeded;
             const current = i === info.levelIndex && have < (LEVEL_TABLE[LEVEL_TABLE.length-1].xpNeeded);
             const isCurrent = (!reached && have >= prev) || (i === info.levelIndex && have < lv.xpNeeded);
-            
             const working = have >= prev && have < lv.xpNeeded;
             const cls = reached ? "rank-done" : working ? "rank-current" : "rank-locked";
             const icon = reached ? "✓" : working ? "▶" : "·";
@@ -3117,7 +3052,6 @@ function openProgressPanel() {
         }).join("");
     }
 
-    
     const list = document.getElementById("rewards-list");
     if (list) {
         list.innerHTML = REWARD_CATALOG.map(r => {
@@ -3159,7 +3093,6 @@ function computeWeeklyReview() {
     let bestScore = -1;
     DAYS.forEach(day => {
         const d = perDay[day];
-        
         const score = d.done * 1000 + d.pct;
         if (d.total > 0 && score > bestScore) {
             bestScore = score;
@@ -3219,10 +3152,10 @@ function closeWeeklyReview() {
     if (panel) panel.classList.add("hidden");
 }
 
-/* ========== MUSIC PAGE + NOW PLAYING (no API keys) ========== */
+
 let _musicVolume = 0.4;
 let _streamPlaying = false;
-let _localTracks = []; // { id, name, artist, blob? url? }
+let _localTracks = [];
 let _localIndex = 0;
 let _localPlaying = false;
 let _npSource = null;
@@ -3300,13 +3233,13 @@ function updateNowPlayingVisibility() {
     const musicOpen = document.getElementById("music-page") &&
         !document.getElementById("music-page").classList.contains("hidden");
     const mainOk = !isBlockingOverlayOpen();
-    // Show if we have something to show AND (music page open OR main schedule view without overlays)
+
     if (_npWantVisible && mainOk) {
         bar.classList.remove("hidden");
     } else {
         bar.classList.add("hidden");
     }
-    // Always allow on music page
+
     if (_npWantVisible && musicOpen) bar.classList.remove("hidden");
 }
 
@@ -3376,12 +3309,12 @@ function updateNpTimes() {
     dur.textContent = formatAudioTime(audio.duration);
 }
 
-/* --- Free music search: Internet Archive netlabels (actual music) --- */
 
-/** Music: desktop uses built-in API; browser uses Piped + YT embed */
+
+
 const MUSIC_API = () => localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787";
 
-/** Music: Piped search + YouTube embed + Audius — no local node server */
+
 const PIPED_INSTANCES = [
     "https://pipedapi.kavin.rocks",
     "https://pipedapi.syncpundit.io",
@@ -3390,7 +3323,7 @@ const PIPED_INSTANCES = [
     "https://pipedapi.projekt.net.in",
 ];
 let _musicResults = [];
-let _audiusHost = null;
+let _altMusicHost = null;
 let _ytPlayer = null;
 let _ytPlayerReady = false;
 let _ytApiLoading = null;
@@ -3406,25 +3339,25 @@ async function pipedFetch(pathAndQuery) {
             lastErr = e;
         }
     }
-    throw lastErr || new Error("All Piped instances failed");
+    throw lastErr || new Error("Search temporarily unavailable");
 }
 
 function rankYoutubeItem(it) {
     const title = String(it.title || "").toLowerCase();
     const up = String(it.uploaderName || it.uploader || it.author || "").toLowerCase();
     let score = Math.log10((it.views || it.viewCount || 1) + 1);
-    // Prefer official audio / topic / vevo — more often embeddable
+
     if (/topic|vevo|official audio|official music|records|entertainment/.test(up)) score += 8;
     if (/official audio|lyrics|audio only|topic/.test(title)) score += 5;
     if (/official video|music video/.test(title)) score += 2;
-    // Deprioritize obvious junk
+
     if (/podcast|interview|full album|nightcore|8d audio|slowed|reverb/.test(title)) score -= 6;
     if (/live performance|concert|reaction/.test(title)) score -= 3;
     return score;
 }
 
 async function searchViaPiped(q) {
-    // Bias search toward music results
+
     const queries = [
         `/search?q=${encodeURIComponent(q + " official audio")}&filter=music_songs`,
         `/search?q=${encodeURIComponent(q)}&filter=music_songs`,
@@ -3440,7 +3373,7 @@ async function searchViaPiped(q) {
                 items = items.concat(batch);
                 if (items.length >= 15) break;
             }
-        } catch (e) { /* try next */ }
+        } catch (e) {  }
     }
     const seen = new Set();
     const mapped = [];
@@ -3504,7 +3437,7 @@ function ensureYTPlayer() {
                                 resolve(_ytPlayer);
                             },
                             onStateChange: onYTPlayerStateChange,
-                            onError: () => { /* handled per-play */ }
+                            onError: () => {  }
                         }
                     });
                 } else {
@@ -3560,7 +3493,7 @@ function onYTPlayerStateChange(e) {
 async function playYouTubeVideo(videoId) {
     const player = await ensureYTPlayer();
     player.setVolume(Math.round(_musicVolume * 100));
-    // loadVideoById + wait for PLAYING or onError
+
     return new Promise((resolve, reject) => {
         let settled = false;
         const finish = (ok, err) => {
@@ -3575,7 +3508,7 @@ async function playYouTubeVideo(videoId) {
             if (e.data === YT.PlayerState.PLAYING) finish(true);
         };
         const onErr = (e) => {
-            // 100 = not found, 101/150 = embedding disabled
+
             const code = e && e.data;
             let msg = "video unavailable (private, region-locked, or removed)";
             if (code === 101 || code === 150) msg = "embedding disabled by uploader";
@@ -3588,7 +3521,7 @@ async function playYouTubeVideo(videoId) {
         player.addEventListener("onError", onErr);
         try {
             player.loadVideoById({ videoId: videoId, startSeconds: 0 });
-            // Some embeds need an explicit play
+
             setTimeout(() => {
                 try { if (player.playVideo) player.playVideo(); } catch (e) {}
             }, 400);
@@ -3603,17 +3536,17 @@ function resumeYouTubePlayer() { if (_ytPlayer && _ytPlayerReady) try { _ytPlaye
 function stopYouTubePlayer() { if (_ytPlayer && _ytPlayerReady) try { _ytPlayer.stopVideo(); } catch(e){} }
 function setYouTubePlayerVolume(vol0to1) { if (_ytPlayer && _ytPlayerReady) try { _ytPlayer.setVolume(Math.round(vol0to1 * 100)); } catch(e){} }
 
-async function getAudiusHost() {
-    if (_audiusHost) return _audiusHost;
+async function getAltMusicHost() {
+    if (_altMusicHost) return _altMusicHost;
     try {
         const res = await fetch("https://api.audius.co");
         const json = await res.json();
         const hosts = json.data || [];
-        _audiusHost = (hosts[0] || "https://discoveryprovider.audius.co").replace(/\/$/, "");
+        _altMusicHost = (hosts[0] || "https://discoveryprovider.audius.co").replace(/\/$/, "");
     } catch {
-        _audiusHost = "https://discoveryprovider.audius.co";
+        _altMusicHost = "https://discoveryprovider.audius.co";
     }
-    return _audiusHost;
+    return _altMusicHost;
 }
 
 async function searchFreeMusic() {
@@ -3634,7 +3567,7 @@ async function searchFreeMusic() {
     list.innerHTML = "";
     _musicResults = [];
 
-    // Desktop app / local music-server (built-in backend, no extra window in Electron)
+
     try {
         const res = await fetch(MUSIC_API() + "/api/search?q=" + encodeURIComponent(q), { signal: AbortSignal.timeout(12000) });
         if (res.ok) {
@@ -3656,7 +3589,6 @@ async function searchFreeMusic() {
             }
         }
     } catch (e) {
-        /* backend not running — fall through to browser Piped */
     }
 
     try {
@@ -3669,11 +3601,11 @@ async function searchFreeMusic() {
         }
     } catch (e) {
         console.warn("Piped search failed:", e);
-        if (status) status.textContent = "YouTube search unavailable — trying Audius…";
+        if (status) status.textContent = "Searching alternative sources…";
     }
 
     try {
-        const host = await getAudiusHost();
+        const host = await getAltMusicHost();
         const res = await fetch(`${host}/v1/tracks/search?query=${encodeURIComponent(q)}&app_name=Momento&limit=25`);
         const json = await res.json();
         const tracks = (json.data || [])
@@ -3690,12 +3622,12 @@ async function searchFreeMusic() {
                 plays: t.play_count || 0,
                 preview: false
             }));
-            if (status) status.textContent = tracks.length + " tracks (Audius)";
+            if (status) status.textContent = tracks.length + " tracks found";
             renderMusicResults(list);
             return;
         }
     } catch (e) {
-        console.warn("Audius failed", e);
+        console.warn("Alternative search failed", e);
     }
 
     if (status) status.textContent = "No results";
@@ -3704,11 +3636,9 @@ async function searchFreeMusic() {
 
 function renderMusicResults(listEl) {
     listEl.innerHTML = "";
-    
     _musicResults.forEach((track) => {
         const li = document.createElement("li");
-        li.className = "music-search-result-item"; // Keep your original classes here
-        
+        li.className = "music-search-result-item";
         li.innerHTML = `
             <div class="music-track-details">
                 <strong>${escapeHtml(track.title)}</strong>
@@ -3720,19 +3650,19 @@ function renderMusicResults(listEl) {
     });
 }
 
-// Safe play handler that finds the exact track by its unique ID, completely ignoring list position
-// Safe play handler: Finds the correct index by ID, then calls your native player
+
+
 async function playTrackById(trackId) {
   const index = _musicResults.findIndex(t => t.id === trackId);
   if (index === -1) {
     showToast("Track not found", "warn");
     return;
   }
-  // Delegates to your robust player that already handles YouTube / Audius fallback
+
   await playMusicResult(index);
 }
 
-// Simple HTML escaper helper if you don't already have one
+
 function escapeHtml(str) {
     return (str || "").replace(/[&<>'"]/g, 
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
@@ -3788,8 +3718,8 @@ async function playMusicResult(i, _triedIds) {
             return;
         }
 
-        // Audius
-        const host = await getAudiusHost();
+
+        const host = await getAltMusicHost();
         const url = `${host}/v1/tracks/${encodeURIComponent(t.id)}/stream?app_name=Momento`;
         stopYouTubePlayer();
         const audio = document.getElementById("stream-audio");
@@ -3809,7 +3739,6 @@ async function playMusicResult(i, _triedIds) {
         };
     } catch (e) {
         console.warn("Play failed", e);
-        
         if (t.source === "youtube" && triedIds.size < 6) {
             const nextIdx = _musicResults.findIndex(
                 (r, idx) => idx !== i && r.source === "youtube" && !triedIds.has(r.id)
@@ -3819,15 +3748,14 @@ async function playMusicResult(i, _triedIds) {
                 return playMusicResult(nextIdx, triedIds);
             }
         }
-        
         if (t.source === "youtube") {
             try {
-                const host = await getAudiusHost();
+                const host = await getAltMusicHost();
                 const res = await fetch(`${host}/v1/tracks/search?query=${encodeURIComponent(t.title)}&app_name=Momento&limit=3`);
                 const json = await res.json();
                 const alt = (json.data || []).find(x => x && x.id);
                 if (alt) {
-                    if (status) status.textContent = "YouTube blocked — Audius match";
+                    if (status) status.textContent = "Found alternative version";
                     _musicResults[i] = {
                         source: "audius",
                         id: alt.id,
@@ -3840,12 +3768,12 @@ async function playMusicResult(i, _triedIds) {
                     return playMusicResult(i, triedIds);
                 }
             } catch (e2) {
-                console.warn("Audius fallback failed", e2);
+                console.warn("Alternative source failed", e2);
             }
         }
         const detail = (e && e.message) ? e.message : "unknown";
-        showToast("Playback failed: " + detail, "warn");
-        if (status) status.textContent = "Playback failed: " + detail;
+        showToast("Unable to play this track", "warn");
+        if (status) status.textContent = "Unable to play";
         _streamPlaying = false;
         _archivePlaying = false;
         updateNpPlayBtn();
@@ -4170,7 +4098,6 @@ function openFocusMode(task, index) {
     _focusIsRunning = false;
     if (_focusTimerInterval) clearInterval(_focusTimerInterval);
 
-    
     let modal = document.getElementById("focus-modal");
     if (!modal) {
         modal = document.createElement("div");
@@ -4389,13 +4316,11 @@ function toggleTodo(id) {
     const baseXP = 40;
 
     if (!was) {
-        
         const created = t.createdAt || (t.created ? Date.parse(t.created) : Date.now());
         const elapsedMin = (Date.now() - created) / 60000;
         const infoBefore = getLevelInfo(data.xp || 0);
 
         if (elapsedMin < 5) {
-            
             const stepCost = infoBefore.needed || 100;
             const penalty = Math.max(25, Math.round(stepCost / 2));
             data.xp = Math.max(0, (data.xp || 0) - penalty);
@@ -4412,7 +4337,6 @@ function toggleTodo(id) {
             return;
         }
 
-        
         t.completed = true;
         t.xpAwarded = baseXP;
         data.xp = (data.xp || 0) + baseXP;
@@ -4444,8 +4368,6 @@ function toggleTodo(id) {
             playRewardSound("levelup");
         }
     } else {
-        
-        
         const loss = typeof t.xpAwarded === "number" && t.xpAwarded > 0 ? t.xpAwarded : baseXP;
         const infoBefore = getLevelInfo(data.xp || 0);
         data.xp = Math.max(0, (data.xp || 0) - loss);
@@ -4505,13 +4427,11 @@ function renderTimeline() {
     const wrap = document.createElement("div");
     wrap.className = "tl-vertical-wrap";
 
-    
     const gutter = document.createElement("div");
     gutter.className = "tl-gutter";
     const track = document.createElement("div");
     track.className = "tl-vtrack";
 
-    
     const PX_PER_MIN = 64 / 60; 
 
     for (let h = 0; h < 24; h++) {
@@ -4529,7 +4449,6 @@ function renderTimeline() {
     track.style.height = (24 * 64) + "px";
     gutter.style.height = (24 * 64) + "px";
 
-    
     if (data.currentDay === getTodayIndex()) {
         const now = new Date();
         const mins = now.getHours() * 60 + now.getMinutes();
@@ -4736,19 +4655,16 @@ function runAnalysis() {
         const tasks = (data.schedules[day] || []).filter(t => t.task);
         if (tasks.length === 0) return;
 
-        
         const sleepTask = tasks.find(t => /sleep|zzz|bed/i.test(t.task) || t.isSleep);
         let sleepHours = 0;
         if (sleepTask) {
             const s = timeToMinutes(sleepTask.start);
             const e = timeToMinutes(sleepTask.end);
-            
             sleepHours = e <= s ? (e + 1440 - s) / 60 : (e - s) / 60;
         }
         const sleepOk = sleepHours >= cfg.minSleepHours;
         const sleepWarn = sleepHours > 0 && sleepHours < cfg.minSleepHours;
 
-        
         const dayMins = {};
         let totalMins = 0;
         tasks.forEach(t => {
@@ -4762,10 +4678,8 @@ function runAnalysis() {
 
         const pct = cat => totalMins > 0 ? Math.round(((dayMins[cat] || 0) / totalMins) * 100) : 0;
 
-        
         const checks = [];
 
-        
         if (sleepHours === 0) {
             checks.push({ icon: "icon-warn", sym: "⚠️", text: "No sleep block detected" });
             totalIssues++;
@@ -4776,7 +4690,6 @@ function runAnalysis() {
             checks.push({ icon: "icon-ok", sym: "✅", text: `Sleep: ${sleepHours.toFixed(1)}h ✓` });
         }
 
-        
         if (cfg.minWorkPct) {
             const wp = pct("📚 Study/Work");
             if (wp < cfg.minWorkPct) {
@@ -4787,7 +4700,6 @@ function runAnalysis() {
             }
         }
 
-        
         if (cfg.minRelaxPct) {
             const rp = pct("🎮 Gaming/Relax");
             if (rp < cfg.minRelaxPct) {
@@ -4798,7 +4710,6 @@ function runAnalysis() {
             }
         }
 
-        
         if (cfg.minExercisePct) {
             const ep = pct("🏃 Exercise");
             if (ep < cfg.minExercisePct) {
@@ -4809,7 +4720,6 @@ function runAnalysis() {
             }
         }
 
-        
         if (cfg.maxWorkPct !== undefined) {
             const wp = pct("📚 Study/Work");
             if (wp > cfg.maxWorkPct) {
@@ -4983,7 +4893,6 @@ function deletePreset(name) {
 function openScratchBuilder() {
     scratchPresetData = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: [] };
     activeBuilderDay = "Monday";
-    
     document.getElementById("scratch-preset-title").value = "";
     renderBuilderTabs();
     renderBuilderTasks();

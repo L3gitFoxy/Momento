@@ -103,7 +103,6 @@ const TASKS = {
         { label: "Wind Down 🌙", tag: "evening" },
         { label: "Relax 😌", tag: "evening" }
     ],
-    
     READ: [
         { label: "Read a Book 📖", tag: "evening" }
     ],
@@ -164,47 +163,38 @@ function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
     const med = 45;
     const short = 30;
 
-    
     {
         const m = pickLabel(TASKS.MORNING);
         pushBlock(m.label, short, m.tag);
     }
 
-    
     pushBlock("Breakfast 🍳", short, "food");
 
-    
     if (cur < LUNCH - 20) {
         const p = pickLabel(primary);
         pushBlock(p.label, Math.min(big, LUNCH - cur), p.tag);
     }
-    
     if (cur < LUNCH - 25) {
         if (tag === "FITNESS") {
             const s = pickLabel(TASKS.RELAX);
             pushBlock(s.label, Math.min(med, LUNCH - cur), s.tag);
         } else {
-            
             pushBlock("Take a Stroll Outside 🚶", Math.min(med, LUNCH - cur), "fitness");
         }
     }
     if (cur < LUNCH) cur = LUNCH;
 
-    
     pushBlock("Lunch 🥗", 45, "food");
 
-    
     {
         const p = pickLabel(primary);
         pushBlock(p.label, isWknd ? 90 : big, p.tag);
     }
 
-    
     if (tag !== "FITNESS" && cur >= 13 * 60 && cur <= 16 * 60 && seededRand() < 0.4) {
         pushBlock("Powernap 😴", 30, "rest");
     }
 
-    
     {
         if (tag === "STUDY" || tag === "WORK") {
             const r = pickLabel(TASKS.RELAX);
@@ -217,17 +207,14 @@ function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
         }
     }
 
-    
     if (cur < DINNER - 40 && cur < 18 * 60) {
         const p = pickLabel(primary);
         pushBlock(p.label, Math.min(75, DINNER - cur), p.tag);
     }
     if (cur < DINNER) cur = DINNER;
 
-    
     pushBlock("Dinner 🍽️", 45, "food");
 
-    
     if (cur < sleepMin - 20) {
         if (tag === "STUDY") {
             pushBlock("Read a Book 📖", Math.min(45, sleepMin - cur), "evening");
@@ -237,7 +224,6 @@ function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
         }
     }
 
-    
     if (cur < sleepMin) cur = sleepMin;
     const rawSleepDur = (wakeMin + 1440 - sleepMin) % 1440 || 480;
     const cappedWakeMin = rawSleepDur > 600 ? (sleepMin + 600) % 1440 : wakeMin;
@@ -249,7 +235,6 @@ function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
         isSleep: true
     });
 
-    
     const merged = [];
     for (const b of blocks) {
         const clean = {
@@ -272,7 +257,6 @@ function buildDay(tag, intensity, wakeMin, sleepMin, dayName, usedNames) {
 function generateSmartWeekFromIntent(intentRaw) {
     const prompt = (intentRaw || "").toLowerCase();
 
-    
     const scores = { exam: 0, work: 0, fitness: 0, relax: 0 };
     Object.entries(INTENT_DICT).forEach(([key, cfg]) => {
         cfg.keywords.forEach(kw => {
@@ -280,7 +264,6 @@ function generateSmartWeekFromIntent(intentRaw) {
         });
     });
 
-    
     let best = "work";
     let bestScore = -1;
     Object.entries(scores).forEach(([k, v]) => {
@@ -302,7 +285,6 @@ function generateSmartWeekFromIntent(intentRaw) {
         week[day] = buildDay(tag, intensity, wakeMin, sleepMin, day, usedNames);
     });
 
-    
     DAYS.forEach((day, i) => {
         const nextDay = DAYS[(i + 1) % DAYS.length];
         const sleepBlock = week[day].find(b => b.isSleep);
@@ -335,7 +317,6 @@ const COLOR_MAP = {
     sunset:  { id: "sunset" },
     aurora:  { id: "aurora" },
     candy:   { id: "candy" },
-    
     red:     { id: "coral" },
     blue:    { id: "ocean" },
     orange:  { id: "amber" },
@@ -346,7 +327,6 @@ const COLOR_MAP = {
 const AI_DATABASE = {
     intents: [
 
-        
         {
             id: "greeting",
             keywords: ["hello","hi","hey","sup","yo","greetings","howdy","hiya"],
@@ -358,7 +338,6 @@ const AI_DATABASE = {
             ])
         },
 
-        
         {
             id: "farewell",
             keywords: ["bye","goodbye","see you","later","cya","peace","ttyl"],
@@ -370,7 +349,6 @@ const AI_DATABASE = {
             ])
         },
 
-        
         {
             id: "tour",
             keywords: ["tour", "where is", "where do i", "how do i", "toolbar", "sidebar", "menu", "guide", "explain", "show me"],
@@ -389,18 +367,15 @@ const AI_DATABASE = {
                 /show me/i
             ],
             handler: (...args) => {
-                
                 const rawMsg = args.find(a => typeof a === 'string') || args[0]?.text || args[0]?.message || "";
                 const lowerMsg = String(rawMsg).toLowerCase();
 
-                
                 if (lowerMsg.includes("sound") || lowerMsg.includes("notification") || lowerMsg.includes("chime") || lowerMsg.includes("alert") || lowerMsg.includes("mute") || lowerMsg.includes("audio")) {
                     return `**🔔 Sounds & Notifications**\n` +
                     `• **Toggle:** Open the **◀ Tools sidebar** (hover on the right edge of the screen) to enable or disable sound\n` +
                     `• **How it works:** When enabled, a chime will automatically play every time a new time block starts!`;
                 }
 
-                
                 if (lowerMsg.includes("tool") || lowerMsg.includes("toolbar") || lowerMsg.includes("theme") || lowerMsg.includes("preset") || lowerMsg.includes("colour") || lowerMsg.includes("color") || lowerMsg.includes("analyse") || lowerMsg.includes("sidebar") || lowerMsg.includes("menu")) {
                     return `**◀ Tools sidebar** (right edge of screen)\n` +
                     `• Hover or click the Tools tab to open\n` +
@@ -412,7 +387,6 @@ const AI_DATABASE = {
                     `• 📊 Analyse My Week — check your week against a goal`;
                 }
 
-                
                 if (lowerMsg.includes("task") || lowerMsg.includes("block") || lowerMsg.includes("reorder") || lowerMsg.includes("drag") || lowerMsg.includes("delete") || lowerMsg.includes("add")) {
                     return `**📋 Task list & Blocks** (main area)\n` +
                     `• Each row = one time block: drag ⣿, checkbox, start, end, task name, 🗑️ delete\n` +
@@ -422,7 +396,6 @@ const AI_DATABASE = {
                     `• Click **+ Add Time Block** to add a blank row`;
                 }
 
-                
                 if (lowerMsg.includes("day") || lowerMsg.includes("copy") || lowerMsg.includes("prev") || lowerMsg.includes("next") || lowerMsg.includes("navigate")) {
                     return `**📅 Days & Navigation**\n` +
                     `• **Day Tabs (Mon–Sun):** Click any day to jump to it — active day glows\n` +
@@ -430,20 +403,17 @@ const AI_DATABASE = {
                     `• **Copy To...:** Duplicates the current day's schedule to another day`;
                 }
 
-                
                 if (lowerMsg.includes("save") || lowerMsg.includes("sort")) {
                     return `**💾 Save and Sort**\n` +
                     `• Saves your progress and auto-sorts your day by start time\n` +
                     `• Shortcut: Ctrl/Cmd + S`;
                 }
 
-                
                 if (lowerMsg.includes("note") || lowerMsg.includes("focus")) {
                     return `**📝 Notes / Focus box**\n` +
                     `• Free-text area at the bottom of the screen for daily notes and focus goals`;
                 }
 
-                
                 if (lowerMsg.includes("clock") || lowerMsg.includes("now") || lowerMsg.includes("next") || lowerMsg.includes("top")) {
                      return `**🔝 Top Bar & ⚡ Now / Next chips**\n` +
                     `• Live clock is on the top right\n` +
@@ -451,15 +421,13 @@ const AI_DATABASE = {
                     `• Plays a chime when a new block starts (if sound is on)`;
                 }
 
-                
                 if (lowerMsg.includes("ai") || lowerMsg.includes("bot") || lowerMsg.includes("command")) {
                     return `**🤖 AI button** (bottom-left, that's me!)\n` +
                     `• Type commands to generate weeks, add/delete tasks, change themes\n` +
                     `• Type **"help"** for the full command list`;
                 }
 
-                
-                return `📍 Here's a full tour of SyncDay:\n\n` +
+                return `📍 Here's a full tour of Momento:\n\n` +
                     `**🔝 Top Bar** (very top)\n` +
                     `• App title on the left, today's date next to it\n` +
                     `• Live clock on the right — updates every second\n\n` +
@@ -497,7 +465,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "generate_week",
             patterns: [
@@ -506,9 +473,7 @@ const AI_DATABASE = {
             ],
             handler: (match, rawInput) => {
                 const intent = match && match[1] ? match[1].trim() : rawInput;
-                
                 if (typeof clearWeekSchedules === "function") {
-                    
                     DAYS.forEach(d => { if (typeof clawbackDayXP === "function") clawbackDayXP(d); });
                 }
                 const week = generateSmartWeekFromIntent(intent);
@@ -519,11 +484,10 @@ const AI_DATABASE = {
                 try { saveData(); } catch(e) {}
                 try { renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch(e) {}
                 const blockCount = week[DAYS[0]] ? week[DAYS[0]].length : 0;
-                return `✅ Built a full 7-day **${intent}** schedule — ${blockCount} blocks/day. XP from the old week was clawed back so you can't farm clears.`;
+                return `✅ Built a full 7-day **${intent}** schedule — ${blockCount} blocks/day. Previous week's XP has been reset.`;
             }
         },
 
-        
         {
             id: "regenerate",
             keywords: ["regenerate","redo","again","retry","different","new version","reshuffle"],
@@ -533,7 +497,6 @@ const AI_DATABASE = {
                     const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
                     return `🔒 **Regenerate** unlocks at **Starter V**. You're **${info.rank}**.`;
                 }
-                
                 if (typeof clearWeekSchedules === "function") {
                     clearWeekSchedules();
                 } else {
@@ -546,11 +509,10 @@ const AI_DATABASE = {
                 });
                 data.appliedRoutine = `AI: ${lastRoutine.substring(0, 30)}`;
                 try { saveData(); renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch(e) {}
-                return `🔄 Regenerated a fresh **${lastRoutine}** week. Any XP from the old week was clawed back — no farming!`;
+                return `🔄 Regenerated a fresh **${lastRoutine}** week. Previous XP has been reset.`;
             }
         },
 
-        
         {
             id: "add_task",
             patterns: [
@@ -563,7 +525,6 @@ const AI_DATABASE = {
                 let startStr = match[2].trim();
                 let endStr = match[3].trim();
 
-                
                 if (/hour|hr|min/i.test(endStr)) {
                     const dur = parseInt(endStr) * (/hour|hr/i.test(rawInput) ? 60 : 1);
                     endStr = formatMinutesToTime(parseTimeToMinutes(startStr) + dur);
@@ -578,7 +539,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "add_task_day",
             patterns: [
@@ -597,7 +557,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "delete_task_number",
             patterns: [
@@ -616,7 +575,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "delete_task_name",
             patterns: [
@@ -637,7 +595,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "clear_day",
             patterns: [/(?:clear|reset|uncheck)\s+(?:day|today|all|checkboxes?|tasks?)/i],
@@ -650,13 +607,12 @@ const AI_DATABASE = {
                 const day = DAYS[data.currentDay];
                 const tasks = data.schedules[day] || [];
                 let count = 0;
-                
                 if (typeof clawbackDayXP === "function") {
                     const lost = clawbackDayXP(day);
                     count = tasks.filter(t => !t.completed).length;
                     try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
                     return lost > 0
-                        ? `🧹 Unchecked tasks on **${day}**. **−${lost} XP** clawed back (no farming).`
+                        ? `🧹 Unchecked tasks on **${day}**. **−${lost} XP** removed.`
                         : `🧹 Unchecked tasks on **${day}**. Blocks remain.`;
                 }
                 tasks.forEach(t => {
@@ -670,7 +626,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "clear_week",
             patterns: [/(?:clear|reset|wipe)\s+(?:week|all days|everything)/i],
@@ -681,7 +636,6 @@ const AI_DATABASE = {
                 }
                 let lost = 0;
                 if (typeof clearWeekSchedules === "function") {
-                    
                     DAYS.forEach(d => {
                         if (typeof clawbackDayXP === "function") lost += clawbackDayXP(d);
                         else (data.schedules[d] || []).forEach(t => { t.completed = false; t.xpAwarded = false; });
@@ -689,15 +643,13 @@ const AI_DATABASE = {
                 } else {
                     DAYS.forEach(d => { (data.schedules[d] || []).forEach(t => { t.completed = false; t.xpAwarded = false; }); });
                 }
-                
                 try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
                 return lost > 0
-                    ? `🧹 Unchecked the whole week. **−${lost} XP** clawed back.`
+                    ? `🧹 Unchecked the whole week. **−${lost} XP** removed.`
                     : `🧹 Unchecked all tasks across the week.`;
             }
         },
 
-        
         {
             id: "wipe_day",
             patterns: [/(?:wipe|empty|delete all|remove all)\s+(?:tasks?|blocks?|schedule)?\s*(?:for|on|from)?\s*(monday|tuesday|wednesday|thursday|friday|saturday|sunday|today)?/i],
@@ -714,12 +666,11 @@ const AI_DATABASE = {
                 data.schedules[dayName] = [];
                 try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
                 return lost > 0
-                    ? `🗑️ Wiped ${count} block(s) from **${dayName}**. **−${lost} XP** clawed back.`
+                    ? `🗑️ Wiped ${count} block(s) from **${dayName}**. **−${lost} XP** removed.`
                     : `🗑️ Wiped all ${count} block(s) from **${dayName}**.`;
             }
         },
 
-        
         {
             id: "save_preset",
             patterns: [
@@ -756,7 +707,6 @@ const AI_DATABASE = {
                 return `✅ Applied **"${found}"** to **${dayName}**.`;
             }
         },
-        
         {
             id: "apply_preset",
             patterns: [
@@ -780,10 +730,6 @@ const AI_DATABASE = {
             }
         },
 
-        
-        
-
-        
         {
             id: "delete_preset",
             patterns: [
@@ -803,7 +749,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "list_presets",
             keywords: ["list presets","show presets","what presets","my presets","available presets"],
@@ -815,7 +760,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "theme",
             keywords: ["theme","color","colour","red","blue","green","orange","pink","purple","cyan","yellow"],
@@ -841,7 +785,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "query_schedule",
             keywords: ["what","today","schedule","summary","show me","my day","what's on","whats on"],
@@ -859,7 +802,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "next_task",
             keywords: ["next task","what's next","whats next","next up","coming up"],
@@ -881,7 +823,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "progress",
             keywords: ["progress","how many","done","completed","how am i doing","stats"],
@@ -897,7 +838,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "sound",
             keywords: ["sound","notification","chime","mute","unmute","alert","notifications"],
@@ -908,7 +848,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "open_todo",
             keywords: ["todo", "to-do", "to do", "todos", "open todo", "show todo", "todo list"],
@@ -919,7 +858,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "open_timeline",
             keywords: ["timeline", "visualizer", "calendar view"],
@@ -934,7 +872,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "open_analyser",
             keywords: ["analyse", "analyze", "analyser", "analyzer"],
@@ -949,7 +886,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "open_progress",
             keywords: ["progress", "rewards", "level", "rank", "xp"],
@@ -961,7 +897,6 @@ const AI_DATABASE = {
             }
         },
 
-        
         {
             id: "help",
             keywords: ["help","what can you do","commands","options","what do you do"],
@@ -1020,7 +955,6 @@ function processNLPIntent(rawInput) {
 }
 
 function resolveLocalIntent(input, lower) {
-    
     for (const intent of AI_DATABASE.intents) {
         if (!intent.patterns) continue;
         for (const pattern of intent.patterns) {
@@ -1033,7 +967,6 @@ function resolveLocalIntent(input, lower) {
         }
     }
 
-    
     let best = null;
     let bestScore = 0;
     for (const intent of AI_DATABASE.intents) {
@@ -1045,7 +978,6 @@ function resolveLocalIntent(input, lower) {
             else if (lower.startsWith(kw + " ") || lower.endsWith(" " + kw)) score += 6;
             else if (lower.includes(kw)) score += Math.min(5, kw.length / 3);
         }
-        
         if (intent.id === "generate_week" && /\b(generate|build|make|create|plan|schedule|week|routine)\b/.test(lower)) {
             score += 4;
         }
@@ -1061,7 +993,6 @@ function resolveLocalIntent(input, lower) {
         } catch (e) { console.error(best.id, e); }
     }
 
-    
     if (/\b(week|schedule|routine|plan|day|timetable)\b/i.test(lower)) {
         try {
             DAYS.forEach(d => { if (typeof clawbackDayXP === "function") clawbackDayXP(d); });
@@ -1070,11 +1001,10 @@ function resolveLocalIntent(input, lower) {
             data.appliedRoutine = `AI: ${input.substring(0, 40)}`;
             try { saveData(); renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch (e) {}
             const n = (week[DAYS[0]] || []).length;
-            return `✅ Generated a week from **"${input}"** — ${n} blocks/day, mixed categories. Old XP clawed back.`;
+            return `✅ Generated a week from **"${input}"** — ${n} blocks/day, mixed categories. Previous XP reset.`;
         } catch (e) {}
     }
 
-    
     if (/\b(xp|level|rank|streak)\b/.test(lower)) {
         try { if (typeof openProgressPanel === "function") openProgressPanel(); } catch(e){}
         const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
