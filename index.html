@@ -77,7 +77,7 @@
             <button type="button" class="quick-action-btn" onclick="openWeeklyReview()">
                 📊 Week Review
             </button>
-            <button type="button" class="quick-action-btn" onclick="openMusicPage()">
+            <button type="button" class="quick-action-btn" id="music-quick-open">
                 🎵 Focus & Music
             </button>
         </div>
@@ -412,7 +412,7 @@
         <div class="np-controls">
             <button type="button" id="np-play-btn" onclick="toggleNowPlaying()" title="Play/Pause">▶</button>
             <input type="range" id="np-volume" min="0" max="100" value="40" oninput="setMusicVolume(this.value)" title="Volume">
-            <button type="button" class="np-open" onclick="openMusicPage()" title="Open music">♫</button>
+            <button type="button" class="np-open" id="np-music-open" title="Open music">♫</button>
         </div>
     </div>
 

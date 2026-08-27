@@ -1163,6 +1163,10 @@ document.addEventListener("DOMContentLoaded", () => {
         updateActiveTask();
         updateNextTask();
     }, 1000);
+
+    // Quick open music button handler
+    document.getElementById("music-quick-open")?.addEventListener("click", openMusicPage);
+    document.getElementById("np-music-open")?.addEventListener("click", openMusicPage);
 });
 
 function generateFilledWeek() {
@@ -3815,15 +3819,6 @@ async function playMusicResult(i, _triedIds) {
         };
     } catch (e) {
         console.warn("Play failed", e);
-        if (t.source === "youtube" && triedIds.size < 6) {
-            const nextIdx = _musicResults.findIndex(
-                (r, idx) => idx !== i && r.source === "youtube" && !triedIds.has(r.id)
-            );
-            if (nextIdx >= 0) {
-                if (status) status.textContent = "Blocked — trying another upload…";
-                return playMusicResult(nextIdx, triedIds);
-            }
-        }
         if (t.source === "youtube") {
             try {
                 const host = await getAltMusicHost();
@@ -3831,8 +3826,8 @@ async function playMusicResult(i, _triedIds) {
                 const json = await res.json();
                 const alt = (json.data || []).find(x => x && x.id);
                 if (alt) {
-                    if (status) status.textContent = "Found alternative version";
-                    _musicResults[i] = {
+                    // Play alternative without mutating the results array
+                    const altTrack = {
                         source: "audius",
                         id: alt.id,
                         title: alt.title,
@@ -3841,7 +3836,9 @@ async function playMusicResult(i, _triedIds) {
                         plays: alt.play_count || 0,
                         preview: false
                     };
-                    return playMusicResult(i, triedIds);
+                    if (status) status.textContent = "Playing alternative version";
+                    await playMusicResultForTrack(altTrack, triedIds);
+                    return;
                 }
             } catch (e2) {
                 console.warn("Alternative source failed", e2);
@@ -3858,6 +3855,61 @@ async function playMusicResult(i, _triedIds) {
 
 async function playArchiveByIndex(i) { return playMusicResult(i); }
 async function playArchiveItem() {}
+
+// Play a specific track object directly (no index lookup, no results mutation)
+async function playMusicResultForTrack(t, _triedIds) {
+    if (!t) return;
+    const triedIds = _triedIds instanceof Set ? _triedIds : new Set();
+    if (t.source === "youtube") triedIds.add(t.id);
+    if (!navigator.onLine) {
+        showToast("📡 Offline — can't stream", "warn");
+        return;
+    }
+    const status = document.getElementById("music-search-status");
+    if (status) status.textContent = "Loading…";
+
+    try {
+        stopLocalPlay();
+        if (t.source === "youtube") {
+            const audio = document.getElementById("stream-audio");
+            if (audio) { audio.pause(); audio.removeAttribute("src"); }
+            await playYouTubeVideo(t.id);
+            _streamPlaying = true;
+            _archivePlaying = true;
+            _npSource = "youtube";
+            showNowPlaying(t.title, t.artist || "YouTube", "youtube");
+            if (status) status.textContent = "Playing";
+            updateNpPlayBtn();
+            return;
+        }
+        const host = await getAltMusicHost();
+        const url = `${host}/v1/tracks/${encodeURIComponent(t.id)}/stream?app_name=Momento`;
+        stopYouTubePlayer();
+        const audio = document.getElementById("stream-audio");
+        if (!audio) throw new Error("no audio element");
+        audio.removeAttribute("crossorigin");
+        await tryPlayAudioUrl(audio, url);
+        _streamPlaying = true;
+        _archivePlaying = true;
+        _npSource = "archive";
+        showNowPlaying(t.title, t.artist || "", "archive");
+        if (status) status.textContent = "Playing";
+        updateNpPlayBtn();
+        audio.onended = () => {
+            _streamPlaying = false;
+            _archivePlaying = false;
+            updateNpPlayBtn();
+        };
+    } catch (e) {
+        console.warn("Play failed", e);
+        const detail = (e && e.message) ? e.message : "unknown";
+        showToast("Unable to play this track", "warn");
+        if (status) status.textContent = "Unable to play";
+        _streamPlaying = false;
+        _archivePlaying = false;
+        updateNpPlayBtn();
+    }
+}
 
 function toggleArchivePlay() {
     if (_npSource === "youtube") {
