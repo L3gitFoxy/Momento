@@ -1,0 +1,1554 @@
+{
+  "users": {
+    "luthax": {
+      "salt": "e1f8270884f237eae821c6d8051320c1",
+      "passHash": "ac1048da678390bd2c227fd8dd229f93b09ff2a5348d4dba8d7dab65e1449733",
+      "data": {
+        "schedules": {
+          "Monday": [
+            {
+              "start": "07:00",
+              "end": "08:00",
+              "task": "Wake up & Breakfast",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "08:00",
+              "end": "15:00",
+              "task": "School / College Classes",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "15:00",
+              "end": "16:00",
+              "task": "Lunch & Relaxation",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "16:00",
+              "end": "18:00",
+              "task": "Study & Homework",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "18:00",
+              "end": "19:30",
+              "task": "Exercise & Outdoor Activity",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "19:30",
+              "end": "20:30",
+              "task": "Dinner",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "20:30",
+              "end": "22:00",
+              "task": "Gaming / Free Time & Read",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "22:00",
+              "end": "07:00",
+              "task": "Sleep 😴",
+              "completed": false,
+              "isSleep": true
+            }
+          ],
+          "Tuesday": [
+            {
+              "start": "07:00",
+              "end": "08:00",
+              "task": "Wake up & Breakfast",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "08:00",
+              "end": "15:00",
+              "task": "School / College Classes",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "15:00",
+              "end": "16:00",
+              "task": "Lunch & Relaxation",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "16:00",
+              "end": "18:00",
+              "task": "Study & Homework",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "18:00",
+              "end": "19:30",
+              "task": "Exercise & Outdoor Activity",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "19:30",
+              "end": "20:30",
+              "task": "Dinner",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "20:30",
+              "end": "22:00",
+              "task": "Gaming / Free Time & Read",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "22:00",
+              "end": "07:00",
+              "task": "Sleep 😴",
+              "completed": false,
+              "isSleep": true
+            }
+          ],
+          "Wednesday": [
+            {
+              "start": "07:00",
+              "end": "08:00",
+              "task": "Wake up & Breakfast",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "08:00",
+              "end": "15:00",
+              "task": "School / College Classes",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "15:00",
+              "end": "16:00",
+              "task": "Lunch & Relaxation",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "16:00",
+              "end": "18:00",
+              "task": "Study & Homework",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "18:00",
+              "end": "19:30",
+              "task": "Exercise & Outdoor Activity",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "19:30",
+              "end": "20:30",
+              "task": "Dinner",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "20:30",
+              "end": "22:00",
+              "task": "Gaming / Free Time & Read",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "22:00",
+              "end": "07:00",
+              "task": "Sleep 😴",
+              "completed": false,
+              "isSleep": true
+            }
+          ],
+          "Thursday": [
+            {
+              "start": "07:00",
+              "end": "08:00",
+              "task": "Wake up & Breakfast",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "08:00",
+              "end": "15:00",
+              "task": "School / College Classes",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "15:00",
+              "end": "16:00",
+              "task": "Lunch & Relaxation",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "16:00",
+              "end": "18:00",
+              "task": "Study & Homework",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "18:00",
+              "end": "19:30",
+              "task": "Exercise & Outdoor Activity",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "19:30",
+              "end": "20:30",
+              "task": "Dinner",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "20:30",
+              "end": "22:00",
+              "task": "Gaming / Free Time & Read",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "22:00",
+              "end": "07:00",
+              "task": "Sleep 😴",
+              "completed": false,
+              "isSleep": true
+            }
+          ],
+          "Friday": [
+            {
+              "start": "07:00",
+              "end": "08:00",
+              "task": "Wake up & Breakfast",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "08:00",
+              "end": "15:00",
+              "task": "School / College Classes",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "15:00",
+              "end": "16:00",
+              "task": "Lunch & Relaxation",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "16:00",
+              "end": "18:00",
+              "task": "Study & Homework",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "18:00",
+              "end": "19:30",
+              "task": "Exercise & Outdoor Activity",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "19:30",
+              "end": "20:30",
+              "task": "Dinner",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "20:30",
+              "end": "22:00",
+              "task": "Weekend Movie / Gaming",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "22:00",
+              "end": "08:30",
+              "task": "Sleep 😴",
+              "completed": false,
+              "isSleep": true
+            }
+          ],
+          "Saturday": [
+            {
+              "start": "08:30",
+              "end": "09:30",
+              "task": "Breakfast",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "09:30",
+              "end": "12:00",
+              "task": "Study & Revision",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "12:00",
+              "end": "13:00",
+              "task": "Lunch",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "13:00",
+              "end": "17:00",
+              "task": "Gaming / Personal Time",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "17:00",
+              "end": "19:00",
+              "task": "Sports & Exercise",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "19:00",
+              "end": "20:30",
+              "task": "Dinner & Relax",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "20:30",
+              "end": "22:30",
+              "task": "Free Time",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "22:30",
+              "end": "09:00",
+              "task": "Sleep 😴",
+              "completed": false,
+              "isSleep": true
+            }
+          ],
+          "Sunday": [
+            {
+              "start": "09:00",
+              "end": "10:00",
+              "task": "Late Breakfast",
+              "completed": false,
+              "xpAwarded": true,
+              "xpAmount": 35
+            },
+            {
+              "start": "10:00",
+              "end": "12:30",
+              "task": "Free Time & Hobbies",
+              "completed": false,
+              "xpAwarded": true,
+              "xpAmount": 65
+            },
+            {
+              "start": "12:30",
+              "end": "13:30",
+              "task": "Lunch",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "13:30",
+              "end": "15:30",
+              "task": "Light Study & Prep for Week",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "15:30",
+              "end": "18:00",
+              "task": "Relax & Wind Down",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "18:00",
+              "end": "19:30",
+              "task": "Exercise / Walk",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "19:30",
+              "end": "20:30",
+              "task": "Dinner",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            },
+            {
+              "start": "20:30",
+              "end": "22:00",
+              "task": "Read & Sleep Early",
+              "completed": false,
+              "xpAwarded": false,
+              "xpAmount": 0
+            }
+          ]
+        },
+        "notes": {
+          "Monday": "",
+          "Tuesday": "",
+          "Wednesday": "",
+          "Thursday": "",
+          "Friday": "",
+          "Saturday": "",
+          "Sunday": ""
+        },
+        "presets": {
+          "Student Daily Routine": {
+            "Monday": [
+              {
+                "start": "07:00",
+                "end": "08:00",
+                "task": "Wake up & Breakfast",
+                "completed": false
+              },
+              {
+                "start": "08:00",
+                "end": "15:00",
+                "task": "School / College Classes",
+                "completed": false
+              },
+              {
+                "start": "15:00",
+                "end": "16:00",
+                "task": "Lunch & Relaxation",
+                "completed": false
+              },
+              {
+                "start": "16:00",
+                "end": "18:00",
+                "task": "Study & Homework",
+                "completed": false
+              },
+              {
+                "start": "18:00",
+                "end": "19:30",
+                "task": "Exercise & Outdoor Activity",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Gaming / Free Time & Read",
+                "completed": false
+              }
+            ],
+            "Tuesday": [
+              {
+                "start": "07:00",
+                "end": "08:00",
+                "task": "Wake up & Breakfast",
+                "completed": false
+              },
+              {
+                "start": "08:00",
+                "end": "15:00",
+                "task": "School / College Classes",
+                "completed": false
+              },
+              {
+                "start": "15:00",
+                "end": "16:00",
+                "task": "Lunch & Relaxation",
+                "completed": false
+              },
+              {
+                "start": "16:00",
+                "end": "18:00",
+                "task": "Study & Homework",
+                "completed": false
+              },
+              {
+                "start": "18:00",
+                "end": "19:30",
+                "task": "Exercise & Outdoor Activity",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Gaming / Free Time & Read",
+                "completed": false
+              }
+            ],
+            "Wednesday": [
+              {
+                "start": "07:00",
+                "end": "08:00",
+                "task": "Wake up & Breakfast",
+                "completed": false
+              },
+              {
+                "start": "08:00",
+                "end": "15:00",
+                "task": "School / College Classes",
+                "completed": false
+              },
+              {
+                "start": "15:00",
+                "end": "16:00",
+                "task": "Lunch & Relaxation",
+                "completed": false
+              },
+              {
+                "start": "16:00",
+                "end": "18:00",
+                "task": "Study & Homework",
+                "completed": false
+              },
+              {
+                "start": "18:00",
+                "end": "19:30",
+                "task": "Exercise & Outdoor Activity",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Gaming / Free Time & Read",
+                "completed": false
+              }
+            ],
+            "Thursday": [
+              {
+                "start": "07:00",
+                "end": "08:00",
+                "task": "Wake up & Breakfast",
+                "completed": false
+              },
+              {
+                "start": "08:00",
+                "end": "15:00",
+                "task": "School / College Classes",
+                "completed": false
+              },
+              {
+                "start": "15:00",
+                "end": "16:00",
+                "task": "Lunch & Relaxation",
+                "completed": false
+              },
+              {
+                "start": "16:00",
+                "end": "18:00",
+                "task": "Study & Homework",
+                "completed": false
+              },
+              {
+                "start": "18:00",
+                "end": "19:30",
+                "task": "Exercise & Outdoor Activity",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Gaming / Free Time & Read",
+                "completed": false
+              }
+            ],
+            "Friday": [
+              {
+                "start": "07:00",
+                "end": "08:00",
+                "task": "Wake up & Breakfast",
+                "completed": false
+              },
+              {
+                "start": "08:00",
+                "end": "15:00",
+                "task": "School / College Classes",
+                "completed": false
+              },
+              {
+                "start": "15:00",
+                "end": "16:00",
+                "task": "Lunch & Relaxation",
+                "completed": false
+              },
+              {
+                "start": "16:00",
+                "end": "18:00",
+                "task": "Study & Homework",
+                "completed": false
+              },
+              {
+                "start": "18:00",
+                "end": "19:30",
+                "task": "Exercise & Outdoor Activity",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Weekend Movie / Gaming",
+                "completed": false
+              }
+            ],
+            "Saturday": [
+              {
+                "start": "08:30",
+                "end": "09:30",
+                "task": "Breakfast",
+                "completed": false
+              },
+              {
+                "start": "09:30",
+                "end": "12:00",
+                "task": "Study & Revision",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:00",
+                "task": "Lunch",
+                "completed": false
+              },
+              {
+                "start": "13:00",
+                "end": "17:00",
+                "task": "Gaming / Personal Time",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "19:00",
+                "task": "Sports & Exercise",
+                "completed": false
+              },
+              {
+                "start": "19:00",
+                "end": "20:30",
+                "task": "Dinner & Relax",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:30",
+                "task": "Free Time",
+                "completed": false
+              }
+            ],
+            "Sunday": [
+              {
+                "start": "09:00",
+                "end": "10:00",
+                "task": "Late Breakfast",
+                "completed": false
+              },
+              {
+                "start": "10:00",
+                "end": "12:30",
+                "task": "Free Time & Hobbies",
+                "completed": false
+              },
+              {
+                "start": "12:30",
+                "end": "13:30",
+                "task": "Lunch",
+                "completed": false
+              },
+              {
+                "start": "13:30",
+                "end": "15:30",
+                "task": "Light Study & Prep for Week",
+                "completed": false
+              },
+              {
+                "start": "15:30",
+                "end": "18:00",
+                "task": "Relax & Wind Down",
+                "completed": false
+              },
+              {
+                "start": "18:00",
+                "end": "19:30",
+                "task": "Exercise / Walk",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Read & Sleep Early",
+                "completed": false
+              }
+            ]
+          },
+          "9-to-5 Work & Productivity": {
+            "Monday": [
+              {
+                "start": "07:00",
+                "end": "08:00",
+                "task": "Morning Exercise & Breakfast",
+                "completed": false
+              },
+              {
+                "start": "08:00",
+                "end": "09:00",
+                "task": "Commute / Prep Workday",
+                "completed": false
+              },
+              {
+                "start": "09:00",
+                "end": "12:00",
+                "task": "Deep Work / Focus Blocks",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:00",
+                "task": "Lunch Break",
+                "completed": false
+              },
+              {
+                "start": "13:00",
+                "end": "17:00",
+                "task": "Meetings & Collaborative Work",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise & Unwind",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "19:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "22:00",
+                "task": "Relax & Personal Projects",
+                "completed": false
+              }
+            ],
+            "Tuesday": [
+              {
+                "start": "07:00",
+                "end": "08:00",
+                "task": "Morning Exercise & Breakfast",
+                "completed": false
+              },
+              {
+                "start": "08:00",
+                "end": "09:00",
+                "task": "Commute / Prep Workday",
+                "completed": false
+              },
+              {
+                "start": "09:00",
+                "end": "12:00",
+                "task": "Deep Work / Focus Blocks",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:00",
+                "task": "Lunch Break",
+                "completed": false
+              },
+              {
+                "start": "13:00",
+                "end": "17:00",
+                "task": "Meetings & Collaborative Work",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise & Unwind",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "19:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "22:00",
+                "task": "Relax & Personal Projects",
+                "completed": false
+              }
+            ],
+            "Wednesday": [
+              {
+                "start": "07:00",
+                "end": "08:00",
+                "task": "Morning Exercise & Breakfast",
+                "completed": false
+              },
+              {
+                "start": "08:00",
+                "end": "09:00",
+                "task": "Commute / Prep Workday",
+                "completed": false
+              },
+              {
+                "start": "09:00",
+                "end": "12:00",
+                "task": "Deep Work / Focus Blocks",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:00",
+                "task": "Lunch Break",
+                "completed": false
+              },
+              {
+                "start": "13:00",
+                "end": "17:00",
+                "task": "Meetings & Collaborative Work",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise & Unwind",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "19:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "22:00",
+                "task": "Relax & Personal Projects",
+                "completed": false
+              }
+            ],
+            "Thursday": [
+              {
+                "start": "07:00",
+                "end": "08:00",
+                "task": "Morning Exercise & Breakfast",
+                "completed": false
+              },
+              {
+                "start": "08:00",
+                "end": "09:00",
+                "task": "Commute / Prep Workday",
+                "completed": false
+              },
+              {
+                "start": "09:00",
+                "end": "12:00",
+                "task": "Deep Work / Focus Blocks",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:00",
+                "task": "Lunch Break",
+                "completed": false
+              },
+              {
+                "start": "13:00",
+                "end": "17:00",
+                "task": "Meetings & Collaborative Work",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise & Unwind",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "19:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "22:00",
+                "task": "Relax & Personal Projects",
+                "completed": false
+              }
+            ],
+            "Friday": [
+              {
+                "start": "07:00",
+                "end": "08:00",
+                "task": "Morning Exercise & Breakfast",
+                "completed": false
+              },
+              {
+                "start": "08:00",
+                "end": "09:00",
+                "task": "Commute / Prep Workday",
+                "completed": false
+              },
+              {
+                "start": "09:00",
+                "end": "12:00",
+                "task": "Deep Work / Focus Blocks",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:00",
+                "task": "Lunch Break",
+                "completed": false
+              },
+              {
+                "start": "13:00",
+                "end": "17:00",
+                "task": "Wrap Up Weekly Tasks",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise & Unwind",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "20:00",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:00",
+                "end": "23:00",
+                "task": "Weekend Social & Chill",
+                "completed": false
+              }
+            ],
+            "Saturday": [
+              {
+                "start": "08:30",
+                "end": "09:30",
+                "task": "Breakfast",
+                "completed": false
+              },
+              {
+                "start": "09:30",
+                "end": "12:30",
+                "task": "Hobbies & Side Projects",
+                "completed": false
+              },
+              {
+                "start": "12:30",
+                "end": "13:30",
+                "task": "Lunch",
+                "completed": false
+              },
+              {
+                "start": "13:30",
+                "end": "18:00",
+                "task": "Free Time & Outings",
+                "completed": false
+              },
+              {
+                "start": "18:00",
+                "end": "19:30",
+                "task": "Physical Activity",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "21:00",
+                "task": "Dinner",
+                "completed": false
+              }
+            ],
+            "Sunday": [
+              {
+                "start": "09:00",
+                "end": "10:00",
+                "task": "Breakfast",
+                "completed": false
+              },
+              {
+                "start": "10:00",
+                "end": "13:00",
+                "task": "Relax & Media",
+                "completed": false
+              },
+              {
+                "start": "13:00",
+                "end": "14:00",
+                "task": "Lunch",
+                "completed": false
+              },
+              {
+                "start": "14:00",
+                "end": "17:00",
+                "task": "Personal Errand / Planning",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise / Walk",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "20:00",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:00",
+                "end": "22:00",
+                "task": "Read & Wind Down",
+                "completed": false
+              }
+            ]
+          },
+          "Intensive Exam Prep": {
+            "Monday": [
+              {
+                "start": "07:30",
+                "end": "08:30",
+                "task": "Breakfast & Morning Prep",
+                "completed": false
+              },
+              {
+                "start": "08:30",
+                "end": "11:30",
+                "task": "Study Block 1 (Core Subject)",
+                "completed": false
+              },
+              {
+                "start": "11:30",
+                "end": "12:00",
+                "task": "Break / Walk",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:30",
+                "task": "Study Block 2 (Revision)",
+                "completed": false
+              },
+              {
+                "start": "13:30",
+                "end": "14:30",
+                "task": "Lunch Break",
+                "completed": false
+              },
+              {
+                "start": "14:30",
+                "end": "17:00",
+                "task": "Study Block 3 (Practice Tests)",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise & Outdoor Break",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "19:30",
+                "task": "Study Block 4 (Light Review)",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Relax & Read",
+                "completed": false
+              }
+            ],
+            "Tuesday": [
+              {
+                "start": "07:30",
+                "end": "08:30",
+                "task": "Breakfast & Morning Prep",
+                "completed": false
+              },
+              {
+                "start": "08:30",
+                "end": "11:30",
+                "task": "Study Block 1 (Core Subject)",
+                "completed": false
+              },
+              {
+                "start": "11:30",
+                "end": "12:00",
+                "task": "Break / Walk",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:30",
+                "task": "Study Block 2 (Revision)",
+                "completed": false
+              },
+              {
+                "start": "13:30",
+                "end": "14:30",
+                "task": "Lunch Break",
+                "completed": false
+              },
+              {
+                "start": "14:30",
+                "end": "17:00",
+                "task": "Study Block 3 (Practice Tests)",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise & Outdoor Break",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "19:30",
+                "task": "Study Block 4 (Light Review)",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Relax & Read",
+                "completed": false
+              }
+            ],
+            "Wednesday": [
+              {
+                "start": "07:30",
+                "end": "08:30",
+                "task": "Breakfast & Morning Prep",
+                "completed": false
+              },
+              {
+                "start": "08:30",
+                "end": "11:30",
+                "task": "Study Block 1 (Core Subject)",
+                "completed": false
+              },
+              {
+                "start": "11:30",
+                "end": "12:00",
+                "task": "Break / Walk",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:30",
+                "task": "Study Block 2 (Revision)",
+                "completed": false
+              },
+              {
+                "start": "13:30",
+                "end": "14:30",
+                "task": "Lunch Break",
+                "completed": false
+              },
+              {
+                "start": "14:30",
+                "end": "17:00",
+                "task": "Study Block 3 (Practice Tests)",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise & Outdoor Break",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "19:30",
+                "task": "Study Block 4 (Light Review)",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Relax & Read",
+                "completed": false
+              }
+            ],
+            "Thursday": [
+              {
+                "start": "07:30",
+                "end": "08:30",
+                "task": "Breakfast & Morning Prep",
+                "completed": false
+              },
+              {
+                "start": "08:30",
+                "end": "11:30",
+                "task": "Study Block 1 (Core Subject)",
+                "completed": false
+              },
+              {
+                "start": "11:30",
+                "end": "12:00",
+                "task": "Break / Walk",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:30",
+                "task": "Study Block 2 (Revision)",
+                "completed": false
+              },
+              {
+                "start": "13:30",
+                "end": "14:30",
+                "task": "Lunch Break",
+                "completed": false
+              },
+              {
+                "start": "14:30",
+                "end": "17:00",
+                "task": "Study Block 3 (Practice Tests)",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise & Outdoor Break",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "19:30",
+                "task": "Study Block 4 (Light Review)",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Relax & Read",
+                "completed": false
+              }
+            ],
+            "Friday": [
+              {
+                "start": "07:30",
+                "end": "08:30",
+                "task": "Breakfast & Morning Prep",
+                "completed": false
+              },
+              {
+                "start": "08:30",
+                "end": "11:30",
+                "task": "Study Block 1 (Core Subject)",
+                "completed": false
+              },
+              {
+                "start": "11:30",
+                "end": "12:00",
+                "task": "Break / Walk",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:30",
+                "task": "Study Block 2 (Revision)",
+                "completed": false
+              },
+              {
+                "start": "13:30",
+                "end": "14:30",
+                "task": "Lunch Break",
+                "completed": false
+              },
+              {
+                "start": "14:30",
+                "end": "17:00",
+                "task": "Study Block 3 (Practice Tests)",
+                "completed": false
+              },
+              {
+                "start": "17:00",
+                "end": "18:30",
+                "task": "Exercise & Outdoor Break",
+                "completed": false
+              },
+              {
+                "start": "18:30",
+                "end": "19:30",
+                "task": "Study Block 4 (Light Review)",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Relax & Read",
+                "completed": false
+              }
+            ],
+            "Saturday": [
+              {
+                "start": "08:00",
+                "end": "09:00",
+                "task": "Breakfast",
+                "completed": false
+              },
+              {
+                "start": "09:00",
+                "end": "12:00",
+                "task": "Study Mock Exam",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:00",
+                "task": "Lunch",
+                "completed": false
+              },
+              {
+                "start": "13:00",
+                "end": "16:00",
+                "task": "Gaming / Free Time Break",
+                "completed": false
+              },
+              {
+                "start": "16:00",
+                "end": "18:00",
+                "task": "Light Study & Review Errors",
+                "completed": false
+              },
+              {
+                "start": "18:00",
+                "end": "19:30",
+                "task": "Exercise & Walk",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Relax",
+                "completed": false
+              }
+            ],
+            "Sunday": [
+              {
+                "start": "08:30",
+                "end": "09:30",
+                "task": "Breakfast",
+                "completed": false
+              },
+              {
+                "start": "09:30",
+                "end": "12:00",
+                "task": "Study Summary & Prep for Next Week",
+                "completed": false
+              },
+              {
+                "start": "12:00",
+                "end": "13:00",
+                "task": "Lunch",
+                "completed": false
+              },
+              {
+                "start": "13:00",
+                "end": "18:00",
+                "task": "Rest & Recovery (Do whatever)",
+                "completed": false
+              },
+              {
+                "start": "18:00",
+                "end": "19:30",
+                "task": "Light Physical Activity / Walk",
+                "completed": false
+              },
+              {
+                "start": "19:30",
+                "end": "20:30",
+                "task": "Dinner",
+                "completed": false
+              },
+              {
+                "start": "20:30",
+                "end": "22:00",
+                "task": "Read & Sleep Early",
+                "completed": false
+              }
+            ]
+          }
+        },
+        "currentDay": 0,
+        "appliedRoutine": "Student Daily Routine",
+        "lastResetWeek": "2026-W36",
+        "notificationsEnabled": true,
+        "theme": {
+          "color": "#6c5ce7",
+          "hover": "#5b4cc4",
+          "alpha": "rgba(108, 92, 231, 0.25)"
+        },
+        "xp": 100,
+        "streak": 1,
+        "lastCompletedDate": "Sun Aug 23 2026",
+        "totalTasksCompleted": 2,
+        "todos": [],
+        "rewardsUnlocked": [],
+        "preferredChime": "default",
+        "themeId": "purple"
+      },
+      "created": 1788183318639,
+      "updated": 1788183576248
+    }
+  }
+}
