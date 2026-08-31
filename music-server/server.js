@@ -7,13 +7,13 @@ const crypto = require("crypto");
 
 const DEFAULT_PORT = process.env.PORT || 8787;
 const PROFILE_DIR =
-  process.env.SYNCDAY_DATA_DIR ||
+  process.env.MOMENTO_DATA_DIR ||
   process.env.RAILWAY_VOLUME_MOUNT_PATH ||
   (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID ? "/tmp" : __dirname);
-const PROFILE_FILE = path.join(PROFILE_DIR, "syncday-profiles.json");
+const PROFILE_FILE = path.join(PROFILE_DIR, "momento-profiles.json");
 const tokens = new Map();
 
-console.log("[SyncDay] Profile file:", PROFILE_FILE);
+console.log("[Momento] Profile file:", PROFILE_FILE);
 
 function loadProfiles() {
   try {
@@ -74,7 +74,7 @@ function fetchJson(url, timeoutMs = 12000) {
     const req = lib.get(
       url,
       {
-        headers: { "User-Agent": "SyncDayMusic/1.0", Accept: "application/json" },
+        headers: { "User-Agent": "MomentoMusic/1.0", Accept: "application/json" },
         timeout: timeoutMs,
       },
       (res) => {
@@ -151,7 +151,7 @@ function createHandler() {
     const u = new URL(req.url, "http://127.0.0.1");
     try {
       if (u.pathname === "/api/health") {
-        sendJson(res, 200, { ok: true, service: "SyncDay Music", auth: true });
+        sendJson(res, 200, { ok: true, service: "Momento Music", auth: true });
         return;
       }
 
@@ -333,7 +333,7 @@ function startMusicServer(port = DEFAULT_PORT, host = process.env.HOST || "0.0.0
     server.listen(port, host, () => {
       const addr = server.address();
       const p = typeof addr === "object" && addr ? addr.port : port;
-      console.log("[SyncDay] Music service ready on http://" + host + ":" + p);
+      console.log("[Momento] Music service ready on http://" + host + ":" + p);
       resolve({ server, port: p, host });
     });
   });
@@ -345,7 +345,7 @@ if (require.main === module) {
   const port = Number(process.env.PORT) || DEFAULT_PORT;
   const host = process.env.HOST || "0.0.0.0";
   startMusicServer(port, host).then(({ port, host }) => {
-    console.log("\n🎵 SyncDay Music Backend");
+    console.log("\n🎵 Momento Music Backend");
     console.log("   listening on " + host + ":" + port + "\n");
   }).catch((e) => {
     console.error(e);
