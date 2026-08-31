@@ -1452,6 +1452,9 @@ function applyProfileData(parsed) {
     data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
     data.themeId = parsed.themeId || "purple";
     data.preferredChime = parsed.preferredChime || "default";
+    data.hiddenBuiltInPresets = Array.isArray(parsed.hiddenBuiltInPresets)
+        ? parsed.hiddenBuiltInPresets
+        : [];
     Object.entries(BUILT_IN_PRESETS).forEach(([name, preset]) => {
         if (!data.presets[name]) data.presets[name] = convertPreset(preset);
     });
@@ -1805,6 +1808,9 @@ function loadData() {
             data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
             data.themeId = parsed.themeId || "purple";
             data.preferredChime = parsed.preferredChime || "default";
+            data.hiddenBuiltInPresets = Array.isArray(parsed.hiddenBuiltInPresets)
+                ? parsed.hiddenBuiltInPresets
+                : [];
         }
     } catch (error) {
         console.error("Could not load Momento data:", error);
@@ -2856,7 +2862,7 @@ function populatePresetMenus() {
     const master = document.getElementById("preset-select");
     const single = document.getElementById("single-day-preset-select");
     const deleteSelect = document.getElementById("delete-preset-select");
-    const names = Object.keys(data.presets);
+    const names = Object.keys(data.presets || {}).filter((name) => !isPresetHidden(name));
 
     if (master) {
         master.innerHTML = '<option value="">Select Master Preset...</option>';
@@ -2869,7 +2875,7 @@ function populatePresetMenus() {
     if (deleteSelect) {
         deleteSelect.innerHTML = '<option value="">Select Preset to Delete...</option>';
         names.forEach(name => {
-            if (!Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name)) {
+            if (!isBuiltInPreset(name)) {
                 deleteSelect.appendChild(new Option(name, name));
             }
         });
@@ -5726,6 +5732,41 @@ function keepPreview() {
     showSavedMessage(`✓ Applied: ${ANALYSER_INTENTS[_analyserIntent]?.label}`);
 }
 
+function getHiddenBuiltIns() {
+    if (!Array.isArray(data.hiddenBuiltInPresets)) data.hiddenBuiltInPresets = [];
+    return data.hiddenBuiltInPresets;
+}
+
+function isBuiltInPreset(name) {
+    return Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name);
+}
+
+function isPresetHidden(name) {
+    return isBuiltInPreset(name) && getHiddenBuiltIns().includes(name);
+}
+
+function hideBuiltInPreset(name) {
+    if (!isBuiltInPreset(name)) return;
+    const list = getHiddenBuiltIns();
+    if (!list.includes(name)) list.push(name);
+    data.hiddenBuiltInPresets = list;
+    saveData();
+    renderPresetsManager();
+    populatePresetMenus();
+    showToast(`Hidden "${name}"`, "info");
+}
+
+function unhideBuiltInPreset(name) {
+    data.hiddenBuiltInPresets = getHiddenBuiltIns().filter((n) => n !== name);
+    if (!data.presets[name] && BUILT_IN_PRESETS[name]) {
+        data.presets[name] = convertPreset(BUILT_IN_PRESETS[name]);
+    }
+    saveData();
+    renderPresetsManager();
+    populatePresetMenus();
+    showToast(`Restored "${name}"`, "info");
+}
+
 function renderPresetsManager() {
     const listContainer = document.getElementById("presets-manager-list");
     if (!listContainer) return;
@@ -5733,25 +5774,50 @@ function renderPresetsManager() {
     data.presets = data.presets || {};
     listContainer.innerHTML = "";
 
-    const names = Object.keys(data.presets);
+    const names = Object.keys(data.presets).filter((name) => !isPresetHidden(name));
+    const hidden = getHiddenBuiltIns().filter((name) => isBuiltInPreset(name));
 
-    if (names.length === 0) {
+    if (names.length === 0 && hidden.length === 0) {
         listContainer.innerHTML = `<p style="color:#aaa; font-size:0.8rem;">No custom presets saved.</p>`;
         return;
     }
 
-    names.forEach(name => {
+    names.forEach((name) => {
         const row = document.createElement("div");
         row.className = "preset-item-row";
+        const safe = String(name).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        const builtIn = isBuiltInPreset(name);
+        const actionBtn = builtIn
+            ? `<button type="button" onclick="hideBuiltInPreset('${safe}')" class="btn-icon" title="Hide built-in preset">🙈</button>`
+            : `<button type="button" onclick="deletePreset('${safe}')" class="btn-icon" title="Delete Preset">🗑️</button>`;
         row.innerHTML = `
-            <span>${name}</span>
+            <span>${builtIn ? "📦 " : ""}${name}</span>
             <div class="preset-item-actions">
-                <button onclick="applyNamedPreset('${name}')" class="btn-icon" title="Apply Preset">▶️</button>
-                <button onclick="deletePreset('${name}')" class="btn-icon" title="Delete Preset">🗑️</button>
+                <button type="button" onclick="applyNamedPreset('${safe}')" class="btn-icon" title="Apply Preset">▶️</button>
+                ${actionBtn}
             </div>
         `;
         listContainer.appendChild(row);
     });
+
+    if (hidden.length) {
+        const section = document.createElement("div");
+        section.className = "preset-hidden-section";
+        section.innerHTML = `<p class="preset-hidden-label">Hidden built-ins</p>`;
+        hidden.forEach((name) => {
+            const row = document.createElement("div");
+            row.className = "preset-item-row preset-item-hidden";
+            const safe = String(name).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            row.innerHTML = `
+                <span style="opacity:0.6">📦 ${name}</span>
+                <div class="preset-item-actions">
+                    <button type="button" onclick="unhideBuiltInPreset('${safe}')" class="btn-icon" title="Show again">👁️</button>
+                </div>
+            `;
+            section.appendChild(row);
+        });
+        listContainer.appendChild(section);
+    }
 }
 
 function saveCurrentAsPreset() {

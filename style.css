@@ -3482,3 +3482,20 @@ body.auth-locked .modal-overlay {
     visibility: hidden !important;
     pointer-events: none !important;
 }
+
+.preset-hidden-section {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color, #352a53);
+}
+.preset-hidden-label {
+    margin: 0 0 8px;
+    font-size: 0.72rem;
+    color: var(--muted-color, #8f87ae);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+.preset-item-row.preset-item-hidden {
+    opacity: 0.75;
+}
