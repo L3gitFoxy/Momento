@@ -1,0 +1,10 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Verify the auth endpoints",
+			"type": "shell",
+			"command": "echo Checking authentication setup... && findstr \"MOMENTO_CLOUD_API\" cloud-config.js && echo --- && findstr \"listCloudCandidates\\|resolveCloudApiBase\" script.js | head -20"
+		}
+	]
+}

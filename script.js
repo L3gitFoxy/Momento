@@ -1190,48 +1190,86 @@ async function resolveCloudApiBase() {
 
 async function cloudRequest(path, opts) {
     const base = (await resolveCloudApiBase()).replace(/\/$/, "");
-    const res = await fetch(base + path, {
-        ...opts,
-        headers: {
-            "Content-Type": "application/json",
-            ...(opts && opts.headers)
-        },
-        signal: AbortSignal.timeout(10000)
-    });
+    const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+    
+    if (isMobileVercel) {
+        console.log(`[cloudRequest] Mobile Vercel: Requesting ${base}${path}`);
+    }
+    
+    let res;
+    try {
+        res = await fetch(base + path, {
+            ...opts,
+            headers: {
+                "Content-Type": "application/json",
+                ...(opts && opts.headers)
+            },
+            signal: AbortSignal.timeout(10000)
+        });
+    } catch (e) {
+        if (isMobileVercel) {
+            console.error(`[cloudRequest] Mobile Vercel fetch error:`, e.name, e.message);
+        }
+        throw e;
+    }
+    
     let body = null;
     try {
         body = await res.json();
     } catch {
         body = null;
     }
+    
     if (!res.ok) {
-        const err = new Error((body && (body.detail || body.error)) || "Request failed");
+        const detail = (body && (body.detail || body.error)) || `HTTP ${res.status}`;
+        if (isMobileVercel) {
+            console.error(`[cloudRequest] Mobile Vercel HTTP error: ${res.status} - ${detail}`);
+        }
+        const err = new Error(detail);
         err.status = res.status;
         err.body = body;
+        err.url = base + path;
         throw err;
     }
+    
     rememberCloudBase(base);
     return body;
 }
 
 async function tryCloudSignup(username, password) {
     try {
-        await resolveCloudApiBase();
+        const base = await resolveCloudApiBase();
+        const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+        if (isMobileVercel) console.log("[auth] Mobile Vercel environment, cloud base:", base);
+        
         return await cloudRequest("/api/auth/signup", {
             method: "POST",
             body: JSON.stringify({ username, password })
         });
     } catch (e) {
-        if (e.status === 409) throw new Error("Username already taken");
-        if (
+        if (e.status === 409) throw new Error("Username already taken on cloud server");
+        
+        const isNetworkError = 
             e.status === 404 ||
             e.status === 502 ||
             e.status === 503 ||
             e.status >= 500 ||
             e.name === "TimeoutError" ||
             e.name === "AbortError" ||
-            e.message === "Failed to fetch"
-        ) {
+            e.message === "Failed to fetch" ||
+            e.message === "NetworkError" ||
+            e.message === "Network request failed";
+        
+        if (isNetworkError) {
+            const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+            if (isMobileVercel) {
+                console.error("[auth:mobile] Cloud signup failed on Vercel:", e.message, "status:", e.status);
+                const detail = e.message.includes("timeout") || e.name === "TimeoutError" 
+                    ? "server not responding"
+                    : e.status ? `server error (${e.status})`
+                    : "connection failed";
+                console.log(`[auth:mobile] Cloud unavailable (${detail}), will create local account`);
+            }
             console.warn("[auth] cloud signup unavailable, will use local:", e.message);
             return null;
         }
@@ -1241,22 +1279,38 @@ async function tryCloudSignup(username, password) {
 
 async function tryCloudLogin(username, password) {
     try {
-        await resolveCloudApiBase();
+        const base = await resolveCloudApiBase();
+        const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+        if (isMobileVercel) console.log("[auth] Mobile Vercel environment detected, cloud base:", base);
+        
         return await cloudRequest("/api/auth/login", {
             method: "POST",
             body: JSON.stringify({ username, password })
         });
     } catch (e) {
         if (e.status === 401) throw new Error("Wrong password or no cloud account");
-        if (
+        
+        const isNetworkError = 
             e.status === 404 ||
             e.status === 502 ||
             e.status === 503 ||
             e.status >= 500 ||
             e.name === "TimeoutError" ||
             e.name === "AbortError" ||
-            e.message === "Failed to fetch"
-        ) {
+            e.message === "Failed to fetch" ||
+            e.message === "NetworkError" ||
+            e.message === "Network request failed";
+        
+        if (isNetworkError) {
+            const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+            if (isMobileVercel) {
+                console.error("[auth:mobile] Cloud login failed on Vercel:", e.message, "status:", e.status);
+                const detail = e.message.includes("timeout") || e.name === "TimeoutError" 
+                    ? "server not responding (timeout)"
+                    : e.status ? `server error (${e.status})`
+                    : "connection failed";
+                console.log(`[auth:mobile] Will try local auth. Cloud issue: ${detail}`);
+            }
             console.warn("[auth] cloud login unavailable, will try local:", e.message);
             return null;
         }
@@ -1384,6 +1438,8 @@ async function authSignup(username, password) {
         return;
     }
 
+    // Cloud signup unavailable, but we can still create a local account
+    // that will be synced when the cloud backend is available
     const accounts = loadAccounts();
     if (accounts[key]) throw new Error("Username already taken on this device");
     const salt = crypto.getRandomValues(new Uint8Array(16)).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "");
@@ -1395,7 +1451,14 @@ async function authSignup(username, password) {
     migrateLegacyDataIfAny(key);
     loadData();
     finishAuth();
-    showToast("Account created on this device", "info");
+    
+    // Inform user that their account is local for now
+    const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+    if (isMobileVercel) {
+        showToast("Account created on this device · will sync to cloud when available", "info");
+    } else {
+        showToast("Account created on this device", "info");
+    }
 }
 
 async function authLogin(username, password) {
@@ -1414,7 +1477,23 @@ async function authLogin(username, password) {
 
     const accounts = loadAccounts();
     const acc = accounts[key];
-    if (!acc) throw new Error("No account found — try Sign up, or enable cloud sync");
+    if (!acc) {
+        // No local account. Provide context-aware error message.
+        const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+        if (isMobileVercel) {
+            throw new Error(
+                "Account not found\n\n" +
+                "Your account may be on our cloud server, but we're having trouble connecting right now.\n\n" +
+                "Options:\n" +
+                "1. Try creating an account now (we'll sync it when cloud is back)\n" +
+                "2. Check your internet connection\n" +
+                "3. Try again in a moment"
+            );
+        } else {
+            throw new Error("No account found — try Sign up, or enable cloud sync");
+        }
+    }
+    
     const passHash = await hashPassword(password, acc.salt);
     if (passHash !== acc.passHash) throw new Error("Wrong password");
     setSession({ username: key, token: null, cloud: false });

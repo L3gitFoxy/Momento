@@ -9,17 +9,27 @@ const DEFAULT_PORT = process.env.PORT || 8787;
 const PROFILE_DIR =
   process.env.MOMENTO_DATA_DIR ||
   process.env.RAILWAY_VOLUME_MOUNT_PATH ||
-  (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID ? "/tmp" : __dirname);
+  (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID ? path.join("/data") : __dirname);
 const PROFILE_FILE = path.join(PROFILE_DIR, "momento-profiles.json");
-const tokens = new Map();
+// Store tokens in-memory AND persist to file for session recovery
+const tokensMemory = new Map();
+const tokenExpiry = new Map();
 
 console.log("[Momento] Profile file:", PROFILE_FILE);
 
 function loadProfiles() {
   try {
-    return JSON.parse(fs.readFileSync(PROFILE_FILE, "utf8"));
+    const data = JSON.parse(fs.readFileSync(PROFILE_FILE, "utf8"));
+    // Restore in-memory tokens from persistent storage on startup
+    if (data.sessionTokens) {
+      Object.entries(data.sessionTokens).forEach(([token, username]) => {
+        tokensMemory.set(token, username);
+        tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+      });
+    }
+    return data;
   } catch {
-    return { users: {} };
+    return { users: {}, sessionTokens: {} };
   }
 }
 
@@ -27,6 +37,8 @@ function saveProfiles(db) {
   try {
     fs.mkdirSync(path.dirname(PROFILE_FILE), { recursive: true });
   } catch (e) {}
+  // Persist active tokens to file for recovery after restart
+  db.sessionTokens = Object.fromEntries(tokensMemory);
   fs.writeFileSync(PROFILE_FILE, JSON.stringify(db, null, 2), "utf8");
 }
 
@@ -174,7 +186,9 @@ function createHandler() {
         };
         saveProfiles(db);
         const token = makeToken();
-        tokens.set(token, username);
+        tokensMemory.set(token, username);
+        tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+        saveProfiles(db); // Persist token immediately
         return sendJson(res, 200, { token, username, data: null });
       }
 
@@ -189,14 +203,18 @@ function createHandler() {
           return sendJson(res, 401, { error: "Wrong password" });
         }
         const token = makeToken();
-        tokens.set(token, username);
+        tokensMemory.set(token, username);
+        tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+        const db2 = loadProfiles();
+        db2.sessionTokens = Object.fromEntries(tokensMemory);
+        saveProfiles(db2); // Persist token immediately
         return sendJson(res, 200, { token, username, data: user.data || null });
       }
 
       if (u.pathname === "/api/auth/data" && (req.method === "GET" || req.method === "PUT")) {
         const auth = String(req.headers.authorization || "");
         const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-        const username = tokens.get(token);
+        const username = tokensMemory.get(token);
         if (!username) return sendJson(res, 401, { error: "Not logged in" });
         const db = loadProfiles();
         const user = db.users[username];
