@@ -3,8 +3,52 @@ const https = require("https");
 const { URL } = require("url");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 
 const DEFAULT_PORT = process.env.PORT || 8787;
+const PROFILE_FILE = path.join(__dirname, "profiles.json");
+const tokens = new Map();
+
+function loadProfiles() {
+  try {
+    return JSON.parse(fs.readFileSync(PROFILE_FILE, "utf8"));
+  } catch {
+    return { users: {} };
+  }
+}
+
+function saveProfiles(db) {
+  fs.writeFileSync(PROFILE_FILE, JSON.stringify(db, null, 2), "utf8");
+}
+
+function hashPass(password, salt) {
+  return crypto.pbkdf2Sync(password, salt, 120000, 32, "sha256").toString("hex");
+}
+
+function makeToken() {
+  return crypto.randomBytes(24).toString("hex");
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (c) => {
+      data += c;
+      if (data.length > 2e6) {
+        reject(new Error("body too large"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => {
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch (e) {
+        reject(new Error("invalid json"));
+      }
+    });
+    req.on("error", reject);
+  });
+}
 
 const PIPED_INSTANCES = [
   "https://pipedapi.kavin.rocks",
@@ -77,8 +121,8 @@ function sendJson(res, status, obj) {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Content-Length": Buffer.byteLength(body),
   });
   res.end(body);
@@ -89,8 +133,8 @@ function createHandler() {
     if (req.method === "OPTIONS") {
       res.writeHead(204, {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
       });
       res.end();
       return;
@@ -98,9 +142,66 @@ function createHandler() {
     const u = new URL(req.url, "http://127.0.0.1");
     try {
       if (u.pathname === "/api/health") {
-        sendJson(res, 200, { ok: true, service: "Momento Music" });
+        sendJson(res, 200, { ok: true, service: "Momento Music", auth: true });
         return;
       }
+
+      if (u.pathname === "/api/auth/signup" && req.method === "POST") {
+        const body = await readBody(req);
+        const username = String(body.username || "").trim().toLowerCase();
+        const password = String(body.password || "");
+        if (!/^[a-z0-9_]{3,24}$/.test(username)) {
+          return sendJson(res, 400, { error: "Invalid username" });
+        }
+        if (password.length < 4) return sendJson(res, 400, { error: "Password too short" });
+        const db = loadProfiles();
+        if (db.users[username]) return sendJson(res, 409, { error: "Username already taken" });
+        const salt = crypto.randomBytes(16).toString("hex");
+        db.users[username] = {
+          salt,
+          passHash: hashPass(password, salt),
+          data: null,
+          created: Date.now()
+        };
+        saveProfiles(db);
+        const token = makeToken();
+        tokens.set(token, username);
+        return sendJson(res, 200, { token, username, data: null });
+      }
+
+      if (u.pathname === "/api/auth/login" && req.method === "POST") {
+        const body = await readBody(req);
+        const username = String(body.username || "").trim().toLowerCase();
+        const password = String(body.password || "");
+        const db = loadProfiles();
+        const user = db.users[username];
+        if (!user) return sendJson(res, 401, { error: "No account found" });
+        if (hashPass(password, user.salt) !== user.passHash) {
+          return sendJson(res, 401, { error: "Wrong password" });
+        }
+        const token = makeToken();
+        tokens.set(token, username);
+        return sendJson(res, 200, { token, username, data: user.data || null });
+      }
+
+      if (u.pathname === "/api/auth/data" && (req.method === "GET" || req.method === "PUT")) {
+        const auth = String(req.headers.authorization || "");
+        const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+        const username = tokens.get(token);
+        if (!username) return sendJson(res, 401, { error: "Not logged in" });
+        const db = loadProfiles();
+        const user = db.users[username];
+        if (!user) return sendJson(res, 401, { error: "User missing" });
+        if (req.method === "GET") {
+          return sendJson(res, 200, { data: user.data || null });
+        }
+        const body = await readBody(req);
+        user.data = body.data || null;
+        user.updated = Date.now();
+        saveProfiles(db);
+        return sendJson(res, 200, { ok: true });
+      }
+
       if (u.pathname === "/api/search") {
         const rawQ = (u.searchParams.get("q") || "").trim();
         if (!rawQ) return sendJson(res, 400, { error: "Please enter a search term" });
@@ -216,15 +317,15 @@ function createHandler() {
   };
 }
 
-function startMusicServer(port = DEFAULT_PORT) {
+function startMusicServer(port = DEFAULT_PORT, host = process.env.HOST || "0.0.0.0") {
   return new Promise((resolve, reject) => {
     const server = http.createServer(createHandler());
     server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => {
+    server.listen(port, host, () => {
       const addr = server.address();
       const p = typeof addr === "object" && addr ? addr.port : port;
-      console.log("[Momento] Music service ready on http://127.0.0.1:" + p);
-      resolve({ server, port: p });
+      console.log("[Momento] Music service ready on http://" + host + ":" + p);
+      resolve({ server, port: p, host });
     });
   });
 }
@@ -232,9 +333,11 @@ function startMusicServer(port = DEFAULT_PORT) {
 module.exports = { startMusicServer, createHandler };
 
 if (require.main === module) {
-  startMusicServer(DEFAULT_PORT).then(({ port }) => {
+  const port = Number(process.env.PORT) || DEFAULT_PORT;
+  const host = process.env.HOST || "0.0.0.0";
+  startMusicServer(port, host).then(({ port, host }) => {
     console.log("\n🎵 Momento Music Backend");
-    console.log("   http://127.0.0.1:" + port + "\n");
+    console.log("   listening on " + host + ":" + port + "\n");
   }).catch((e) => {
     console.error(e);
     process.exit(1);

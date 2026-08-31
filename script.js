@@ -1,1060 +1,358 @@
 
 
 const BUILT_IN_PRESETS = {
-    "Student Daily Routine": {
-      "Monday": [
-        {
-          start: "07:00",
-          end: "08:00",
-          activity: "Wake up & Breakfast",
-        },
-        {
-          start: "08:00",
-          end: "15:00",
-          activity: "School / College Classes",
-           
-        },
-        {
-          start: "15:00",
-          end: "16:00",
-          activity: "Lunch & Relaxation",
-           
-        },
-        {
-          start: "16:00",
-          end: "18:00",
-          activity: "Study & Homework",
-           
-        },
-        {
-          start: "18:00",
-          end: "19:30",
-          activity: "Exercise & Outdoor Activity",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Gaming / Free Time & Read",
-           
-        }
-      ],
-      "Tuesday": [
-        {
-          start: "07:00",
-          end: "08:00",
-          activity: "Wake up & Breakfast",
-           
-        },
-        {
-          start: "08:00",
-          end: "15:00",
-          activity: "School / College Classes",
-           
-        },
-        {
-          start: "15:00",
-          end: "16:00",
-          activity: "Lunch & Relaxation",
-           
-        },
-        {
-          start: "16:00",
-          end: "18:00",
-          activity: "Study & Homework",
-           
-        },
-        {
-          start: "18:00",
-          end: "19:30",
-          activity: "Exercise & Outdoor Activity",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Gaming / Free Time & Read",
-           
-        }
-      ],
-      "Wednesday": [
-        {
-          start: "07:00",
-          end: "08:00",
-          activity: "Wake up & Breakfast",
-           
-        },
-        {
-          start: "08:00",
-          end: "15:00",
-          activity: "School / College Classes",
-           
-        },
-        {
-          start: "15:00",
-          end: "16:00",
-          activity: "Lunch & Relaxation",
-           
-        },
-        {
-          start: "16:00",
-          end: "18:00",
-          activity: "Study & Homework",
-           
-        },
-        {
-          start: "18:00",
-          end: "19:30",
-          activity: "Exercise & Outdoor Activity",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Gaming / Free Time & Read",
-           
-        }
-      ],
-      "Thursday": [
-        {
-          start: "07:00",
-          end: "08:00",
-          activity: "Wake up & Breakfast",
-           
-        },
-        {
-          start: "08:00",
-          end: "15:00",
-          activity: "School / College Classes",
-           
-        },
-        {
-          start: "15:00",
-          end: "16:00",
-          activity: "Lunch & Relaxation",
-           
-        },
-        {
-          start: "16:00",
-          end: "18:00",
-          activity: "Study & Homework",
-           
-        },
-        {
-          start: "18:00",
-          end: "19:30",
-          activity: "Exercise & Outdoor Activity",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Gaming / Free Time & Read",
-           
-        }
-      ],
-      "Friday": [
-        {
-          start: "07:00",
-          end: "08:00",
-          activity: "Wake up & Breakfast",
-           
-        },
-        {
-          start: "08:00",
-          end: "15:00",
-          activity: "School / College Classes",
-           
-        },
-        {
-          start: "15:00",
-          end: "16:00",
-          activity: "Lunch & Relaxation",
-           
-        },
-        {
-          start: "16:00",
-          end: "18:00",
-          activity: "Study & Homework",
-           
-        },
-        {
-          start: "18:00",
-          end: "19:30",
-          activity: "Exercise & Outdoor Activity",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Weekend Movie / Gaming",
-           
-        }
-      ],
-      "Saturday": [
-        {
-          start: "08:30",
-          end: "09:30",
-          activity: "Breakfast",
-           
-        },
-        {
-          start: "09:30",
-          end: "12:00",
-          activity: "Study & Revision",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:00",
-          activity: "Lunch",
-           
-        },
-        {
-          start: "13:00",
-          end: "17:00",
-          activity: "Gaming / Personal Time",
-           
-        },
-        {
-          start: "17:00",
-          end: "19:00",
-          activity: "Sports & Exercise",
-           
-        },
-        {
-          start: "19:00",
-          end: "20:30",
-          activity: "Dinner & Relax",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:30",
-          activity: "Free Time",
-           
-        }
-      ],
-      "Sunday": [
-        {
-          start: "09:00",
-          end: "10:00",
-          activity: "Late Breakfast",
-           
-        },
-        {
-          start: "10:00",
-          end: "12:30",
-          activity: "Free Time & Hobbies",
-           
-        },
-        {
-          start: "12:30",
-          end: "13:30",
-          activity: "Lunch",
-           
-        },
-        {
-          start: "13:30",
-          end: "15:30",
-          activity: "Light Study & Prep for Week",
-           
-        },
-        {
-          start: "15:30",
-          end: "18:00",
-          activity: "Relax & Wind Down",
-           
-        },
-        {
-          start: "18:00",
-          end: "19:30",
-          activity: "Exercise / Walk",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Read & Sleep Early",
-           
-        }
-      ]
+    "Study Week": {
+        Monday: [
+            { start: "06:00", end: "14:30", activity: "School (including travel)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "16:00", activity: "Relax time" },
+            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
+            { start: "17:30", end: "18:30", activity: "Play Minecraft" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Tuesday: [
+            { start: "06:00", end: "14:30", activity: "School (including travel)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "17:00", activity: "Play / relax" },
+            { start: "17:00", end: "18:30", activity: "Football class" },
+            { start: "18:30", end: "19:00", activity: "Wind down" },
+            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Wednesday: [
+            { start: "06:00", end: "14:30", activity: "School (including travel)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "17:00", activity: "Relax time / play" },
+            { start: "17:00", end: "18:00", activity: "Hindi class" },
+            { start: "18:00", end: "18:30", activity: "Wind down" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Thursday: [
+            { start: "06:00", end: "14:30", activity: "School (including travel)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "17:00", activity: "Play / relax" },
+            { start: "17:00", end: "18:30", activity: "Football class" },
+            { start: "18:30", end: "19:00", activity: "Wind down" },
+            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Friday: [
+            { start: "06:00", end: "14:30", activity: "School (including travel)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "16:00", activity: "Relax time" },
+            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
+            { start: "17:30", end: "18:30", activity: "Play Minecraft" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Saturday: [
+            { start: "06:00", end: "14:30", activity: "School (including travel)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "17:00", activity: "Relax time / play" },
+            { start: "17:00", end: "18:30", activity: "Study homework / school work" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "21:00", activity: "Go to play down, exercise" },
+            { start: "21:00", end: "21:45", activity: "Dinner" },
+            { start: "21:45", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Sunday: [
+            { start: "08:00", end: "09:30", activity: "Get ready & breakfast" },
+            { start: "09:30", end: "11:00", activity: "Class" },
+            { start: "11:00", end: "12:00", activity: "Relax, do whatever" },
+            { start: "12:00", end: "13:30", activity: "Study from school" },
+            { start: "13:30", end: "14:30", activity: "Lunch" },
+            { start: "14:30", end: "15:30", activity: "Relax, play whatever" },
+            { start: "15:30", end: "16:30", activity: "Study a bit more" },
+            { start: "16:30", end: "19:00", activity: "Do whatever" },
+            { start: "19:00", end: "20:30", activity: "Go to play down / exercise" },
+            { start: "20:30", end: "21:30", activity: "Eat dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ]
     },
-    "9-to-5 Work & Productivity": {
-      "Monday": [
-        {
-          start: "07:00",
-          end: "08:00",
-          activity: "Morning Exercise & Breakfast",
-           
-        },
-        {
-          start: "08:00",
-          end: "09:00",
-          activity: "Commute / Prep Workday",
-           
-        },
-        {
-          start: "09:00",
-          end: "12:00",
-          activity: "Deep Work / Focus Blocks",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:00",
-          activity: "Lunch Break",
-           
-        },
-        {
-          start: "13:00",
-          end: "17:00",
-          activity: "Meetings & Collaborative Work",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise & Unwind",
-           
-        },
-        {
-          start: "18:30",
-          end: "19:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "19:30",
-          end: "22:00",
-          activity: "Relax & Personal Projects",
-           
-        }
-      ],
-      "Tuesday": [
-        {
-          start: "07:00",
-          end: "08:00",
-          activity: "Morning Exercise & Breakfast",
-           
-        },
-        {
-          start: "08:00",
-          end: "09:00",
-          activity: "Commute / Prep Workday",
-           
-        },
-        {
-          start: "09:00",
-          end: "12:00",
-          activity: "Deep Work / Focus Blocks",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:00",
-          activity: "Lunch Break",
-           
-        },
-        {
-          start: "13:00",
-          end: "17:00",
-          activity: "Meetings & Collaborative Work",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise & Unwind",
-           
-        },
-        {
-          start: "18:30",
-          end: "19:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "19:30",
-          end: "22:00",
-          activity: "Relax & Personal Projects",
-           
-        }
-      ],
-      "Wednesday": [
-        {
-          start: "07:00",
-          end: "08:00",
-          activity: "Morning Exercise & Breakfast",
-           
-        },
-        {
-          start: "08:00",
-          end: "09:00",
-          activity: "Commute / Prep Workday",
-           
-        },
-        {
-          start: "09:00",
-          end: "12:00",
-          activity: "Deep Work / Focus Blocks",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:00",
-          activity: "Lunch Break",
-           
-        },
-        {
-          start: "13:00",
-          end: "17:00",
-          activity: "Meetings & Collaborative Work",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise & Unwind",
-           
-        },
-        {
-          start: "18:30",
-          end: "19:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "19:30",
-          end: "22:00",
-          activity: "Relax & Personal Projects",
-           
-        }
-      ],
-      "Thursday": [
-        {
-          start: "07:00",
-          end: "08:00",
-          activity: "Morning Exercise & Breakfast",
-           
-        },
-        {
-          start: "08:00",
-          end: "09:00",
-          activity: "Commute / Prep Workday",
-           
-        },
-        {
-          start: "09:00",
-          end: "12:00",
-          activity: "Deep Work / Focus Blocks",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:00",
-          activity: "Lunch Break",
-           
-        },
-        {
-          start: "13:00",
-          end: "17:00",
-          activity: "Meetings & Collaborative Work",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise & Unwind",
-           
-        },
-        {
-          start: "18:30",
-          end: "19:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "19:30",
-          end: "22:00",
-          activity: "Relax & Personal Projects",
-           
-        }
-      ],
-      "Friday": [
-        {
-          start: "07:00",
-          end: "08:00",
-          activity: "Morning Exercise & Breakfast",
-           
-        },
-        {
-          start: "08:00",
-          end: "09:00",
-          activity: "Commute / Prep Workday",
-           
-        },
-        {
-          start: "09:00",
-          end: "12:00",
-          activity: "Deep Work / Focus Blocks",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:00",
-          activity: "Lunch Break",
-           
-        },
-        {
-          start: "13:00",
-          end: "17:00",
-          activity: "Wrap Up Weekly Tasks",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise & Unwind",
-           
-        },
-        {
-          start: "18:30",
-          end: "20:00",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:00",
-          end: "23:00",
-          activity: "Weekend Social & Chill",
-           
-        }
-      ],
-      "Saturday": [
-        {
-          start: "08:30",
-          end: "09:30",
-          activity: "Breakfast",
-           
-        },
-        {
-          start: "09:30",
-          end: "12:30",
-          activity: "Hobbies & Side Projects",
-           
-        },
-        {
-          start: "12:30",
-          end: "13:30",
-          activity: "Lunch",
-           
-        },
-        {
-          start: "13:30",
-          end: "18:00",
-          activity: "Free Time & Outings",
-           
-        },
-        {
-          start: "18:00",
-          end: "19:30",
-          activity: "Physical Activity",
-           
-        },
-        {
-          start: "19:30",
-          end: "21:00",
-          activity: "Dinner",
-           
-        }
-      ],
-      "Sunday": [
-        {
-          start: "09:00",
-          end: "10:00",
-          activity: "Breakfast",
-           
-        },
-        {
-          start: "10:00",
-          end: "13:00",
-          activity: "Relax & Media",
-           
-        },
-        {
-          start: "13:00",
-          end: "14:00",
-          activity: "Lunch",
-           
-        },
-        {
-          start: "14:00",
-          end: "17:00",
-          activity: "Personal Errand / Planning",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise / Walk",
-           
-        },
-        {
-          start: "18:30",
-          end: "20:00",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:00",
-          end: "22:00",
-          activity: "Read & Wind Down",
-           
-        }
-      ]
+    "Holiday Week": {
+        Monday: [
+            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
+            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
+            { start: "12:00", end: "13:30", activity: "Study from school" },
+            { start: "13:30", end: "14:30", activity: "Lunch" },
+            { start: "14:30", end: "16:00", activity: "Relax, play whatever" },
+            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
+            { start: "17:30", end: "18:30", activity: "Study a bit more" },
+            { start: "18:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Tuesday: [
+            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
+            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
+            { start: "12:00", end: "13:30", activity: "Study from school" },
+            { start: "13:30", end: "14:30", activity: "Lunch" },
+            { start: "14:30", end: "17:00", activity: "Relax, play whatever" },
+            { start: "17:00", end: "18:30", activity: "Football class" },
+            { start: "18:30", end: "19:00", activity: "Wind down" },
+            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Wednesday: [
+            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
+            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
+            { start: "12:00", end: "13:30", activity: "Study from school" },
+            { start: "13:30", end: "14:30", activity: "Lunch" },
+            { start: "14:30", end: "17:00", activity: "Relax time / play" },
+            { start: "17:00", end: "18:00", activity: "Hindi class" },
+            { start: "18:00", end: "18:30", activity: "Wind down" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Thursday: [
+            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
+            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
+            { start: "12:00", end: "13:30", activity: "Study from school" },
+            { start: "13:30", end: "14:30", activity: "Lunch" },
+            { start: "14:30", end: "17:00", activity: "Relax / play" },
+            { start: "17:00", end: "18:30", activity: "Football class" },
+            { start: "18:30", end: "19:00", activity: "Wind down" },
+            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Friday: [
+            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
+            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
+            { start: "12:00", end: "13:30", activity: "Study from school" },
+            { start: "13:30", end: "14:30", activity: "Lunch" },
+            { start: "14:30", end: "16:00", activity: "Relax time" },
+            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
+            { start: "17:30", end: "18:30", activity: "Play Minecraft" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Saturday: [
+            { start: "08:00", end: "09:00", activity: "Wake up & Breakfast" },
+            { start: "09:00", end: "12:00", activity: "Gaming / Free time" },
+            { start: "12:00", end: "13:30", activity: "Study from school" },
+            { start: "13:30", end: "14:30", activity: "Lunch" },
+            { start: "14:30", end: "17:00", activity: "Relax time / play" },
+            { start: "17:00", end: "18:30", activity: "Study homework / school work" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "21:00", activity: "Go to play down, exercise" },
+            { start: "21:00", end: "21:45", activity: "Dinner" },
+            { start: "21:45", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Sunday: [
+            { start: "08:00", end: "09:30", activity: "Wake up, get ready & breakfast" },
+            { start: "09:30", end: "11:00", activity: "Class" },
+            { start: "11:00", end: "12:00", activity: "Relax, do whatever" },
+            { start: "12:00", end: "13:30", activity: "Study from school" },
+            { start: "13:30", end: "14:30", activity: "Lunch" },
+            { start: "14:30", end: "15:30", activity: "Relax, play whatever" },
+            { start: "15:30", end: "16:30", activity: "Study a bit more" },
+            { start: "16:30", end: "19:00", activity: "Do whatever" },
+            { start: "19:00", end: "20:30", activity: "Go to play down / exercise" },
+            { start: "20:30", end: "21:30", activity: "Eat dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep zzzzz" }
+        ]
     },
-    "Intensive Exam Prep": {
-      "Monday": [
-        {
-          start: "07:30",
-          end: "08:30",
-          activity: "Breakfast & Morning Prep",
-           
-        },
-        {
-          start: "08:30",
-          end: "11:30",
-          activity: "Study Block 1 (Core Subject)",
-           
-        },
-        {
-          start: "11:30",
-          end: "12:00",
-          activity: "Break / Walk",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:30",
-          activity: "Study Block 2 (Revision)",
-           
-        },
-        {
-          start: "13:30",
-          end: "14:30",
-          activity: "Lunch Break",
-           
-        },
-        {
-          start: "14:30",
-          end: "17:00",
-          activity: "Study Block 3 (Practice Tests)",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise & Outdoor Break",
-           
-        },
-        {
-          start: "18:30",
-          end: "19:30",
-          activity: "Study Block 4 (Light Review)",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Relax & Read",
-           
-        }
-      ],
-      "Tuesday": [
-        {
-          start: "07:30",
-          end: "08:30",
-          activity: "Breakfast & Morning Prep",
-           
-        },
-        {
-          start: "08:30",
-          end: "11:30",
-          activity: "Study Block 1 (Core Subject)",
-           
-        },
-        {
-          start: "11:30",
-          end: "12:00",
-          activity: "Break / Walk",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:30",
-          activity: "Study Block 2 (Revision)",
-           
-        },
-        {
-          start: "13:30",
-          end: "14:30",
-          activity: "Lunch Break",
-           
-        },
-        {
-          start: "14:30",
-          end: "17:00",
-          activity: "Study Block 3 (Practice Tests)",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise & Outdoor Break",
-           
-        },
-        {
-          start: "18:30",
-          end: "19:30",
-          activity: "Study Block 4 (Light Review)",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Relax & Read",
-           
-        }
-      ],
-      "Wednesday": [
-        {
-          start: "07:30",
-          end: "08:30",
-          activity: "Breakfast & Morning Prep",
-           
-        },
-        {
-          start: "08:30",
-          end: "11:30",
-          activity: "Study Block 1 (Core Subject)",
-           
-        },
-        {
-          start: "11:30",
-          end: "12:00",
-          activity: "Break / Walk",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:30",
-          activity: "Study Block 2 (Revision)",
-           
-        },
-        {
-          start: "13:30",
-          end: "14:30",
-          activity: "Lunch Break",
-           
-        },
-        {
-          start: "14:30",
-          end: "17:00",
-          activity: "Study Block 3 (Practice Tests)",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise & Outdoor Break",
-           
-        },
-        {
-          start: "18:30",
-          end: "19:30",
-          activity: "Study Block 4 (Light Review)",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Relax & Read",
-           
-        }
-      ],
-      "Thursday": [
-        {
-          start: "07:30",
-          end: "08:30",
-          activity: "Breakfast & Morning Prep",
-           
-        },
-        {
-          start: "08:30",
-          end: "11:30",
-          activity: "Study Block 1 (Core Subject)",
-           
-        },
-        {
-          start: "11:30",
-          end: "12:00",
-          activity: "Break / Walk",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:30",
-          activity: "Study Block 2 (Revision)",
-           
-        },
-        {
-          start: "13:30",
-          end: "14:30",
-          activity: "Lunch Break",
-           
-        },
-        {
-          start: "14:30",
-          end: "17:00",
-          activity: "Study Block 3 (Practice Tests)",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise & Outdoor Break",
-           
-        },
-        {
-          start: "18:30",
-          end: "19:30",
-          activity: "Study Block 4 (Light Review)",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Relax & Read",
-           
-        }
-      ],
-      "Friday": [
-        {
-          start: "07:30",
-          end: "08:30",
-          activity: "Breakfast & Morning Prep",
-           
-        },
-        {
-          start: "08:30",
-          end: "11:30",
-          activity: "Study Block 1 (Core Subject)",
-           
-        },
-        {
-          start: "11:30",
-          end: "12:00",
-          activity: "Break / Walk",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:30",
-          activity: "Study Block 2 (Revision)",
-           
-        },
-        {
-          start: "13:30",
-          end: "14:30",
-          activity: "Lunch Break",
-           
-        },
-        {
-          start: "14:30",
-          end: "17:00",
-          activity: "Study Block 3 (Practice Tests)",
-           
-        },
-        {
-          start: "17:00",
-          end: "18:30",
-          activity: "Exercise & Outdoor Break",
-           
-        },
-        {
-          start: "18:30",
-          end: "19:30",
-          activity: "Study Block 4 (Light Review)",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Relax & Read",
-           
-        }
-      ],
-      "Saturday": [
-        {
-          start: "08:00",
-          end: "09:00",
-          activity: "Breakfast",
-           
-        },
-        {
-          start: "09:00",
-          end: "12:00",
-          activity: "Study Mock Exam",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:00",
-          activity: "Lunch",
-           
-        },
-        {
-          start: "13:00",
-          end: "16:00",
-          activity: "Gaming / Free Time Break",
-           
-        },
-        {
-          start: "16:00",
-          end: "18:00",
-          activity: "Light Study & Review Errors",
-           
-        },
-        {
-          start: "18:00",
-          end: "19:30",
-          activity: "Exercise & Walk",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Relax",
-           
-        }
-      ],
-      "Sunday": [
-        {
-          start: "08:30",
-          end: "09:30",
-          activity: "Breakfast",
-           
-        },
-        {
-          start: "09:30",
-          end: "12:00",
-          activity: "Study Summary & Prep for Next Week",
-           
-        },
-        {
-          start: "12:00",
-          end: "13:00",
-          activity: "Lunch",
-           
-        },
-        {
-          start: "13:00",
-          end: "18:00",
-          activity: "Rest & Recovery (Do whatever)",
-           
-        },
-        {
-          start: "18:00",
-          end: "19:30",
-          activity: "Light Physical Activity / Walk",
-           
-        },
-        {
-          start: "19:30",
-          end: "20:30",
-          activity: "Dinner",
-           
-        },
-        {
-          start: "20:30",
-          end: "22:00",
-          activity: "Read & Sleep Early",
-           
-        }
-      ]
+    "Exam - School Week": {
+        Monday: [
+            { start: "06:00", end: "14:30", activity: "School (Morning)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "16:00", activity: "Relax time" },
+            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
+            { start: "17:30", end: "18:30", activity: "Study (revise school)" },
+            { start: "18:30", end: "19:30", activity: "Play Minecraft" },
+            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Tuesday: [
+            { start: "06:00", end: "14:30", activity: "School (Morning)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "17:00", activity: "Play / relax" },
+            { start: "17:00", end: "18:30", activity: "Football class" },
+            { start: "18:30", end: "19:00", activity: "Wind down" },
+            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Wednesday: [
+            { start: "06:00", end: "14:30", activity: "School (Morning)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "17:00", activity: "Relax time / play" },
+            { start: "17:00", end: "18:00", activity: "Hindi class" },
+            { start: "18:00", end: "18:30", activity: "Wind down" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Thursday: [
+            { start: "06:00", end: "14:30", activity: "School (Morning)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "17:00", activity: "Play / relax" },
+            { start: "17:00", end: "18:30", activity: "Football class" },
+            { start: "18:30", end: "19:00", activity: "Wind down" },
+            { start: "19:00", end: "20:30", activity: "Revise from school / HW" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Friday: [
+            { start: "06:00", end: "14:30", activity: "School (Morning)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "16:00", activity: "Relax time" },
+            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
+            { start: "17:30", end: "18:30", activity: "Play Minecraft" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Saturday: [
+            { start: "06:00", end: "14:30", activity: "School (Morning)" },
+            { start: "14:30", end: "15:30", activity: "Food" },
+            { start: "15:30", end: "17:00", activity: "Relax time / play" },
+            { start: "17:00", end: "18:30", activity: "Study homework / school work" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "21:00", activity: "Go to play down, exercise" },
+            { start: "21:00", end: "21:45", activity: "Dinner" },
+            { start: "21:45", end: "22:00", activity: "Read a book 🤓" }
+        ],
+        Sunday: [
+            { start: "08:00", end: "09:30", activity: "Get ready & breakfast" },
+            { start: "09:30", end: "11:00", activity: "Class" },
+            { start: "11:00", end: "12:00", activity: "Relax, do whatever" },
+            { start: "12:00", end: "13:30", activity: "Study from school" },
+            { start: "13:30", end: "14:30", activity: "Lunch" },
+            { start: "14:30", end: "15:30", activity: "Relax, play whatever" },
+            { start: "15:30", end: "16:30", activity: "Study a bit more" },
+            { start: "16:30", end: "19:00", activity: "Do whatever" },
+            { start: "19:00", end: "20:30", activity: "Go to play down / exercise" },
+            { start: "20:30", end: "21:30", activity: "Eat dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" }
+        ]
+    },
+    "Exam - No School Week": {
+        Monday: [
+            { start: "08:00", end: "10:30", activity: "Get ready & breakfast" },
+            { start: "10:30", end: "12:00", activity: "Study for exam" },
+            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
+            { start: "13:00", end: "14:30", activity: "Study for exam" },
+            { start: "14:30", end: "15:30", activity: "Lunch" },
+            { start: "15:30", end: "17:00", activity: "Gaming Time 🎮" },
+            { start: "17:00", end: "18:30", activity: "Science / Maths class" },
+            { start: "18:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Tuesday: [
+            { start: "08:00", end: "10:30", activity: "Get ready & breakfast" },
+            { start: "10:30", end: "12:00", activity: "Study for exam" },
+            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
+            { start: "13:00", end: "14:30", activity: "Study for exam" },
+            { start: "14:30", end: "15:30", activity: "Lunch" },
+            { start: "15:30", end: "17:00", activity: "Gaming Time 🎮" },
+            { start: "17:00", end: "18:30", activity: "Football class" },
+            { start: "18:30", end: "19:00", activity: "Wind down" },
+            { start: "19:00", end: "20:30", activity: "Study for exam" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Wednesday: [
+            { start: "08:00", end: "10:30", activity: "Get ready & breakfast" },
+            { start: "10:30", end: "12:00", activity: "Study for exam" },
+            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
+            { start: "13:00", end: "14:30", activity: "Study for exam" },
+            { start: "14:30", end: "15:30", activity: "Lunch" },
+            { start: "15:30", end: "17:00", activity: "Gaming Time 🎮" },
+            { start: "17:00", end: "18:00", activity: "Hindi class" },
+            { start: "18:00", end: "18:30", activity: "Wind down" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Thursday: [
+            { start: "08:00", end: "10:30", activity: "Get up, get ready & breakfast" },
+            { start: "10:30", end: "12:00", activity: "Study for exam" },
+            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
+            { start: "13:00", end: "14:30", activity: "Study for exam" },
+            { start: "14:30", end: "15:30", activity: "Lunch" },
+            { start: "15:30", end: "17:00", activity: "Gaming Time 🎮" },
+            { start: "17:00", end: "18:30", activity: "Football class" },
+            { start: "18:30", end: "19:00", activity: "Wind down" },
+            { start: "19:00", end: "20:30", activity: "Study for exam" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Friday: [
+            { start: "08:00", end: "10:30", activity: "Get ready & breakfast" },
+            { start: "10:30", end: "12:00", activity: "Study for exam" },
+            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
+            { start: "13:00", end: "14:30", activity: "Study for exam" },
+            { start: "14:30", end: "15:30", activity: "Lunch" },
+            { start: "15:30", end: "16:00", activity: "Gaming Time 🎮" },
+            { start: "16:00", end: "17:30", activity: "Science / Maths class" },
+            { start: "17:30", end: "18:30", activity: "Play Minecraft" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "20:30", activity: "Go to play down, exercise" },
+            { start: "20:30", end: "21:30", activity: "Dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Saturday: [
+            { start: "08:00", end: "10:30", activity: "Get ready & breakfast" },
+            { start: "10:30", end: "12:00", activity: "Study for exam" },
+            { start: "12:00", end: "13:00", activity: "TV Time 📺" },
+            { start: "13:00", end: "14:30", activity: "Study for exam" },
+            { start: "14:30", end: "15:30", activity: "Lunch" },
+            { start: "15:30", end: "17:00", activity: "Gaming Time 🎮" },
+            { start: "17:00", end: "18:30", activity: "Study for exam" },
+            { start: "18:30", end: "19:30", activity: "Study (revise school)" },
+            { start: "19:30", end: "21:00", activity: "Go to play down, exercise" },
+            { start: "21:00", end: "21:45", activity: "Dinner" },
+            { start: "21:45", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep ...zzz" }
+        ],
+        Sunday: [
+            { start: "08:00", end: "09:30", activity: "Get ready & breakfast" },
+            { start: "09:30", end: "11:00", activity: "Class" },
+            { start: "11:00", end: "12:00", activity: "TV Time 📺" },
+            { start: "12:00", end: "13:30", activity: "Study for exam" },
+            { start: "13:30", end: "14:30", activity: "Lunch" },
+            { start: "14:30", end: "15:30", activity: "Gaming Time 🎮" },
+            { start: "15:30", end: "16:30", activity: "Study a bit more" },
+            { start: "16:30", end: "19:00", activity: "Free time" },
+            { start: "19:00", end: "20:30", activity: "Go to play down / exercise" },
+            { start: "20:30", end: "21:30", activity: "Eat dinner" },
+            { start: "21:30", end: "22:00", activity: "Read a book 🤓" },
+            { start: "22:00", end: "23:00", activity: "Sleep zzzzz" }
+        ]
     }
 };
 
@@ -1069,6 +367,492 @@ const DAYS = [
 ];
 
 const STORAGE_KEY = "Momento_data_v5";
+const AUTH_ACCOUNTS_KEY = "Momento_accounts_v1";
+const AUTH_SESSION_KEY = "Momento_session_v1";
+let currentUser = null;
+
+function profileStorageKey(username) {
+    return "Momento_profile_" + String(username || "").toLowerCase();
+}
+
+async function hashPassword(password, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(password),
+        "PBKDF2",
+        false,
+        ["deriveBits"]
+    );
+    const bits = await crypto.subtle.deriveBits(
+        {
+            name: "PBKDF2",
+            salt: enc.encode(salt),
+            iterations: 120000,
+            hash: "SHA-256"
+        },
+        keyMaterial,
+        256
+    );
+    return Array.from(new Uint8Array(bits))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+function loadAccounts() {
+    try {
+        return JSON.parse(localStorage.getItem(AUTH_ACCOUNTS_KEY) || "{}") || {};
+    } catch {
+        return {};
+    }
+}
+
+function saveAccounts(accounts) {
+    localStorage.setItem(AUTH_ACCOUNTS_KEY, JSON.stringify(accounts));
+}
+
+function getSession() {
+    try {
+        return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
+    } catch {
+        return null;
+    }
+}
+
+function setSession(session) {
+    if (session) localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+    else localStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+let _resolvedCloudBase = null;
+
+function listCloudCandidates() {
+    const seen = new Set();
+    const out = [];
+    const add = (u) => {
+        if (!u || typeof u !== "string") return;
+        const base = u.trim().replace(/\/$/, "");
+        if (!base || seen.has(base)) return;
+        seen.add(base);
+        out.push(base);
+    };
+    add(localStorage.getItem("MOMENTO_CLOUD_API"));
+    add(typeof window !== "undefined" ? window.MOMENTO_CLOUD_API : "");
+    add(localStorage.getItem("MOMENTO_MUSIC_API"));
+    add(localStorage.getItem("MOMENTO_MUSIC_API"));
+    add("http://127.0.0.1:8787");
+    add("http://localhost:8787");
+    return out;
+}
+
+function rememberCloudBase(base) {
+    if (!base) return;
+    _resolvedCloudBase = base.replace(/\/$/, "");
+    try {
+        localStorage.setItem("MOMENTO_CLOUD_API", _resolvedCloudBase);
+    } catch (e) {}
+}
+
+function getCloudApiBase() {
+    if (_resolvedCloudBase) return _resolvedCloudBase;
+    return listCloudCandidates()[0] || "http://127.0.0.1:8787";
+}
+
+async function probeCloudBase(base) {
+    try {
+        const res = await fetch(base.replace(/\/$/, "") + "/api/health", {
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!res.ok) return false;
+        const j = await res.json().catch(() => null);
+        return !!(j && j.ok);
+    } catch {
+        return false;
+    }
+}
+
+async function resolveCloudApiBase() {
+    if (_resolvedCloudBase) {
+        if (await probeCloudBase(_resolvedCloudBase)) return _resolvedCloudBase;
+        _resolvedCloudBase = null;
+    }
+    const candidates = listCloudCandidates();
+    for (const base of candidates) {
+        if (await probeCloudBase(base)) {
+            rememberCloudBase(base);
+            return base;
+        }
+    }
+    return candidates[0] || "http://127.0.0.1:8787";
+}
+
+async function cloudRequest(path, opts) {
+    const base = (await resolveCloudApiBase()).replace(/\/$/, "");
+    const res = await fetch(base + path, {
+        ...opts,
+        headers: {
+            "Content-Type": "application/json",
+            ...(opts && opts.headers)
+        },
+        signal: AbortSignal.timeout(10000)
+    });
+    let body = null;
+    try {
+        body = await res.json();
+    } catch {
+        body = null;
+    }
+    if (!res.ok) {
+        const err = new Error((body && body.error) || "Request failed");
+        err.status = res.status;
+        throw err;
+    }
+    rememberCloudBase(base);
+    return body;
+}
+
+async function tryCloudSignup(username, password) {
+    try {
+        await resolveCloudApiBase();
+        return await cloudRequest("/api/auth/signup", {
+            method: "POST",
+            body: JSON.stringify({ username, password })
+        });
+    } catch (e) {
+        if (e.status === 404 || e.status === 409 || e.name === "TimeoutError" || e.message === "Failed to fetch") {
+            if (e.status === 409) throw e;
+            return null;
+        }
+        throw e;
+    }
+}
+
+async function tryCloudLogin(username, password) {
+    try {
+        await resolveCloudApiBase();
+        return await cloudRequest("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ username, password })
+        });
+    } catch (e) {
+        if (e.status === 401) throw e;
+        if (e.status === 404 || e.name === "TimeoutError" || e.message === "Failed to fetch") return null;
+        throw e;
+    }
+}
+
+async function tryCloudPull(token) {
+    try {
+        return await cloudRequest("/api/auth/data", {
+            method: "GET",
+            headers: { Authorization: "Bearer " + token }
+        });
+    } catch {
+        return null;
+    }
+}
+
+async function tryCloudPush(token, payload) {
+    try {
+        await cloudRequest("/api/auth/data", {
+            method: "PUT",
+            headers: { Authorization: "Bearer " + token },
+            body: JSON.stringify({ data: payload })
+        });
+    } catch {
+        /* offline / no server */
+    }
+}
+
+function showAuthScreen() {
+    const el = document.getElementById("auth-screen");
+    if (el) el.classList.remove("hidden");
+    document.body.classList.add("auth-locked");
+}
+
+function hideAuthScreen() {
+    const el = document.getElementById("auth-screen");
+    if (el) el.classList.add("hidden");
+    document.body.classList.remove("auth-locked");
+}
+
+function setAuthError(msg) {
+    const err = document.getElementById("auth-error");
+    if (!err) return;
+    if (msg) {
+        err.textContent = msg;
+        err.classList.remove("hidden");
+    } else {
+        err.textContent = "";
+        err.classList.add("hidden");
+    }
+}
+
+function initAuthUI() {
+    const form = document.getElementById("auth-form");
+    const tabLogin = document.getElementById("auth-tab-login");
+    const tabSignup = document.getElementById("auth-tab-signup");
+    let mode = "login";
+
+    const setMode = (m) => {
+        mode = m;
+        if (tabLogin) tabLogin.classList.toggle("active", m === "login");
+        if (tabSignup) tabSignup.classList.toggle("active", m === "signup");
+        const submit = document.getElementById("auth-submit");
+        if (submit) submit.textContent = m === "login" ? "Log in" : "Create account";
+        const sub = document.getElementById("auth-sub");
+        if (sub) {
+            sub.textContent =
+                m === "login"
+                    ? "Sign in to load your week & presets"
+                    : "Create a profile — works offline, syncs when cloud is on";
+        }
+        setAuthError("");
+    };
+
+    if (tabLogin) tabLogin.addEventListener("click", () => setMode("login"));
+    if (tabSignup) tabSignup.addEventListener("click", () => setMode("signup"));
+
+    if (form) {
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const username = (document.getElementById("auth-username").value || "").trim();
+            const password = document.getElementById("auth-password").value || "";
+            const submit = document.getElementById("auth-submit");
+            if (username.length < 3) {
+                setAuthError("Username must be at least 3 characters");
+                return;
+            }
+            if (password.length < 4) {
+                setAuthError("Password must be at least 4 characters");
+                return;
+            }
+            if (submit) submit.disabled = true;
+            setAuthError("");
+            try {
+                if (mode === "signup") await authSignup(username, password);
+                else await authLogin(username, password);
+            } catch (err) {
+                setAuthError(err.message || "Something went wrong");
+            } finally {
+                if (submit) submit.disabled = false;
+            }
+        });
+    }
+}
+
+async function authSignup(username, password) {
+    const key = username.toLowerCase();
+    if (!/^[a-z0-9_]{3,24}$/i.test(username)) {
+        throw new Error("Use letters, numbers, underscore only (3–24 chars)");
+    }
+
+    const cloud = await tryCloudSignup(username, password);
+    if (cloud && cloud.token) {
+        setSession({ username: key, token: cloud.token, cloud: true });
+        currentUser = key;
+        if (cloud.data) applyProfileData(cloud.data);
+        else {
+            migrateLegacyDataIfAny(key);
+            loadData();
+        }
+        finishAuth();
+        showToast("Account created · cloud sync on", "info");
+        return;
+    }
+
+    const accounts = loadAccounts();
+    if (accounts[key]) throw new Error("Username already taken on this device");
+    const salt = crypto.getRandomValues(new Uint8Array(16)).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "");
+    const passHash = await hashPassword(password, salt);
+    accounts[key] = { salt, passHash, created: Date.now() };
+    saveAccounts(accounts);
+    setSession({ username: key, token: null, cloud: false });
+    currentUser = key;
+    migrateLegacyDataIfAny(key);
+    loadData();
+    finishAuth();
+    showToast("Account created on this device", "info");
+}
+
+async function authLogin(username, password) {
+    const key = username.toLowerCase();
+
+    const cloud = await tryCloudLogin(username, password);
+    if (cloud && cloud.token) {
+        setSession({ username: key, token: cloud.token, cloud: true });
+        currentUser = key;
+        if (cloud.data) applyProfileData(cloud.data);
+        else loadData();
+        finishAuth();
+        showToast("Logged in · cloud sync on", "info");
+        return;
+    }
+
+    const accounts = loadAccounts();
+    const acc = accounts[key];
+    if (!acc) throw new Error("No account found — try Sign up, or enable cloud sync");
+    const passHash = await hashPassword(password, acc.salt);
+    if (passHash !== acc.passHash) throw new Error("Wrong password");
+    setSession({ username: key, token: null, cloud: false });
+    currentUser = key;
+    loadData();
+    finishAuth();
+    showToast("Welcome back, " + key, "info");
+}
+
+function migrateLegacyDataIfAny(username) {
+    try {
+        const legacy = localStorage.getItem(STORAGE_KEY);
+        const profileKey = profileStorageKey(username);
+        if (legacy && !localStorage.getItem(profileKey)) {
+            localStorage.setItem(profileKey, legacy);
+        }
+    } catch (e) {}
+}
+
+function applyProfileData(parsed) {
+    if (!parsed || typeof parsed !== "object") return;
+    data.schedules = parsed.schedules || {};
+    data.notes = parsed.notes || {};
+    data.presets = parsed.presets || {};
+    data.currentDay = getTodayIndex();
+    data.appliedRoutine = parsed.appliedRoutine || "Custom";
+    data.lastResetWeek = parsed.lastResetWeek || getWeekIdentifier();
+    data.notificationsEnabled = !!parsed.notificationsEnabled;
+    data.theme = parsed.theme || data.theme;
+    data.xp = parsed.xp || 0;
+    data.streak = parsed.streak || 0;
+    data.lastCompletedDate = parsed.lastCompletedDate || null;
+    data.totalTasksCompleted = parsed.totalTasksCompleted || 0;
+    data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
+    data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
+    data.themeId = parsed.themeId || "purple";
+    data.preferredChime = parsed.preferredChime || "default";
+    Object.entries(BUILT_IN_PRESETS).forEach(([name, preset]) => {
+        if (!data.presets[name]) data.presets[name] = convertPreset(preset);
+    });
+    ensureDays();
+    saveData();
+}
+
+function finishAuth() {
+    hideAuthScreen();
+    const chip = document.getElementById("profile-chip");
+    if (chip) {
+        chip.classList.remove("hidden");
+        chip.textContent = "👤 " + (currentUser || "");
+    }
+    try {
+        checkAutoWeeklyReset();
+        ensureDays();
+        applySavedTheme();
+        buildDayTabs();
+        populatePresetMenus();
+        renderPresetsManager();
+        renderCurrentDay();
+        updateClock();
+        updateXPDisplay();
+        renderThemeSwatches();
+        renderChimeSwatches();
+        updateFeatureLocks();
+        if (typeof initLocalLibrary === "function") initLocalLibrary();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function logout() {
+    setSession(null);
+    currentUser = null;
+    data = {
+        schedules: {},
+        notes: {},
+        presets: {},
+        currentDay: getTodayIndex(),
+        appliedRoutine: "Custom",
+        lastResetWeek: getWeekIdentifier(),
+        notificationsEnabled: true,
+        theme: { color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108, 92, 231, 0.25)" },
+        xp: 0,
+        streak: 0,
+        lastCompletedDate: null,
+        totalTasksCompleted: 0,
+        todos: [],
+        rewardsUnlocked: [],
+        preferredChime: "default"
+    };
+    const chip = document.getElementById("profile-chip");
+    if (chip) chip.classList.add("hidden");
+    showAuthScreen();
+    document.getElementById("auth-password").value = "";
+    showToast("Logged out", "info");
+}
+
+function openProfileMenu() {
+    const existing = document.getElementById("profile-menu");
+    if (existing) {
+        existing.remove();
+        return;
+    }
+    const chip = document.getElementById("profile-chip");
+    if (!chip) return;
+    const menu = document.createElement("div");
+    menu.id = "profile-menu";
+    menu.className = "profile-menu";
+    const rect = chip.getBoundingClientRect();
+    menu.style.top = rect.bottom + 8 + "px";
+    menu.style.left = Math.max(8, rect.left) + "px";
+    const session = getSession();
+    menu.innerHTML = `
+        <button type="button" data-act="user">Signed in as <strong>${currentUser || "?"}</strong></button>
+        <button type="button" data-act="cloud">${session && session.cloud ? "☁ Cloud sync: on" : "☁ Cloud: this device only"}</button>
+        <button type="button" data-act="logout">Log out</button>
+    `;
+    menu.addEventListener("click", (e) => {
+        const act = e.target.closest("[data-act]")?.dataset.act;
+        if (act === "logout") {
+            menu.remove();
+            logout();
+        } else if (act === "cloud") {
+            showToast(
+                session && session.cloud
+                    ? "Your data syncs through the Momento server"
+                    : "Running offline on this device. Deploy the music-server with auth for multi-device sync.",
+                "info"
+            );
+        }
+    });
+    document.body.appendChild(menu);
+    setTimeout(() => {
+        const closer = (ev) => {
+            if (!menu.contains(ev.target) && ev.target !== chip) {
+                menu.remove();
+                document.removeEventListener("click", closer);
+            }
+        };
+        document.addEventListener("click", closer);
+    }, 0);
+}
+
+async function bootstrapAuth() {
+    initAuthUI();
+    const session = getSession();
+    if (session && session.username) {
+        currentUser = session.username;
+        if (session.cloud && session.token) {
+            const remote = await tryCloudPull(session.token);
+            if (remote && remote.data) applyProfileData(remote.data);
+            else loadData();
+        } else {
+            loadData();
+        }
+        finishAuth();
+        return true;
+    }
+    showAuthScreen();
+    return false;
+}
 
 const CATEGORY_KEYWORDS = {
     "📚 Study/Work": [
@@ -1129,44 +913,29 @@ let draggedRowIndex = null;
 let scratchPresetData = {};
 let activeBuilderDay = "Monday";
 
-document.addEventListener("DOMContentLoaded", () => {
-    loadData();
-    checkAutoWeeklyReset();
-    ensureDays();
-    applySavedTheme();
-    buildDayTabs();
-    populatePresetMenus();
-    renderPresetsManager();
-    renderCurrentDay();
-    updateClock();
-    updateXPDisplay();
-    renderThemeSwatches();
-    renderChimeSwatches();
-    updateFeatureLocks();
-    if (typeof initLocalLibrary === "function") initLocalLibrary();
-
+document.addEventListener("DOMContentLoaded", async () => {
     const sidebar = document.getElementById("preset-sidebar");
     const arrow = document.getElementById("sidebar-arrow");
-
     if (sidebar && arrow) {
         sidebar.addEventListener("mouseenter", () => {
             arrow.textContent = "▶";
         });
-
         sidebar.addEventListener("mouseleave", () => {
             arrow.textContent = "◀";
         });
     }
 
     setInterval(() => {
+        if (document.body.classList.contains("auth-locked")) return;
         updateClock();
         updateActiveTask();
         updateNextTask();
     }, 1000);
 
-    // Quick open music button handler
     document.getElementById("music-quick-open")?.addEventListener("click", openMusicPage);
     document.getElementById("np-music-open")?.addEventListener("click", openMusicPage);
+
+    await bootstrapAuth();
 });
 
 function generateFilledWeek() {
@@ -1292,7 +1061,9 @@ function convertPreset(preset) {
 
 function loadData() {
     try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const key = currentUser ? profileStorageKey(currentUser) : STORAGE_KEY;
+        let saved = localStorage.getItem(key);
+        if (!saved && currentUser) saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
             const parsed = JSON.parse(saved);
             data.schedules = parsed.schedules || {};
@@ -1329,7 +1100,15 @@ function loadData() {
 
 function saveData() {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        const payload = JSON.stringify(data);
+        if (currentUser) {
+            localStorage.setItem(profileStorageKey(currentUser), payload);
+        }
+        localStorage.setItem(STORAGE_KEY, payload);
+        const session = getSession();
+        if (session && session.cloud && session.token) {
+            tryCloudPush(session.token, data);
+        }
     } catch (error) {
         console.error("Could not save Momento data:", error);
     }
@@ -1748,32 +1527,6 @@ function createTaskRow(task, index) {
     const container = document.getElementById("task-container");
     const row = document.createElement("div");
     row.className = "task-row";
-    row.draggable = true;
-
-    const dragHandle = document.createElement("span");
-    dragHandle.className = "drag-handle";
-    dragHandle.textContent = "⣿";
-
-    row.addEventListener("dragstart", () => {
-        draggedRowIndex = index;
-        row.classList.add("dragging");
-    });
-
-    row.addEventListener("dragover", e => e.preventDefault());
-
-    row.addEventListener("drop", e => {
-        e.preventDefault();
-        if (draggedRowIndex === null || draggedRowIndex === index) return;
-        const day = DAYS[data.currentDay];
-        const movedItem = data.schedules[day].splice(draggedRowIndex, 1)[0];
-        data.schedules[day].splice(index, 0, movedItem);
-        draggedRowIndex = null;
-        saveData();
-        renderTasks();
-        renderWeeklyAnalytics();
-    });
-
-    row.addEventListener("dragend", () => row.classList.remove("dragging"));
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
@@ -1838,99 +1591,26 @@ function createTaskRow(task, index) {
         enforceLocksAfterXPChange();
     });
 
-    const start = document.createElement("input");
-    start.type = "text";
-    start.className = "time-input";
-    start.placeholder = "HH:MM";
-    start.maxLength = 5;
-    start.value = task.start || "09:00";
-    start.title = "Start time (HH:MM)";
-    const commitStart = () => {
-        let v = start.value.trim();
-        if (/^\d{4}$/.test(v)) v = v.slice(0,2) + ":" + v.slice(2);
-        if (/^\d{1,2}:\d{2}$/.test(v)) {
-            const [h,m] = v.split(":").map(Number);
-            if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-                task.start = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
-                start.value = task.start;
-                saveData();
-                renderWeeklyAnalytics();
-                updateNextTask();
-                updateActiveTask();
-                return;
-            }
-        }
-        start.value = task.start || "09:00";
-    };
-    start.addEventListener("blur", commitStart);
-    start.addEventListener("keydown", e => {
-        if (e.key === "Enter") { e.preventDefault(); start.blur(); }
-    });
-    start.addEventListener("input", () => {
-        let v = start.value.replace(/[^0-9:]/g, "");
-        if (v.length === 2 && !v.includes(":") && start.dataset.prevLen !== "3") {
-            v = v + ":";
-        }
-        start.dataset.prevLen = String(v.length);
-        start.value = v.slice(0,5);
-    });
+    const start = document.createElement("span");
+    start.className = "time-display";
+    start.textContent = task.start || "09:00";
+    start.title = "Start time — edit in Block Details";
 
-    const end = document.createElement("input");
-    end.type = "text";
-    end.className = "time-input";
-    end.placeholder = "HH:MM";
-    end.maxLength = 5;
-    end.value = task.end || "10:00";
-    end.title = "End time (HH:MM)";
-    const commitEnd = () => {
-        let v = end.value.trim();
-        if (/^\d{4}$/.test(v)) v = v.slice(0,2) + ":" + v.slice(2);
-        if (/^\d{1,2}:\d{2}$/.test(v)) {
-            const [h,m] = v.split(":").map(Number);
-            if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-                task.end = String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
-                end.value = task.end;
-                saveData();
-                renderWeeklyAnalytics();
-                updateNextTask();
-                updateActiveTask();
-                return;
-            }
-        }
-        end.value = task.end || "10:00";
-    };
-    end.addEventListener("blur", commitEnd);
-    end.addEventListener("keydown", e => {
-        if (e.key === "Enter") { e.preventDefault(); end.blur(); }
-    });
-    end.addEventListener("input", () => {
-        let v = end.value.replace(/[^0-9:]/g, "");
-        if (v.length === 2 && !v.includes(":") && end.dataset.prevLen !== "3") {
-            v = v + ":";
-        }
-        end.dataset.prevLen = String(v.length);
-        end.value = v.slice(0,5);
-    });
+    const end = document.createElement("span");
+    end.className = "time-display";
+    end.textContent = task.end || "10:00";
+    end.title = "End time — edit in Block Details";
 
-    const activity = document.createElement("input");
-    activity.type = "text";
-    activity.placeholder = "What are you doing?";
-    activity.value = task.task || "";
-    activity.addEventListener("input", () => {
-        task.task = activity.value;
-        categoryBadge.textContent = detectCategory(task.task);
-        saveData();
-        renderWeeklyAnalytics();
-    });
-
-    const categoryBadge = document.createElement("span");
-    categoryBadge.className = "category-badge";
-    categoryBadge.textContent = detectCategory(task.task);
+    const activity = document.createElement("span");
+    activity.className = "task-name-display";
+    activity.textContent = task.task || "Untitled block";
+    activity.title = "Click to open Block Details";
 
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "delete-btn";
     deleteBtn.textContent = "🗑️";
-    deleteBtn.addEventListener("click", () => {
+    deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
         const day = DAYS[data.currentDay];
         data.schedules[day].splice(index, 1);
         saveData();
@@ -1941,35 +1621,10 @@ function createTaskRow(task, index) {
 
     if (!Array.isArray(task.microTasks)) task.microTasks = [];
 
-    const microToggle = document.createElement("button");
-    microToggle.type = "button";
-    microToggle.className = "micro-toggle";
-    microToggle.title = "Micro-tasks for this block";
-    microToggle.textContent = task._microOpen ? "▾" : "▸";
-    microToggle.addEventListener("click", (e) => {
-        e.stopPropagation();
-        task._microOpen = !task._microOpen;
-        microToggle.textContent = task._microOpen ? "▾" : "▸";
-        microPanel.classList.toggle("open", !!task._microOpen);
-    });
-
-    const focusBtn = document.createElement("button");
-    focusBtn.type = "button";
-    focusBtn.className = "block-focus-btn";
-    focusBtn.textContent = "🎯";
-    focusBtn.title = "Start focus timer on this block";
-    focusBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        startBlockFocus(task, index);
-    });
-
-    row.appendChild(microToggle);
-    row.appendChild(dragHandle);
     row.appendChild(checkbox);
     row.appendChild(start);
     row.appendChild(end);
     row.appendChild(activity);
-    row.appendChild(focusBtn);
     row.appendChild(deleteBtn);
 
     if (task.completed) row.classList.add("completed");
@@ -1982,6 +1637,45 @@ function createTaskRow(task, index) {
     const wrap = document.createElement("div");
     wrap.className = "task-block-wrap";
     wrap.appendChild(row);
+
+    const controlPanel = document.createElement("div");
+    controlPanel.className = "block-control-panel hidden";
+    controlPanel.innerHTML = `
+        <button type="button" class="ctrl-btn" data-action="focus">🎯 Open in Focus Mode</button>
+        <button type="button" class="ctrl-btn" data-action="micro">📝 Add Micro-Task Area</button>
+        <button type="button" class="ctrl-btn" data-action="duplicate">📋 Duplicate Block</button>
+        <button type="button" class="ctrl-btn" data-action="color">🎨 Change Color</button>
+    `;
+    controlPanel.addEventListener("click", (e) => {
+        const action = e.target.closest("[data-action]")?.dataset.action;
+        if (!action) return;
+        if (action === "focus") {
+            startBlockFocus(task, index);
+        } else if (action === "micro") {
+            task._microOpen = !task._microOpen;
+            microPanel.classList.toggle("open", !!task._microOpen);
+        } else if (action === "duplicate") {
+            const day = DAYS[data.currentDay];
+            const clone = { ...task, id: Date.now() };
+            data.schedules[day].splice(index + 1, 0, clone);
+            saveData();
+            renderTasks();
+        } else if (action === "color") {
+            const colors = ["#6c5ce7", "#00b894", "#e17055", "#0984e3", "#fdcb6e", "#e84393", "#00cec9"];
+            const current = task.color || colors[0];
+            const nextIdx = (colors.indexOf(current) + 1) % colors.length;
+            task.color = colors[nextIdx];
+            row.style.borderColor = task.color;
+            row.style.background = `${task.color}18`;
+            saveData();
+        }
+    });
+
+    row.addEventListener("click", (e) => {
+        if (e.target.type === "checkbox" || e.target.closest(".delete-btn") || e.target.closest(".ctrl-btn")) return;
+        e.stopPropagation();
+        openBlockDetail(task, index);
+    });
 
     const microPanel = document.createElement("div");
     microPanel.className = "micro-panel" + (task._microOpen ? " open" : "");
@@ -2047,6 +1741,232 @@ function createTaskRow(task, index) {
     container.appendChild(wrap);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Special block-detail overlay (cover-up screen opened from a task row)       */
+/* -------------------------------------------------------------------------- */
+let _blockDetailModal = null;
+let _blockDetailTaskRef = null;
+
+function openBlockDetail(task, index) {
+    if (!Array.isArray(task.microTasks)) task.microTasks = [];
+    _blockDetailTaskRef = { task, index, day: DAYS[data.currentDay] };
+
+    if (!_blockDetailModal) {
+        _blockDetailModal = document.createElement("div");
+        _blockDetailModal.id = "block-detail-modal";
+        _blockDetailModal.className = "modal-overlay hidden";
+        _blockDetailModal.innerHTML = `
+            <div class="modal-box block-detail-box">
+                <div class="modal-header">
+                    <h3>📝 Block Details</h3>
+                    <button type="button" onclick="closeBlockDetail()" class="close-btn">✕</button>
+                </div>
+                <div class="modal-body block-detail-body">
+                    <div class="block-detail-row">
+                        <label>Task</label>
+                        <input type="text" id="bd-task-name" placeholder="Block name…">
+                    </div>
+                    <div class="block-detail-times">
+                        <div class="block-detail-row">
+                            <label>Start (HH:MM)</label>
+                            <input type="text" id="bd-start" placeholder="09:00" maxlength="5" inputmode="numeric">
+                        </div>
+                        <div class="block-detail-row">
+                            <label>End (HH:MM)</label>
+                            <input type="text" id="bd-end" placeholder="10:00" maxlength="5" inputmode="numeric">
+                        </div>
+                    </div>
+                    <div class="block-detail-row">
+                        <label>Notes</label>
+                        <textarea id="bd-notes" placeholder="Extra notes for this block…" rows="3"></textarea>
+                    </div>
+                    <div class="block-detail-row bd-done-row">
+                        <label class="bd-done-label">
+                            <input type="checkbox" id="bd-completed">
+                            <span>Done (awards XP when saved)</span>
+                        </label>
+                    </div>
+                    <div class="block-detail-row">
+                        <label>Micro-tasks</label>
+                        <ul id="bd-micro-list" class="bd-micro-list"></ul>
+                        <div class="bd-micro-add">
+                            <input type="text" id="bd-micro-input" placeholder="Add a step for this block…">
+                            <button type="button" id="bd-micro-add-btn" class="btn-primary">+</button>
+                        </div>
+                    </div>
+                    <div class="block-detail-actions">
+                        <button type="button" class="ctrl-btn" id="bd-focus-btn">🎯 Open in Focus Mode</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" onclick="closeBlockDetail()" class="btn-cancel">Close</button>
+                    <button type="button" onclick="saveBlockDetail()" class="btn-save-final">✓ Save</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(_blockDetailModal);
+
+        _blockDetailModal.addEventListener("click", (e) => {
+            if (e.target === _blockDetailModal) closeBlockDetail();
+        });
+
+        document.getElementById("bd-micro-add-btn").addEventListener("click", () => {
+            const input = document.getElementById("bd-micro-input");
+            const text = (input && input.value || "").trim();
+            if (!text || !_blockDetailTaskRef) return;
+            const t = _blockDetailTaskRef.task;
+            if (!Array.isArray(t.microTasks)) t.microTasks = [];
+            t.microTasks.push({ text, done: false });
+            input.value = "";
+            renderBlockDetailMicros();
+        });
+        document.getElementById("bd-micro-input").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                document.getElementById("bd-micro-add-btn").click();
+            }
+        });
+        document.getElementById("bd-focus-btn").addEventListener("click", () => {
+            const ref = _blockDetailTaskRef;
+            if (!ref) return;
+            closeBlockDetail();
+            startBlockFocus(ref.task, ref.index);
+        });
+    }
+
+    document.getElementById("bd-task-name").value = task.task || "";
+    document.getElementById("bd-start").value = formatTime(task.start) || "";
+    document.getElementById("bd-end").value = formatTime(task.end) || "";
+    document.getElementById("bd-notes").value = task.notes || "";
+    document.getElementById("bd-completed").checked = !!task.completed;
+    renderBlockDetailMicros();
+
+    _blockDetailModal.classList.remove("hidden");
+}
+
+function renderBlockDetailMicros() {
+    const list = document.getElementById("bd-micro-list");
+    if (!list || !_blockDetailTaskRef) return;
+    const task = _blockDetailTaskRef.task;
+    if (!Array.isArray(task.microTasks)) task.microTasks = [];
+    list.innerHTML = "";
+    task.microTasks.forEach((m, mi) => {
+        const li = document.createElement("li");
+        li.className = "bd-micro-item" + (m.done ? " done" : "");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!m.done;
+        cb.addEventListener("change", () => {
+            m.done = cb.checked;
+            li.classList.toggle("done", !!m.done);
+        });
+        const span = document.createElement("span");
+        span.textContent = m.text;
+        const rm = document.createElement("button");
+        rm.type = "button";
+        rm.className = "micro-remove";
+        rm.textContent = "✕";
+        rm.addEventListener("click", () => {
+            task.microTasks.splice(mi, 1);
+            renderBlockDetailMicros();
+        });
+        li.appendChild(cb);
+        li.appendChild(span);
+        li.appendChild(rm);
+        list.appendChild(li);
+    });
+}
+
+function closeBlockDetail() {
+    if (_blockDetailModal) _blockDetailModal.classList.add("hidden");
+}
+
+function saveBlockDetail() {
+    const ref = _blockDetailTaskRef;
+    if (!ref) return;
+    const task = ref.task;
+    const wasCompleted = !!task.completed;
+    const day = ref.day;
+
+    task.task = document.getElementById("bd-task-name").value.trim() || task.task;
+    task.start = parseTime(document.getElementById("bd-start").value) || task.start;
+    task.end = parseTime(document.getElementById("bd-end").value) || task.end;
+    task.notes = document.getElementById("bd-notes").value.trim();
+    const nowDone = !!document.getElementById("bd-completed").checked;
+
+    const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay;
+    const isToday = DAYS[data.currentDay] === day && data.currentDay === todayIdx;
+
+    if (nowDone && !wasCompleted) {
+        if (!isToday) {
+            showToast("⛔ You can only mark tasks done on today's day!", "warn");
+            document.getElementById("bd-completed").checked = false;
+            return;
+        }
+        if (typeof canCompleteTaskInOrder === "function" && !canCompleteTaskInOrder(day, task)) {
+            showToast("⛔ Finish earlier tasks first — no skipping ahead!", "warn");
+            document.getElementById("bd-completed").checked = false;
+            return;
+        }
+        const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+        const startM = timeToMinutes(task.start);
+        if (startM - nowM > 60) {
+            showToast("⛔ Too early — only within 1 hour of start.", "warn");
+            document.getElementById("bd-completed").checked = false;
+            return;
+        }
+        task.completed = true;
+        if (!task.isSleep) {
+            task.xpAwarded = false;
+            task.xpAmount = 0;
+            awardXPForTask(task);
+        }
+    } else if (!nowDone && wasCompleted) {
+        task.completed = false;
+        if (!task.isSleep) {
+            if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
+            task.xpAwarded = true;
+            revokeXPForTask(task);
+        }
+    } else {
+        task.completed = nowDone;
+    }
+
+    saveData();
+    renderTasks();
+    if (typeof renderWeeklyAnalytics === "function") renderWeeklyAnalytics();
+    if (typeof renderProgressTracker === "function") renderProgressTracker();
+    if (typeof updateXPDisplay === "function") updateXPDisplay();
+    if (typeof enforceLocksAfterXPChange === "function") enforceLocksAfterXPChange();
+    closeBlockDetail();
+    if (nowDone && !wasCompleted && !task.isSleep) {
+        showToast("✓ Block done — XP awarded", "info");
+    } else {
+        showToast(nowDone ? "✓ Block saved" : "Block updated", "info");
+    }
+}
+
+/* formatTime / parseTime helpers (time-only ↔ "HH:MM") */
+function formatTime(t) {
+    if (!t) return "";
+    if (t.includes && typeof t === "string" && t.length === 5 && t[2] === ":") return t;
+    const d = new Date(t.includes("T") ? t : `1970-01-01T${t}`);
+    if (isNaN(d.getTime())) return "";
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+}
+function parseTime(v) {
+    if (!v) return null;
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(v).trim());
+    if (!m) return null;
+    const hh = parseInt(m[1], 10);
+    const mm = parseInt(m[2], 10);
+    if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+    const d = new Date(1970, 0, 1, hh, mm);
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
 function startBlockFocus(task, index) {
     if (typeof openMusicPage === "function") openMusicPage();
     if (typeof openFocusMode === "function") {
@@ -2054,13 +1974,20 @@ function startBlockFocus(task, index) {
     } else {
         _focusTaskRef = { task, index, day: DAYS[data.currentDay] };
     }
+    _focusTaskRef = { task, index, day: DAYS[data.currentDay] };
     const label = document.getElementById("music-focus-task");
-    if (label) label.textContent = task.task || "Focus block";
+    if (label) {
+        const active = typeof isTaskActive === "function" && isTaskActive(task);
+        label.textContent = (task.task || "Focus block") + (active ? " · active now (+35 XP on finish)" : " · +15 XP on finish");
+    }
+    if (typeof resetFocusTimer === "function") resetFocusTimer();
     if (!_focusIsRunning && typeof toggleFocusTimer === "function") {
-        if (_focusSecondsLeft <= 0) _focusSecondsLeft = 25 * 60;
+        _focusSecondsLeft = 25 * 60;
+        _focusIsBreak = false;
         toggleFocusTimer();
     }
-    showToast("Focus timer linked to this block", "info");
+    const active = typeof isTaskActive === "function" && isTaskActive(task);
+    showToast(active ? "Focus linked — finish session for +35 XP" : "Focus linked — finish session for +15 XP", "info");
 }
 
 function addTaskRow() {
@@ -3128,37 +3055,79 @@ function openProgressPanel() {
 function computeWeeklyReview() {
     let totalBlocks = 0;
     let completedBlocks = 0;
+    let xpFromWeek = 0;
     const perDay = {};
+    const catDone = {};
+    const catTotal = {};
+
     DAYS.forEach(day => {
         const tasks = (data.schedules[day] || []).filter(t => !t.isSleep);
         const done = tasks.filter(t => t.completed).length;
         perDay[day] = { total: tasks.length, done, pct: tasks.length ? Math.round((done / tasks.length) * 100) : 0 };
         totalBlocks += tasks.length;
         completedBlocks += done;
+        tasks.forEach(t => {
+            if (t.completed && t.xpAmount) xpFromWeek += t.xpAmount;
+            const cat = (typeof detectCategory === "function" ? detectCategory(t.task || "") : "General");
+            catTotal[cat] = (catTotal[cat] || 0) + 1;
+            if (t.completed) catDone[cat] = (catDone[cat] || 0) + 1;
+        });
     });
+
     const overallPct = totalBlocks ? Math.round((completedBlocks / totalBlocks) * 100) : 0;
     let bestDay = null;
     let bestScore = -1;
+    let worstDay = null;
+    let worstScore = Infinity;
+
     DAYS.forEach(day => {
         const d = perDay[day];
+        if (d.total === 0) return;
         const score = d.done * 1000 + d.pct;
-        if (d.total > 0 && score > bestScore) {
+        if (score > bestScore) {
             bestScore = score;
             bestDay = day;
         }
+        if (d.pct < worstScore || (d.pct === worstScore && d.done < (perDay[worstDay] && perDay[worstDay].done))) {
+            worstScore = d.pct;
+            worstDay = day;
+        }
     });
+    if (bestDay && worstDay === bestDay && overallPct === 100) worstDay = null;
+
+    let verdict = "Quiet week — schedule a few blocks and stack some wins.";
+    if (overallPct >= 90) verdict = "Mythic-tier week. You crushed it.";
+    else if (overallPct >= 70) verdict = "Strong week. Keep the streak alive.";
+    else if (overallPct >= 40) verdict = "Solid progress. Tighten the weak days and you’ll climb fast.";
+    else if (totalBlocks > 0) verdict = "Rough week — reset tomorrow and knock out the first block.";
+
+    const topCats = Object.keys(catTotal)
+        .map(c => ({
+            name: c,
+            done: catDone[c] || 0,
+            total: catTotal[c],
+            pct: Math.round(((catDone[c] || 0) / catTotal[c]) * 100)
+        }))
+        .sort((a, b) => b.done - a.done)
+        .slice(0, 4);
+
     return {
         totalBlocks,
         completedBlocks,
         overallPct,
         perDay,
         bestDay,
+        worstDay,
         bestDone: bestDay ? perDay[bestDay].done : 0,
         bestTotal: bestDay ? perDay[bestDay].total : 0,
         bestPct: bestDay ? perDay[bestDay].pct : 0,
+        worstPct: worstDay ? perDay[worstDay].pct : 0,
         xp: data.xp || 0,
+        xpFromWeek,
         streak: data.streak || 0,
-        rank: (typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0).rank : "?")
+        rank: (typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0).rank : "?"),
+        verdict,
+        topCats
     };
 }
 
@@ -3171,27 +3140,102 @@ function openWeeklyReview() {
     const dayRows = DAYS.map(day => {
         const d = r.perDay[day];
         const isBest = day === r.bestDay;
-        return `<div class="review-day-row ${isBest ? "review-best" : ""}">
-            <span class="review-day-name">${day.slice(0, 3)}${isBest ? " ⭐" : ""}</span>
+        const isWorst = day === r.worstDay;
+        return `<div class="review-day-row ${isBest ? "review-best" : ""} ${isWorst ? "review-weak" : ""}">
+            <span class="review-day-name">${day.slice(0, 3)}${isBest ? " ⭐" : ""}${isWorst ? " ·" : ""}</span>
             <div class="xp-bar-wrap small"><div class="xp-bar-fill" style="width:${d.pct}%"></div></div>
             <span class="review-day-stats">${d.done}/${d.total} · ${d.pct}%</span>
         </div>`;
     }).join("");
+
+    const catRows = (r.topCats || []).map(c =>
+        `<div class="review-cat-row">
+            <span class="review-cat-name">${c.name}</span>
+            <div class="xp-bar-wrap small"><div class="xp-bar-fill" style="width:${c.pct}%"></div></div>
+            <span class="review-day-stats">${c.done}/${c.total}</span>
+        </div>`
+    ).join("");
+
     body.innerHTML = `
+        <div class="review-verdict">${r.verdict}</div>
         <div class="review-hero">
             <div class="review-stat"><div class="review-stat-val">${r.rank}</div><div class="review-stat-label">Rank</div></div>
-            <div class="review-stat"><div class="review-stat-val">${r.xp}</div><div class="review-stat-label">XP</div></div>
+            <div class="review-stat"><div class="review-stat-val">${r.xp}</div><div class="review-stat-label">Total XP</div></div>
             <div class="review-stat"><div class="review-stat-val">${r.streak}🔥</div><div class="review-stat-label">Streak</div></div>
             <div class="review-stat"><div class="review-stat-val">${r.overallPct}%</div><div class="review-stat-label">Done</div></div>
         </div>
         <div class="review-summary">
-            <strong>${r.completedBlocks}</strong> of <strong>${r.totalBlocks}</strong> blocks completed this week
-            ${r.bestDay ? `<br>Best day: <strong>${r.bestDay}</strong> (${r.bestDone}/${r.bestTotal} · ${r.bestPct}%)` : "<br>No blocks scheduled yet."}
+            <strong>${r.completedBlocks}</strong> of <strong>${r.totalBlocks}</strong> blocks completed
+            ${r.xpFromWeek ? ` · <strong>+${r.xpFromWeek}</strong> XP from finishes` : ""}
+            ${r.bestDay ? `<br>Best: <strong>${r.bestDay}</strong> (${r.bestDone}/${r.bestTotal} · ${r.bestPct}%)` : ""}
+            ${r.worstDay ? `<br>Needs work: <strong>${r.worstDay}</strong> (${r.worstPct}%)` : ""}
         </div>
-        <h4 style="margin:14px 0 8px">By day</h4>
+        <h4 class="review-section-title">By day</h4>
         <div class="review-days">${dayRows}</div>
+        ${catRows ? `<h4 class="review-section-title">Categories</h4><div class="review-cats">${catRows}</div>` : ""}
     `;
     panel.classList.remove("hidden");
+}
+
+function exportWeekToICS() {
+    const pad = (n) => String(n).padStart(2, "0");
+    const toICSDate = (d) =>
+        d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + "T" +
+        pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + "00Z";
+
+    const today = new Date();
+    const dayIdx = (today.getDay() + 6) % 7;
+    const monday = new Date(today);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(today.getDate() - dayIdx);
+
+    const lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Momento//Schedule//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH"
+    ];
+
+    DAYS.forEach((dayName, i) => {
+        const dayDate = new Date(monday);
+        dayDate.setDate(monday.getDate() + i);
+        const tasks = (data.schedules[dayName] || []).filter(t => !t.isSleep && t.task);
+        tasks.forEach((t, ti) => {
+            const [sh, sm] = (t.start || "09:00").split(":").map(Number);
+            const [eh, em] = (t.end || "10:00").split(":").map(Number);
+            const start = new Date(dayDate);
+            start.setHours(sh || 0, sm || 0, 0, 0);
+            const end = new Date(dayDate);
+            end.setHours(eh || 0, em || 0, 0, 0);
+            if (end <= start) end.setDate(end.getDate() + 1);
+            const uid = `momento-${dayName}-${ti}-${start.getTime()}@local`;
+            const summary = (t.task || "Block").replace(/[,;\\]/g, " ");
+            const desc = (t.notes || "").replace(/[,;\\]/g, " ").replace(/\n/g, "\\n");
+            lines.push("BEGIN:VEVENT");
+            lines.push("UID:" + uid);
+            lines.push("DTSTAMP:" + toICSDate(new Date()));
+            lines.push("DTSTART:" + toICSDate(start));
+            lines.push("DTEND:" + toICSDate(end));
+            lines.push("SUMMARY:" + summary);
+            if (desc) lines.push("DESCRIPTION:" + desc);
+            if (t.completed) lines.push("STATUS:CONFIRMED");
+            lines.push("END:VEVENT");
+        });
+    });
+
+    lines.push("END:VCALENDAR");
+    const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "momento-week.ics";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        URL.revokeObjectURL(a.href);
+        a.remove();
+    }, 500);
+    showToast("📅 Week exported as .ics", "info");
 }
 
 function closeWeeklyReview() {
@@ -3269,6 +3313,7 @@ function isBlockingOverlayOpen() {
     if (check("timeline-page")) return true;
     if (check("weekly-review-panel")) return true;
     if (check("focus-modal")) return true;
+    if (check("block-detail-modal")) return true;
     if (check("theme-locked-popup")) return true;
     const side = document.getElementById("preset-sidebar") || document.getElementById("sidebar");
     if (side && side.classList.contains("open")) return true;
@@ -3597,6 +3642,8 @@ async function getAltMusicHost() {
     return _altMusicHost;
 }
 
+const MUSIC_SEARCH_TIMEOUT_MS = 30000;
+
 async function searchFreeMusic() {
     const input = document.getElementById("music-search-input");
     const status = document.getElementById("music-search-status");
@@ -3615,53 +3662,44 @@ async function searchFreeMusic() {
     list.innerHTML = "";
     _musicResults = [];
 
-
-    try {
-        const res = await fetch(MUSIC_API() + "/api/search?q=" + encodeURIComponent(q), { signal: AbortSignal.timeout(12000) });
-        if (res.ok) {
-            const data = await res.json();
-            const tracks = (data.tracks || []).map(t => ({
-                source: "youtube",
-                id: t.id,
-                title: t.title,
-                artist: t.artist || "YouTube",
-                artwork: t.artwork,
-                plays: t.views || 0,
-                preview: false
-            }));
-            if (tracks.length) {
-                _musicResults = tracks;
-                if (status) status.textContent = tracks.length + " tracks";
-                renderMusicResults(list);
-                return;
+    const searchPromise = (async () => {
+        let allTracks = [];
+        try {
+            const res = await fetch(MUSIC_API() + "/api/search?q=" + encodeURIComponent(q), { signal: AbortSignal.timeout(12000) });
+            if (res.ok) {
+                const data = await res.json();
+                const tracks = (data.tracks || []).map(t => ({
+                    source: "youtube",
+                    id: t.id,
+                    title: t.title,
+                    artist: t.artist || "YouTube",
+                    artwork: t.artwork,
+                    plays: t.views || 0,
+                    preview: false
+                }));
+                allTracks.push(...tracks);
             }
+        } catch (e) {
+            console.warn("API search failed:", e);
         }
-    } catch (e) {
-    }
 
-    try {
-        const tracks = await searchViaPiped(q);
-        if (tracks.length) {
-            _musicResults = tracks;
-            if (status) status.textContent = tracks.length + " tracks · ranked for playability";
-            renderMusicResults(list);
-            return;
+        try {
+            const tracks = await searchViaPiped(q);
+            allTracks.push(...tracks);
+        } catch (e) {
+            console.warn("Piped search failed:", e);
+            if (status) status.textContent = "Searching alternative sources…";
         }
-    } catch (e) {
-        console.warn("Piped search failed:", e);
-        if (status) status.textContent = "Searching alternative sources…";
-    }
 
-    try {
-        const host = await getAltMusicHost();
-        const res = await fetch(`${host}/v1/tracks/search?query=${encodeURIComponent(q)}&app_name=Momento&limit=25`);
-        const json = await res.json();
-        const tracks = (json.data || [])
-            .filter(t => t && t.id && t.title)
-            .sort((a, b) => (b.play_count || 0) - (a.play_count || 0))
-            .slice(0, 20);
-        if (tracks.length) {
-            _musicResults = tracks.map(t => ({
+        try {
+            const host = await getAltMusicHost();
+            const res = await fetch(`${host}/v1/tracks/search?query=${encodeURIComponent(q)}&app_name=Momento&limit=25`);
+            const json = await res.json();
+            const tracks = (json.data || [])
+                .filter(t => t && t.id && t.title)
+                .sort((a, b) => (b.play_count || 0) - (a.play_count || 0))
+                .slice(0, 20);
+            allTracks.push(...tracks.map(t => ({
                 source: "audius",
                 id: t.id,
                 title: t.title,
@@ -3669,17 +3707,35 @@ async function searchFreeMusic() {
                 artwork: t.artwork && (t.artwork["150x150"] || t.artwork["480x480"]),
                 plays: t.play_count || 0,
                 preview: false
-            }));
-            if (status) status.textContent = tracks.length + " tracks found";
+            })));
+        } catch (e) {
+            console.warn("Alternative search failed", e);
+        }
+        return allTracks;
+    })();
+
+    try {
+        const timeout = new Promise((resolve, reject) => setTimeout(() => reject(new Error("timeout")), MUSIC_SEARCH_TIMEOUT_MS));
+        const finalTracks = await Promise.race([searchPromise, timeout]);
+
+        if (finalTracks.length) {
+            _musicResults = finalTracks;
+            if (status) status.textContent = finalTracks.length + " tracks found";
             renderMusicResults(list);
-            return;
+        } else {
+            if (status) status.textContent = "No results";
+            showToast("No tracks found — try another search", "warn");
         }
     } catch (e) {
-        console.warn("Alternative search failed", e);
+        if (e.message === "timeout") {
+            if (status) status.textContent = `Search timed out! Could not find any results for ${q}`;
+            showToast(`Search timed out! Could not find any results for ${q}`, "error");
+        } else {
+            console.error("Music search failed unexpectedly:", e);
+            if (status) status.textContent = "Search failed";
+            showToast("Music search failed unexpectedly", "error");
+        }
     }
-
-    if (status) status.textContent = "No results";
-    showToast("No tracks found — try another search", "warn");
 }
 
 function renderMusicResults(listEl) {
@@ -4327,14 +4383,20 @@ function toggleFocusTimer() {
 }
 
 function awardFocusSessionBonus() {
-    let bonus = 15;
     const ref = _focusTaskRef;
-    if (ref && ref.task && typeof isTaskActive === "function" && isTaskActive(ref.task)) {
-        bonus = 35;
-        showToast(`Focus complete on active block +${bonus} XP`, "info");
-    } else {
-        showToast(`Focus session complete +${bonus} XP`, "info");
-    }
+    const onActive =
+        ref &&
+        ref.task &&
+        !ref.task.completed &&
+        typeof isTaskActive === "function" &&
+        isTaskActive(ref.task) &&
+        data.currentDay === getTodayIndex();
+
+    const bonus = onActive ? 35 : 15;
+    const label = onActive
+        ? (ref.task.task || "Active block")
+        : "Focus session";
+
     const before = data.xp || 0;
     data.xp = before + bonus;
     const infoBefore = getLevelInfo(before);
@@ -4342,6 +4404,11 @@ function awardFocusSessionBonus() {
     saveData();
     updateXPDisplay();
     playRewardSound("complete");
+    if (typeof showXPPopup === "function") {
+        showXPPopup(bonus, label + " (focus)", infoAfter);
+    } else {
+        showToast(`+${bonus} XP — ${label}`, "info");
+    }
     if (infoAfter.levelIndex > infoBefore.levelIndex) {
         checkAndUnlockRewards(infoAfter.levelIndex);
         showLevelUp(infoAfter.rank);

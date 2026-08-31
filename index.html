@@ -11,12 +11,37 @@
 
 <body>
 
-    
-    <button type="button" id="xp-pill" class="xp-pill xp-pill-fixed" onclick="openProgressPanel()" title="Progress & Rewards">
-        <span class="xp-pill-rank" id="xp-pill-rank">Starter I</span>
-        <span class="xp-pill-bar"><span class="xp-pill-fill" id="xp-pill-fill" style="width:0%"></span></span>
-        <span class="xp-pill-pct" id="xp-pill-pct">0 left</span>
-    </button>
+    <div id="auth-screen" class="auth-screen">
+        <div class="auth-card">
+            <div class="auth-logo">🗓️</div>
+            <h1 class="auth-title">Momento</h1>
+            <p class="auth-sub" id="auth-sub">Sign in to load your week &amp; presets</p>
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab active" data-tab="login" id="auth-tab-login">Log in</button>
+                <button type="button" class="auth-tab" data-tab="signup" id="auth-tab-signup">Sign up</button>
+            </div>
+            <form id="auth-form" class="auth-form" autocomplete="on">
+                <label class="auth-label">Username
+                    <input type="text" id="auth-username" name="username" required minlength="3" maxlength="24" placeholder="e.g. alex" autocomplete="username">
+                </label>
+                <label class="auth-label">Password
+                    <input type="password" id="auth-password" name="password" required minlength="4" maxlength="64" placeholder="••••••••" autocomplete="current-password">
+                </label>
+                <p class="auth-error hidden" id="auth-error"></p>
+                <button type="submit" class="auth-submit" id="auth-submit">Log in</button>
+            </form>
+            <p class="auth-hint" id="auth-hint">New here? Create an account — your schedule stays on this device (and in the cloud if you enable sync).</p>
+        </div>
+    </div>
+
+    <div id="top-status-bar" class="top-status-bar">
+        <button type="button" id="profile-chip" class="profile-chip hidden" onclick="openProfileMenu()" title="Account">👤</button>
+        <button type="button" id="xp-pill" class="xp-pill xp-pill-fixed" onclick="openProgressPanel()" title="Progress & Rewards">
+            <span class="xp-pill-rank" id="xp-pill-rank">Starter I</span>
+            <span class="xp-pill-bar"><span class="xp-pill-fill" id="xp-pill-fill" style="width:0%"></span></span>
+            <span class="xp-pill-pct" id="xp-pill-pct">0 left</span>
+        </button>
+    </div>
 
     
     <div class="card">
@@ -77,7 +102,7 @@
             <button type="button" class="quick-action-btn" onclick="openWeeklyReview()">
                 📊 Week Review
             </button>
-            <button type="button" class="quick-action-btn" id="music-quick-open">
+             <button type="button" class="quick-action-btn" id="music-quick-open">
                 🎵 Focus & Music
             </button>
         </div>
@@ -335,7 +360,8 @@
                 
             </div>
             <div class="modal-footer">
-                <button onclick="closeWeeklyReview()" class="btn-cancel">Close</button>
+                <button type="button" onclick="exportWeekToICS()" class="btn-info">📅 Export .ics</button>
+                <button type="button" onclick="closeWeeklyReview()" class="btn-cancel">Close</button>
             </div>
         </div>
     </div>
@@ -456,6 +482,7 @@
         </div>
     </div>
 
+    <script src="./cloud-config.js"></script>
     <script src="./script.js"></script>
     <script src="./ai-chatbot.js"></script>
 </body>
