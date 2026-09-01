@@ -55,3 +55,7 @@ it's a double-page app, poke around the main files (not inside node_modules or d
 ## license
 
 [Apache License 2.0](LICENSE)
+
+## data collection
+
+the app collects your email only and / or phone number only.
