@@ -1460,25 +1460,29 @@ function initAuthUI() {
 }
 function applyProfileData(parsed) {
     if (!parsed || typeof parsed !== "object") return;
-    data.schedules = parsed.schedules || {};
-    data.notes = parsed.notes || {};
-    data.presets = parsed.presets || {};
-    data.currentDay = getTodayIndex();
-    data.appliedRoutine = parsed.appliedRoutine || "Custom";
-    data.lastResetWeek = parsed.lastResetWeek || getWeekIdentifier();
-    data.notificationsEnabled = !!parsed.notificationsEnabled;
-    data.theme = parsed.theme || data.theme;
-    data.xp = parsed.xp || 0;
-    data.streak = parsed.streak || 0;
-    data.lastCompletedDate = parsed.lastCompletedDate || null;
-    data.totalTasksCompleted = parsed.totalTasksCompleted || 0;
-    data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
-    data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
-    data.themeId = parsed.themeId || "purple";
-    data.preferredChime = parsed.preferredChime || "default";
-    data.hiddenBuiltInPresets = Array.isArray(parsed.hiddenBuiltInPresets)
-        ? parsed.hiddenBuiltInPresets
-        : [];
+    if (typeof applyAppDataObject === "function") {
+        applyAppDataObject(parsed);
+    } else {
+        data.schedules = parsed.schedules || {};
+        data.notes = parsed.notes || {};
+        data.presets = parsed.presets || {};
+        data.currentDay = getTodayIndex();
+        data.appliedRoutine = parsed.appliedRoutine || "Custom";
+        data.lastResetWeek = parsed.lastResetWeek || getWeekIdentifier();
+        data.notificationsEnabled = !!parsed.notificationsEnabled;
+        data.theme = parsed.theme || data.theme;
+        data.xp = parsed.xp || 0;
+        data.streak = parsed.streak || 0;
+        data.lastCompletedDate = parsed.lastCompletedDate || null;
+        data.totalTasksCompleted = parsed.totalTasksCompleted || 0;
+        data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
+        data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
+        data.themeId = parsed.themeId || "purple";
+        data.preferredChime = parsed.preferredChime || "default";
+        data.hiddenBuiltInPresets = Array.isArray(parsed.hiddenBuiltInPresets)
+            ? parsed.hiddenBuiltInPresets
+            : [];
+    }
     Object.entries(BUILT_IN_PRESETS).forEach(([name, preset]) => {
         if (!data.presets[name]) data.presets[name] = convertPreset(preset);
     });
@@ -1529,12 +1533,14 @@ function finishAuth() {
 }
 
 function logout() {
-    if (isLocalProfile()) {
+    if (typeof isLocalProfile === "function" && isLocalProfile()) {
         setSession(null);
         currentUser = null;
         try {
             localStorage.removeItem(AUTH_SESSION_KEY);
         } catch (e) {}
+        // Clear in-memory data so the next account does not inherit XP/blocks
+        if (typeof resetToDefaultAppData === "function") resetToDefaultAppData();
         showAuthScreen();
         const chip = document.getElementById("profile-chip");
         if (chip) chip.classList.add("hidden");
@@ -1910,36 +1916,55 @@ function convertPreset(preset) {
     return converted;
 }
 
+function applyAppDataObject(parsed) {
+    const defaults = getDefaultAppData();
+    data.schedules = parsed.schedules || {};
+    data.notes = parsed.notes || {};
+    data.presets = parsed.presets || {};
+    data.currentDay = getTodayIndex();
+    data.appliedRoutine = parsed.appliedRoutine || "Custom";
+    data.lastResetWeek = parsed.lastResetWeek || getWeekIdentifier();
+    data.notificationsEnabled = parsed.notificationsEnabled !== undefined ? !!parsed.notificationsEnabled : true;
+    data.theme = parsed.theme || defaults.theme;
+    data.xp = parsed.xp || 0;
+    data.streak = parsed.streak || 0;
+    data.lastCompletedDate = parsed.lastCompletedDate || null;
+    data.totalTasksCompleted = parsed.totalTasksCompleted || 0;
+    data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
+    data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
+    data.themeId = parsed.themeId || "purple";
+    data.preferredChime = parsed.preferredChime || "default";
+    data.hiddenBuiltInPresets = Array.isArray(parsed.hiddenBuiltInPresets)
+        ? parsed.hiddenBuiltInPresets
+        : [];
+}
+
+function resetToDefaultAppData() {
+    applyAppDataObject(getDefaultAppData());
+}
+
 function loadData() {
     try {
-        // Use a Supabase-based key if a user is logged in, otherwise fall back to global local storage
-        const key = currentUser ? ("momento_user_data_" + currentUser) : STORAGE_KEY;
-        let saved = localStorage.getItem(key);
-        if (!saved && currentUser) saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            data.schedules = parsed.schedules || {};
-            data.notes = parsed.notes || {};
-            data.presets = parsed.presets || {};
-            data.currentDay = getTodayIndex();
-            data.appliedRoutine = parsed.appliedRoutine || "Custom";
-            data.lastResetWeek = parsed.lastResetWeek || getWeekIdentifier();
-            data.notificationsEnabled = !!parsed.notificationsEnabled;
-            data.theme = parsed.theme || data.theme;
-            data.xp = parsed.xp || 0;
-            data.streak = parsed.streak || 0;
-            data.lastCompletedDate = parsed.lastCompletedDate || null;
-            data.totalTasksCompleted = parsed.totalTasksCompleted || 0;
-            data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
-            data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
-            data.themeId = parsed.themeId || "purple";
-            data.preferredChime = parsed.preferredChime || "default";
-            data.hiddenBuiltInPresets = Array.isArray(parsed.hiddenBuiltInPresets)
-                ? parsed.hiddenBuiltInPresets
-                : [];
+        // Per-user isolation: each account has its own key. Never fall back to the
+        // shared STORAGE_KEY when logged in (that caused XP/blocks to leak across accounts).
+        if (currentUser) {
+            const key = "momento_user_data_" + currentUser;
+            const profileKey = profileStorageKey(currentUser);
+            let saved = localStorage.getItem(key) || localStorage.getItem(profileKey);
+            if (saved) {
+                applyAppDataObject(JSON.parse(saved));
+            } else {
+                // Brand-new account — start clean
+                resetToDefaultAppData();
+            }
+        } else {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) applyAppDataObject(JSON.parse(saved));
+            else resetToDefaultAppData();
         }
     } catch (error) {
         console.error("Could not load Momento data:", error);
+        resetToDefaultAppData();
     }
     try { if (typeof syncRewardsToLevel === "function") syncRewardsToLevel(); } catch (e) {}
 
@@ -1950,23 +1975,27 @@ function loadData() {
     });
 
     ensureDays();
+    // Persist the loaded/isolated state under the correct user key
     saveData();
 }
 
 async function saveData() {
     try {
         const payload = JSON.stringify(data);
-        // Always keep a local cache
-        localStorage.setItem(STORAGE_KEY, payload);
+
         if (currentUser) {
+            // Per-user keys only — never write shared STORAGE_KEY while logged in
             try {
                 localStorage.setItem("momento_user_data_" + currentUser, payload);
                 localStorage.setItem(profileStorageKey(currentUser), payload);
             } catch (e) {}
+        } else {
+            // Guest / logged-out cache
+            localStorage.setItem(STORAGE_KEY, payload);
         }
 
         // LOCAL PROFILE → write to C:\Momento\users.json via local server only (never Supabase)
-        if (isLocalProfile()) {
+        if (typeof isLocalProfile === "function" && isLocalProfile()) {
             const session = getSession();
             if (session && session.token) {
                 try {
@@ -4787,6 +4816,8 @@ async function authSignup(username, password) {
         if (res.ok && body && body.token) {
             setSession({ username: key, token: body.token, cloud: false, localFile: true });
             currentUser = key;
+            // New account: start from defaults (do not inherit previous user's in-memory data)
+            resetToDefaultAppData();
             if (body.data) applyProfileData(body.data);
             else {
                 migrateLegacyDataIfAny(key);
@@ -4814,6 +4845,8 @@ async function authSignup(username, password) {
     saveAccounts(accounts);
     setSession({ username: key, token: null, cloud: false });
     currentUser = key;
+    // New account: start from defaults (do not inherit previous user's data)
+    resetToDefaultAppData();
     migrateLegacyDataIfAny(key);
     loadData();
     finishAuth();
@@ -4839,6 +4872,8 @@ async function authLogin(username, password) {
         if (res.ok && body && body.token) {
             setSession({ username: key, token: body.token, cloud: false, localFile: true });
             currentUser = key;
+            // Switch account: clear in-memory data so previous user's XP/blocks don't leak
+            resetToDefaultAppData();
             if (body.data) applyProfileData(body.data);
             else loadData();
             finishAuth();
@@ -4872,19 +4907,17 @@ async function authLogin(username, password) {
     if (passHash !== acc.passHash) throw new Error("Wrong password");
     setSession({ username: key, token: null, cloud: false });
     currentUser = key;
+    // Switch account: clear in-memory data so previous user's XP/blocks don't leak
+    resetToDefaultAppData();
     loadData();
     finishAuth();
     showToast("Welcome back, " + key, "info");
 }
 
 function migrateLegacyDataIfAny(username) {
-    try {
-        const legacy = localStorage.getItem(STORAGE_KEY);
-        const profileKey = profileStorageKey(username);
-        if (legacy && !localStorage.getItem(profileKey)) {
-            localStorage.setItem(profileKey, legacy);
-        }
-    } catch (e) {}
+    // Disabled: copying the shared STORAGE_KEY into a new user caused XP/blocks
+    // to leak across accounts. Each account starts clean unless it already has data.
+    return;
 }
 
 function openWeeklyReview() {
