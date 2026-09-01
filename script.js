@@ -1,8 +1,250 @@
+const SUPABASE_URL = "https://zfvaylgvhgmwmlpiwjzw.supabase.co";
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmdmF5bGd2aGdtd21scGl3anp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMjA1NjAsImV4cCI6MjEwMzc5NjU2MH0.zgMhQjPedNkf4ZZlLnEY2jwAjQttYcQb5XGdYcAnXUo';
 
+let supabaseClient = null;
+
+
+// Helper function to get or safely initialize the Supabase client
+function getSupabase() {
+  if (supabaseClient) return supabaseClient;
+
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    return supabaseClient;
+  }
+
+  console.error("Supabase library not loaded yet. Check script tags in index.html.");
+  return null;
+}
+
+
+function getSupabaseOAuthRedirectUrl() {
+    // Always return to the local app origin so the session is established
+    // inside the Electron window (or browser tab) that started the flow.
+    // Must be listed under Supabase → Authentication → URL Configuration → Redirect URLs.
+    if (typeof window !== 'undefined' && window.location && window.location.origin) {
+        return window.location.origin + '/';
+    }
+    return 'http://127.0.0.1:8787/';
+}
+
+// Safely initialize Supabase when library is loaded
+function initSupabase() {
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+        console.warn('[Supabase] Library not loaded yet, retrying...');
+        setTimeout(initSupabase, 200);
+        return;
+    }
+    try {
+        const client = getSupabase();
+        if (!client) throw new Error('Failed to create Supabase client');
+        console.log('[Supabase] Client initialized successfully');
+        // Do NOT overwrite window.supabase — that is the CDN library object.
+        const btn = document.getElementById('google-signin-btn');
+        if (btn) {
+            btn.removeAttribute('disabled');
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+        }
+        setupAuthStateListener();
+    } catch (e) {
+        console.error('[Supabase] Failed to initialize:', e);
+    }
+}
+
+// Set up the auth state change listener
+function setupAuthStateListener() {
+    if (!supabaseClient) {
+        console.error('[Auth] Supabase not ready for auth listener');
+        return;
+    }
+    
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        console.log('[Auth] Auth State Change:', event, session ? 'Session present' : 'No session');
+
+        if (event === 'SIGNED_IN' && session) {
+            currentUser = session.user.id;
+            try {
+                let { data: profileData, error: fetchError } = await supabaseClient
+                    .from('profiles')
+                    .select('app_data')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (fetchError && fetchError.code === 'PGRST116') {
+                    console.log('[Auth] No existing profile found, creating one...');
+                    const defaultAppData = getDefaultAppData();
+                    const { error: insertError } = await supabaseClient
+                        .from('profiles')
+                        .insert([
+                            {
+                                id: session.user.id,
+                                email: session.user.email,
+                                app_data: defaultAppData
+                            }
+                        ]);
+
+                    if (insertError) {
+                        console.error('[Auth] Error creating new profile:', insertError.message);
+                        showToast(`Error creating profile: ${insertError.message}`, 'error');
+                    } else {
+                        console.log('[Auth] New user profile created.');
+                        applyProfileData(defaultAppData);
+                        finishAuth();
+                        hideAuthScreen();
+                        showToast(`Welcome, ${session.user.email || 'user'}! Your data is now synced.`, 'success');
+                    }
+                } else if (fetchError) {
+                    console.error('[Auth] Error fetching profile:', fetchError.message);
+                    showToast(`Error loading profile: ${fetchError.message}`, 'error');
+                } else if (profileData) {
+                    applyProfileData(profileData.app_data);
+                    console.log('[Auth] User profile loaded.');
+                    finishAuth();
+                    hideAuthScreen();
+                    showToast(`Welcome back, ${session.user.email || 'user'}!`, 'info');
+                }
+            } catch (err) {
+                console.error('[Auth] Unexpected error fetching profile:', err);
+                showToast('An unexpected error occurred while loading your data.', 'error');
+            }
+        } else if (event === 'SIGNED_IN') {
+            // handled above
+        } else if (event === 'SIGNED_OUT') {
+            // Only clear Google/Supabase state — do NOT destroy local offline accounts
+            if (isLocalProfile && typeof isLocalProfile === 'function' && isLocalProfile()) {
+                console.log('[Auth] Ignoring Supabase SIGNED_OUT — local offline session active');
+                return;
+            }
+            // If a local session exists in storage, restore it instead of forcing login
+            try {
+                const local = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null');
+                if (local && local.username && local.cloud === false) {
+                    currentUser = local.username;
+                    console.log('[Auth] Supabase signed out, keeping local session:', local.username);
+                    return;
+                }
+            } catch (e) {}
+            currentUser = null;
+            showAuthScreen();
+        } else if (!session) {
+            // INITIAL_SESSION with no Google user — leave local session alone
+            try {
+                const local = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null');
+                if (local && local.username) {
+                    console.log('[Auth] No Supabase session; local session present, not showing auth gate');
+                    return;
+                }
+            } catch (e) {}
+        }
+    });
+}
+
+// Start initialization immediately (will retry if not ready)
+initSupabase();
+
+async function supabaseSignInWithGoogle() {
+    console.log('[Auth] Google sign-in button clicked');
+
+    if (!supabaseClient) {
+        supabaseClient = getSupabase();
+    }
+    if (!supabaseClient) {
+        console.error('[Auth] Supabase not initialized');
+        console.log('[Auth] Waiting for Supabase library...');
+        showToast('Loading authentication... please wait', 'info');
+        // Wait for Supabase to load and retry
+        setTimeout(supabaseSignInWithGoogle, 500);
+        return;
+    }
+    
+    try {
+        const redirectTo = getSupabaseOAuthRedirectUrl();
+        console.log('[Auth] OAuth redirect target:', redirectTo);
+        console.log('[Auth] Attempting Google OAuth sign-in with Supabase');
+        console.log('[Auth] Supabase client:', !!supabaseClient);
+        console.log('[Auth] Supabase auth:', !!supabaseClient.auth);
+        
+        const { data, error } = await supabaseClient.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo,
+                // PKCE is preferred and works well in Electron (same-window navigation).
+                flowType: 'pkce',
+                // Keep the flow inside the current window so Electron can complete the callback.
+                skipBrowserRedirect: false,
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'select_account',
+                },
+            },
+        });
+        
+        if (error) {
+            console.error('[Auth] Google sign-in error:', error);
+            console.error('[Auth] Error details:', error.message, error.code);
+            showToast(`Google sign-in failed: ${error.message}`, 'error');
+        } else {
+            console.log('[Auth] Google sign-in initiated successfully');
+            console.log('[Auth] Response data:', data);
+        }
+    } catch (err) {
+        console.error('[Auth] Unexpected error during Google sign-in:', err);
+        console.error('[Auth] Error stack:', err.stack);
+        showToast(`Authentication error: ${err.message}`, 'error');
+    }
+}
+
+
+async function supabaseSignOut() {
+    try {
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) {
+            console.error('Error signing out:', error.message);
+            showToast(`Sign out failed: ${error.message}`, 'error');
+            return;
+        }
+        // Clear local data and trigger UI reset
+        currentUser = null;
+        
+        // Reset to a clean default data state
+        data = getDefaultAppData();
+        showAuthScreen();
+        const chip = document.getElementById("profile-chip");
+        if (chip) chip.classList.add("hidden");
+        showToast("Logged out successfully", "info");
+
+        // Hard reload to ensure a clean slate
+        location.reload();
+    } catch (err) {
+        console.error('Unexpected error during sign-out:', err);
+        showToast('An unexpected error occurred during sign-out.', 'error');
+    }
+}
+
+function getDefaultAppData() {
+    return {
+        schedules: {},
+        notes: {},
+        presets: {},
+        currentDay: getTodayIndex(),
+        appliedRoutine: "Custom",
+        lastResetWeek: getWeekIdentifier(),
+        notificationsEnabled: true,
+        theme: { color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108, 92, 231, 0.25)" },
+        xp: 0,
+        streak: 0,
+        lastCompletedDate: null,
+        totalTasksCompleted: 0,
+        todos: [],
+        rewardsUnlocked: [],
+        preferredChime: "default"
+    };
+}
 
 const BUILT_IN_PRESETS = {
     "Student Daily Routine": {
-      "Monday": [
+        "Monday": [
         {
           start: "07:00",
           end: "08:00",
@@ -1073,274 +1315,6 @@ const AUTH_ACCOUNTS_KEY = "Momento_accounts_v1";
 const AUTH_SESSION_KEY = "Momento_session_v1";
 let currentUser = null;
 
-function profileStorageKey(username) {
-    return "Momento_profile_" + String(username || "").toLowerCase();
-}
-
-async function hashPassword(password, salt) {
-    const enc = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey(
-        "raw",
-        enc.encode(password),
-        "PBKDF2",
-        false,
-        ["deriveBits"]
-    );
-    const bits = await crypto.subtle.deriveBits(
-        {
-            name: "PBKDF2",
-            salt: enc.encode(salt),
-            iterations: 120000,
-            hash: "SHA-256"
-        },
-        keyMaterial,
-        256
-    );
-    return Array.from(new Uint8Array(bits))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-}
-
-function loadAccounts() {
-    try {
-        return JSON.parse(localStorage.getItem(AUTH_ACCOUNTS_KEY) || "{}") || {};
-    } catch {
-        return {};
-    }
-}
-
-function saveAccounts(accounts) {
-    localStorage.setItem(AUTH_ACCOUNTS_KEY, JSON.stringify(accounts));
-}
-
-function getSession() {
-    try {
-        return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
-    } catch {
-        return null;
-    }
-}
-
-function setSession(session) {
-    if (session) localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
-    else localStorage.removeItem(AUTH_SESSION_KEY);
-}
-
-let _resolvedCloudBase = null;
-
-function listCloudCandidates() {
-    const seen = new Set();
-    const out = [];
-    const add = (u) => {
-        if (!u || typeof u !== "string") return;
-        const base = u.trim().replace(/\/$/, "");
-        if (!base || seen.has(base)) return;
-        seen.add(base);
-        out.push(base);
-    };
-    add(localStorage.getItem("MOMENTO_CLOUD_API"));
-    add(typeof window !== "undefined" ? window.MOMENTO_CLOUD_API : "");
-    add(localStorage.getItem("MOMENTO_MUSIC_API"));
-    add(localStorage.getItem("MOMENTO_MUSIC_API"));
-    add("http://127.0.0.1:8787");
-    add("http://localhost:8787");
-    return out;
-}
-
-function rememberCloudBase(base) {
-    if (!base) return;
-    _resolvedCloudBase = base.replace(/\/$/, "");
-    try {
-        localStorage.setItem("MOMENTO_CLOUD_API", _resolvedCloudBase);
-    } catch (e) {}
-}
-
-function getCloudApiBase() {
-    if (_resolvedCloudBase) return _resolvedCloudBase;
-    return listCloudCandidates()[0] || "http://127.0.0.1:8787";
-}
-
-async function probeCloudBase(base) {
-    try {
-        const res = await fetch(base.replace(/\/$/, "") + "/api/health", {
-            signal: AbortSignal.timeout(5000)
-        });
-        if (!res.ok) return false;
-        const j = await res.json().catch(() => null);
-        return !!(j && j.ok);
-    } catch {
-        return false;
-    }
-}
-
-async function resolveCloudApiBase() {
-    if (_resolvedCloudBase) {
-        if (await probeCloudBase(_resolvedCloudBase)) return _resolvedCloudBase;
-        _resolvedCloudBase = null;
-    }
-    const candidates = listCloudCandidates();
-    for (const base of candidates) {
-        if (await probeCloudBase(base)) {
-            rememberCloudBase(base);
-            return base;
-        }
-    }
-    return candidates[0] || "http://127.0.0.1:8787";
-}
-
-async function cloudRequest(path, opts) {
-    const base = (await resolveCloudApiBase()).replace(/\/$/, "");
-    const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
-    
-    if (isMobileVercel) {
-        console.log(`[cloudRequest] Mobile Vercel: Requesting ${base}${path}`);
-    }
-    
-    let res;
-    try {
-        res = await fetch(base + path, {
-            ...opts,
-            headers: {
-                "Content-Type": "application/json",
-                ...(opts && opts.headers)
-            },
-            signal: AbortSignal.timeout(10000)
-        });
-    } catch (e) {
-        if (isMobileVercel) {
-            console.error(`[cloudRequest] Mobile Vercel fetch error:`, e.name, e.message);
-        }
-        throw e;
-    }
-    
-    let body = null;
-    try {
-        body = await res.json();
-    } catch {
-        body = null;
-    }
-    
-    if (!res.ok) {
-        const detail = (body && (body.detail || body.error)) || `HTTP ${res.status}`;
-        if (isMobileVercel) {
-            console.error(`[cloudRequest] Mobile Vercel HTTP error: ${res.status} - ${detail}`);
-        }
-        const err = new Error(detail);
-        err.status = res.status;
-        err.body = body;
-        err.url = base + path;
-        throw err;
-    }
-    
-    rememberCloudBase(base);
-    return body;
-}
-
-async function tryCloudSignup(username, password) {
-    try {
-        const base = await resolveCloudApiBase();
-        const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
-        if (isMobileVercel) console.log("[auth] Mobile Vercel environment, cloud base:", base);
-        
-        return await cloudRequest("/api/auth/signup", {
-            method: "POST",
-            body: JSON.stringify({ username, password })
-        });
-    } catch (e) {
-        if (e.status === 409) throw new Error("Username already taken on cloud server");
-        
-        const isNetworkError = 
-            e.status === 404 ||
-            e.status === 502 ||
-            e.status === 503 ||
-            e.status >= 500 ||
-            e.name === "TimeoutError" ||
-            e.name === "AbortError" ||
-            e.message === "Failed to fetch" ||
-            e.message === "NetworkError" ||
-            e.message === "Network request failed";
-        
-        if (isNetworkError) {
-            const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
-            if (isMobileVercel) {
-                console.error("[auth:mobile] Cloud signup failed on Vercel:", e.message, "status:", e.status);
-                const detail = e.message.includes("timeout") || e.name === "TimeoutError" 
-                    ? "server not responding"
-                    : e.status ? `server error (${e.status})`
-                    : "connection failed";
-                console.log(`[auth:mobile] Cloud unavailable (${detail}), will create local account`);
-            }
-            console.warn("[auth] cloud signup unavailable, will use local:", e.message);
-            return null;
-        }
-        throw e;
-    }
-}
-
-async function tryCloudLogin(username, password) {
-    try {
-        const base = await resolveCloudApiBase();
-        const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
-        if (isMobileVercel) console.log("[auth] Mobile Vercel environment detected, cloud base:", base);
-        
-        return await cloudRequest("/api/auth/login", {
-            method: "POST",
-            body: JSON.stringify({ username, password })
-        });
-    } catch (e) {
-        if (e.status === 401) throw new Error("Wrong password or no cloud account");
-        
-        const isNetworkError = 
-            e.status === 404 ||
-            e.status === 502 ||
-            e.status === 503 ||
-            e.status >= 500 ||
-            e.name === "TimeoutError" ||
-            e.name === "AbortError" ||
-            e.message === "Failed to fetch" ||
-            e.message === "NetworkError" ||
-            e.message === "Network request failed";
-        
-        if (isNetworkError) {
-            const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
-            if (isMobileVercel) {
-                console.error("[auth:mobile] Cloud login failed on Vercel:", e.message, "status:", e.status);
-                const detail = e.message.includes("timeout") || e.name === "TimeoutError" 
-                    ? "server not responding (timeout)"
-                    : e.status ? `server error (${e.status})`
-                    : "connection failed";
-                console.log(`[auth:mobile] Will try local auth. Cloud issue: ${detail}`);
-            }
-            console.warn("[auth] cloud login unavailable, will try local:", e.message);
-            return null;
-        }
-        throw e;
-    }
-}
-
-async function tryCloudPull(token) {
-    try {
-        return await cloudRequest("/api/auth/data", {
-            method: "GET",
-            headers: { Authorization: "Bearer " + token }
-        });
-    } catch {
-        return null;
-    }
-}
-
-async function tryCloudPush(token, payload) {
-    try {
-        await cloudRequest("/api/auth/data", {
-            method: "PUT",
-            headers: { Authorization: "Bearer " + token },
-            body: JSON.stringify({ data: payload })
-        });
-    } catch {
-        /* offline / no server */
-    }
-}
-
 function showAuthScreen() {
     const el = document.getElementById("auth-screen");
     if (el) el.classList.remove("hidden");
@@ -1366,153 +1340,124 @@ function setAuthError(msg) {
 }
 
 function initAuthUI() {
-    const form = document.getElementById("auth-form");
-    const tabLogin = document.getElementById("auth-tab-login");
-    const tabSignup = document.getElementById("auth-tab-signup");
-    let mode = "login";
+    const authScreen = document.getElementById("auth-screen");
+    if (!authScreen) return;
 
-    const setMode = (m) => {
-        mode = m;
-        if (tabLogin) tabLogin.classList.toggle("active", m === "login");
-        if (tabSignup) tabSignup.classList.toggle("active", m === "signup");
-        const submit = document.getElementById("auth-submit");
-        if (submit) submit.textContent = m === "login" ? "Log in" : "Create account";
-        const sub = document.getElementById("auth-sub");
-        if (sub) {
-            sub.textContent =
-                m === "login"
-                    ? "Sign in to load your week & presets"
-                    : "Create a profile — works offline, syncs when cloud is on";
+    const authSub = document.getElementById("auth-sub");
+    if (authSub) authSub.textContent = "Sign in to securely load your data across devices";
+
+    const authCard = authScreen.querySelector(".auth-card");
+    if (!authCard) return;
+
+    // Ensure Google Sign-In button exists and ALWAYS has a click handler
+    let googleBtn = document.getElementById("google-signin-btn");
+    if (!googleBtn) {
+        googleBtn = document.createElement("button");
+        googleBtn.id = "google-signin-btn";
+        googleBtn.type = "button";
+        googleBtn.className = "auth-submit google-signin-btn";
+        googleBtn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google icon" width="18" height="18" /> Sign in with Google';
+        authCard.appendChild(googleBtn);
+    }
+
+    if (googleBtn && !googleBtn.dataset.oauthWired) {
+        googleBtn.dataset.oauthWired = "1";
+        googleBtn.type = "button";
+        googleBtn.removeAttribute("disabled");
+        googleBtn.style.cursor = "pointer";
+        const go = function (e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            console.log("[Auth] Google sign-in button clicked");
+            supabaseSignInWithGoogle();
+        };
+        googleBtn.addEventListener("click", go);
+        googleBtn.onclick = go;
+        console.log("[Auth] Google sign-in button wired");
+    }
+
+    // Local account section under Google
+    let localWrap = document.getElementById("local-auth-wrap");
+    if (!localWrap) {
+        localWrap = document.createElement("div");
+        localWrap.id = "local-auth-wrap";
+        localWrap.className = "local-auth-wrap";
+        localWrap.innerHTML =
+            '<div class="auth-or"><span>or</span></div>' +
+            '<button type="button" id="local-auth-toggle" class="auth-local-toggle">Use a local account (offline)</button>' +
+            '<form id="auth-form" class="auth-form hidden" autocomplete="on">' +
+            '  <div class="auth-tabs" id="auth-tabs">' +
+            '    <button type="button" class="auth-tab active" data-mode="login">Log in</button>' +
+            '    <button type="button" class="auth-tab" data-mode="signup">Sign up</button>' +
+            '  </div>' +
+            '  <label class="auth-label">Username' +
+            '    <input id="auth-username" type="text" name="username" autocomplete="username" placeholder="e.g. alex" minlength="3" maxlength="24" required />' +
+            '  </label>' +
+            '  <label class="auth-label">Password' +
+            '    <input id="auth-password" type="password" name="password" autocomplete="current-password" placeholder="••••••••" minlength="4" required />' +
+            '  </label>' +
+            '  <button type="submit" id="auth-local-submit" class="auth-submit auth-local-submit">Log in</button>' +
+            '  <p class="auth-hint">Saved on this PC as <code>C:\\Momento\\users.json</code> (Electron). Works offline — no Google needed.</p>' +
+            '</form>';
+        if (googleBtn && googleBtn.parentNode) {
+            googleBtn.parentNode.insertBefore(localWrap, googleBtn.nextSibling);
+        } else {
+            authCard.appendChild(localWrap);
         }
-        setAuthError("");
-    };
+    }
 
-    if (tabLogin) tabLogin.addEventListener("click", () => setMode("login"));
-    if (tabSignup) tabSignup.addEventListener("click", () => setMode("signup"));
+    let authError = document.getElementById("auth-error");
+    if (!authError) {
+        authError = document.createElement("p");
+        authError.id = "auth-error";
+        authError.className = "auth-error hidden";
+        authCard.appendChild(authError);
+    }
 
-    if (form) {
+    if (!localWrap.dataset.wired) {
+        localWrap.dataset.wired = "1";
+        let mode = "login";
+        const form = document.getElementById("auth-form");
+        const toggle = document.getElementById("local-auth-toggle");
+        const submitBtn = document.getElementById("auth-local-submit");
+        const tabs = document.getElementById("auth-tabs");
+
+        toggle.addEventListener("click", () => {
+            form.classList.toggle("hidden");
+            toggle.textContent = form.classList.contains("hidden")
+                ? "Use a local account (offline)"
+                : "Hide local account";
+        });
+
+        tabs.querySelectorAll(".auth-tab").forEach((tab) => {
+            tab.addEventListener("click", () => {
+                mode = tab.dataset.mode || "login";
+                tabs.querySelectorAll(".auth-tab").forEach((t) => t.classList.toggle("active", t === tab));
+                submitBtn.textContent = mode === "signup" ? "Create account" : "Log in";
+                const pw = document.getElementById("auth-password");
+                if (pw) pw.autocomplete = mode === "signup" ? "new-password" : "current-password";
+                setAuthError("");
+            });
+        });
+
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
+            setAuthError("");
             const username = (document.getElementById("auth-username").value || "").trim();
             const password = document.getElementById("auth-password").value || "";
-            const submit = document.getElementById("auth-submit");
-            if (username.length < 3) {
-                setAuthError("Username must be at least 3 characters");
-                return;
-            }
-            if (password.length < 4) {
-                setAuthError("Password must be at least 4 characters");
-                return;
-            }
-            if (submit) submit.disabled = true;
-            setAuthError("");
+            submitBtn.disabled = true;
             try {
                 if (mode === "signup") await authSignup(username, password);
                 else await authLogin(username, password);
             } catch (err) {
-                setAuthError(err.message || "Something went wrong");
+                console.error("[Auth] local auth error:", err);
+                setAuthError(err.message || String(err));
+                showToast(err.message || "Auth failed", "error");
             } finally {
-                if (submit) submit.disabled = false;
+                submitBtn.disabled = false;
             }
         });
     }
 }
-
-async function authSignup(username, password) {
-    const key = username.toLowerCase();
-    if (!/^[a-z0-9_]{3,24}$/i.test(username)) {
-        throw new Error("Use letters, numbers, underscore only (3–24 chars)");
-    }
-
-    const cloud = await tryCloudSignup(username, password);
-    if (cloud && cloud.token) {
-        setSession({ username: key, token: cloud.token, cloud: true });
-        currentUser = key;
-        if (cloud.data) applyProfileData(cloud.data);
-        else {
-            migrateLegacyDataIfAny(key);
-            loadData();
-        }
-        finishAuth();
-        showToast("Account created · cloud sync on", "info");
-        return;
-    }
-
-    // Cloud signup unavailable, but we can still create a local account
-    // that will be synced when the cloud backend is available
-    const accounts = loadAccounts();
-    if (accounts[key]) throw new Error("Username already taken on this device");
-    const salt = crypto.getRandomValues(new Uint8Array(16)).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "");
-    const passHash = await hashPassword(password, salt);
-    accounts[key] = { salt, passHash, created: Date.now() };
-    saveAccounts(accounts);
-    setSession({ username: key, token: null, cloud: false });
-    currentUser = key;
-    migrateLegacyDataIfAny(key);
-    loadData();
-    finishAuth();
-    
-    // Inform user that their account is local for now
-    const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
-    if (isMobileVercel) {
-        showToast("Account created on this device · will sync to cloud when available", "info");
-    } else {
-        showToast("Account created on this device", "info");
-    }
-}
-
-async function authLogin(username, password) {
-    const key = username.toLowerCase();
-
-    const cloud = await tryCloudLogin(username, password);
-    if (cloud && cloud.token) {
-        setSession({ username: key, token: cloud.token, cloud: true });
-        currentUser = key;
-        if (cloud.data) applyProfileData(cloud.data);
-        else loadData();
-        finishAuth();
-        showToast("Logged in · cloud sync on", "info");
-        return;
-    }
-
-    const accounts = loadAccounts();
-    const acc = accounts[key];
-    if (!acc) {
-        // No local account. Provide context-aware error message.
-        const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
-        if (isMobileVercel) {
-            throw new Error(
-                "Account not found\n\n" +
-                "Your account may be on our cloud server, but we're having trouble connecting right now.\n\n" +
-                "Options:\n" +
-                "1. Try creating an account now (we'll sync it when cloud is back)\n" +
-                "2. Check your internet connection\n" +
-                "3. Try again in a moment"
-            );
-        } else {
-            throw new Error("No account found — try Sign up, or enable cloud sync");
-        }
-    }
-    
-    const passHash = await hashPassword(password, acc.salt);
-    if (passHash !== acc.passHash) throw new Error("Wrong password");
-    setSession({ username: key, token: null, cloud: false });
-    currentUser = key;
-    loadData();
-    finishAuth();
-    showToast("Welcome back, " + key, "info");
-}
-
-function migrateLegacyDataIfAny(username) {
-    try {
-        const legacy = localStorage.getItem(STORAGE_KEY);
-        const profileKey = profileStorageKey(username);
-        if (legacy && !localStorage.getItem(profileKey)) {
-            localStorage.setItem(profileKey, legacy);
-        }
-    } catch (e) {}
-}
-
 function applyProfileData(parsed) {
     if (!parsed || typeof parsed !== "object") return;
     data.schedules = parsed.schedules || {};
@@ -1546,7 +1491,23 @@ function finishAuth() {
     const chip = document.getElementById("profile-chip");
     if (chip) {
         chip.classList.remove("hidden");
-        chip.textContent = "👤 " + (currentUser || "");
+        chip.onclick = openProfileMenu;
+        // Prefer local username, then Supabase email
+        const session = typeof getSession === "function" ? getSession() : null;
+        if (session && session.username) {
+            chip.textContent = "👤 " + session.username;
+        } else if (currentUser && !String(currentUser).includes("-")) {
+            chip.textContent = "👤 " + currentUser;
+        } else if (supabaseClient && supabaseClient.auth) {
+            supabaseClient.auth.getUser().then(({ data: { user } }) => {
+                const displayName = user?.email ? user.email.split("@")[0] : (currentUser || "user");
+                chip.textContent = "👤 " + displayName;
+            }).catch(() => {
+                chip.textContent = "👤 " + (currentUser || "user");
+            });
+        } else {
+            chip.textContent = "👤 " + (currentUser || "user");
+        }
     }
     try {
         checkAutoWeeklyReset();
@@ -1568,30 +1529,19 @@ function finishAuth() {
 }
 
 function logout() {
-    setSession(null);
-    currentUser = null;
-    data = {
-        schedules: {},
-        notes: {},
-        presets: {},
-        currentDay: getTodayIndex(),
-        appliedRoutine: "Custom",
-        lastResetWeek: getWeekIdentifier(),
-        notificationsEnabled: true,
-        theme: { color: "#6c5ce7", hover: "#5b4cc4", alpha: "rgba(108, 92, 231, 0.25)" },
-        xp: 0,
-        streak: 0,
-        lastCompletedDate: null,
-        totalTasksCompleted: 0,
-        todos: [],
-        rewardsUnlocked: [],
-        preferredChime: "default"
-    };
-    const chip = document.getElementById("profile-chip");
-    if (chip) chip.classList.add("hidden");
-    showAuthScreen();
-    document.getElementById("auth-password").value = "";
-    showToast("Logged out", "info");
+    if (isLocalProfile()) {
+        setSession(null);
+        currentUser = null;
+        try {
+            localStorage.removeItem(AUTH_SESSION_KEY);
+        } catch (e) {}
+        showAuthScreen();
+        const chip = document.getElementById("profile-chip");
+        if (chip) chip.classList.add("hidden");
+        showToast("Logged out (local account)", "info");
+        return;
+    }
+    supabaseSignOut();
 }
 
 function openProfileMenu() {
@@ -1602,59 +1552,155 @@ function openProfileMenu() {
     }
     const chip = document.getElementById("profile-chip");
     if (!chip) return;
-    const menu = document.createElement("div");
-    menu.id = "profile-menu";
-    menu.className = "profile-menu";
-    const rect = chip.getBoundingClientRect();
-    menu.style.top = rect.bottom + 8 + "px";
-    menu.style.left = Math.max(8, rect.left) + "px";
-    const session = getSession();
-    menu.innerHTML = `
-        <button type="button" data-act="user">Signed in as <strong>${currentUser || "?"}</strong></button>
-        <button type="button" data-act="cloud">${session && session.cloud ? "☁ Cloud sync: on" : "☁ Cloud: this device only"}</button>
-        <button type="button" data-act="logout">Log out</button>
-    `;
-    menu.addEventListener("click", (e) => {
-        const act = e.target.closest("[data-act]")?.dataset.act;
-        if (act === "logout") {
-            menu.remove();
-            logout();
-        } else if (act === "cloud") {
-            showToast(
-                session && session.cloud
-                    ? "Your data syncs through the Momento server"
-                    : "Running offline on this device. Deploy the music-server with auth for multi-device sync.",
-                "info"
-            );
-        }
-    });
-    document.body.appendChild(menu);
-    setTimeout(() => {
-        const closer = (ev) => {
-            if (!menu.contains(ev.target) && ev.target !== chip) {
+
+    function renderMenu(displayName, syncLabel, syncToast) {
+        const menu = document.createElement("div");
+        menu.id = "profile-menu";
+        menu.className = "profile-menu";
+        const rect = chip.getBoundingClientRect();
+        menu.style.top = rect.bottom + 8 + "px";
+        menu.style.left = Math.max(8, rect.left) + "px";
+        menu.innerHTML =
+            '<button type="button" data-act="user">Signed in as <strong>' + displayName + '</strong></button>' +
+            '<button type="button" data-act="cloud">' + syncLabel + '</button>' +
+            '<button type="button" data-act="logout">Log out</button>';
+        menu.addEventListener("click", (e) => {
+            const action = e.target.closest("[data-act]")?.dataset.act;
+            if (action === "logout") {
                 menu.remove();
-                document.removeEventListener("click", closer);
+                logout();
+            } else if (action === "cloud") {
+                showToast(syncToast, "info");
             }
-        };
-        document.addEventListener("click", closer);
-    }, 0);
+        });
+        document.body.appendChild(menu);
+        setTimeout(() => {
+            const closer = (ev) => {
+                if (!menu.contains(ev.target) && ev.target !== chip) {
+                    menu.remove();
+                    document.removeEventListener("click", closer);
+                }
+            };
+            document.addEventListener("click", closer);
+        }, 0);
+    }
+
+    if (isLocalProfile()) {
+        const s = getSession();
+        const name = (s && s.username) || currentUser || "local";
+        renderMenu(
+            name,
+            "💾 Sync: Local file (offline)",
+            "Your data is saved on this PC in C:\\Momento\\users.json — not the cloud."
+        );
+        return;
+    }
+
+    let userEmail = currentUser || "?";
+    if (supabaseClient && supabaseClient.auth) {
+        supabaseClient.auth.getUser().then(({ data: { user } }) => {
+            if (user && user.email) userEmail = user.email;
+            renderMenu(userEmail, "☁ Sync: Supabase (Google)", "Your data is securely synced via Supabase cloud storage.");
+        }).catch(() => {
+            renderMenu(userEmail, "☁ Sync: Supabase (Google)", "Your data is securely synced via Supabase cloud storage.");
+        });
+    } else {
+        renderMenu(userEmail, "☁ Sync: Supabase (Google)", "Your data is securely synced via Supabase cloud storage.");
+    }
 }
 
 async function bootstrapAuth() {
     initAuthUI();
-    const session = getSession();
-    if (session && session.username) {
-        currentUser = session.username;
-        if (session.cloud && session.token) {
-            const remote = await tryCloudPull(session.token);
-            if (remote && remote.data) applyProfileData(remote.data);
-            else loadData();
-        } else {
+
+    // 1) LOCAL offline session first (survives restarts; independent of Google)
+    const localSession = typeof getSession === "function" ? getSession() : null;
+    if (localSession && localSession.username && localSession.cloud === false) {
+        currentUser = localSession.username;
+        try {
+            // Prefer data from users.json when we still have a token
+            if (localSession.token) {
+                try {
+                    const base = (localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787").replace(/\/$/, "");
+                    const res = await fetch(base + "/api/auth/data", {
+                        method: "GET",
+                        headers: { Authorization: "Bearer " + localSession.token },
+                        signal: AbortSignal.timeout(3000),
+                    });
+                    if (res.ok) {
+                        const body = await res.json().catch(() => null);
+                        if (body && body.data) {
+                            applyProfileData(body.data);
+                            finishAuth();
+                            showToast("Welcome back, " + localSession.username, "info");
+                            return true;
+                        }
+                    } else if (res.status === 401) {
+                        // Token expired after server restart — keep username session, use local cache
+                        console.warn("[Bootstrap] local token expired, using cached data");
+                    }
+                } catch (e) {
+                    console.warn("[Bootstrap] local server data pull failed:", e.message || e);
+                }
+            }
             loadData();
+            finishAuth();
+            showToast("Welcome back, " + localSession.username + " (offline)", "info");
+            return true;
+        } catch (e) {
+            console.error("[Bootstrap] local session restore failed", e);
         }
-        finishAuth();
-        return true;
     }
+
+    // 2) Supabase / Google session (optional)
+    if (!supabaseClient) {
+        for (let i = 0; i < 25 && !supabaseClient; i++) {
+            await new Promise(r => setTimeout(r, 100));
+            if (!supabaseClient) getSupabase();
+        }
+    }
+    if (supabaseClient) {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                currentUser = session.user.id;
+                let { data: profileData, error: fetchError } = await supabaseClient
+                    .from("profiles")
+                    .select("app_data")
+                    .eq("id", session.user.id)
+                    .single();
+
+                if (fetchError && fetchError.code === "PGRST116") {
+                    const defaultAppData = getDefaultAppData();
+                    const { error: insertError } = await supabaseClient
+                        .from("profiles")
+                        .insert([{
+                            id: session.user.id,
+                            email: session.user.email,
+                            app_data: defaultAppData
+                        }]);
+                    if (insertError) {
+                        console.error("[Bootstrap] Error creating new profile:", insertError.message);
+                        showToast("Error creating profile: " + insertError.message, "error");
+                        showAuthScreen();
+                        return false;
+                    }
+                    applyProfileData(defaultAppData);
+                } else if (fetchError) {
+                    console.error("[Bootstrap] Error fetching profile:", fetchError.message);
+                    showToast("Error loading profile: " + fetchError.message, "error");
+                    showAuthScreen();
+                    return false;
+                } else if (profileData) {
+                    applyProfileData(profileData.app_data);
+                }
+                finishAuth();
+                return true;
+            }
+        } catch (err) {
+            console.error("[Bootstrap] Supabase session check failed:", err);
+        }
+    }
+
     showAuthScreen();
     return false;
 }
@@ -1866,7 +1912,8 @@ function convertPreset(preset) {
 
 function loadData() {
     try {
-        const key = currentUser ? profileStorageKey(currentUser) : STORAGE_KEY;
+        // Use a Supabase-based key if a user is logged in, otherwise fall back to global local storage
+        const key = currentUser ? ("momento_user_data_" + currentUser) : STORAGE_KEY;
         let saved = localStorage.getItem(key);
         if (!saved && currentUser) saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
@@ -1906,19 +1953,63 @@ function loadData() {
     saveData();
 }
 
-function saveData() {
+async function saveData() {
     try {
         const payload = JSON.stringify(data);
-        if (currentUser) {
-            localStorage.setItem(profileStorageKey(currentUser), payload);
-        }
+        // Always keep a local cache
         localStorage.setItem(STORAGE_KEY, payload);
-        const session = getSession();
-        if (session && session.cloud && session.token) {
-            tryCloudPush(session.token, data);
+        if (currentUser) {
+            try {
+                localStorage.setItem("momento_user_data_" + currentUser, payload);
+                localStorage.setItem(profileStorageKey(currentUser), payload);
+            } catch (e) {}
+        }
+
+        // LOCAL PROFILE → write to C:\Momento\users.json via local server only (never Supabase)
+        if (isLocalProfile()) {
+            const session = getSession();
+            if (session && session.token) {
+                try {
+                    const base = (localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787").replace(/\/$/, "");
+                    const res = await fetch(base + "/api/auth/data", {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + session.token,
+                        },
+                        body: JSON.stringify({ data: data }),
+                        signal: AbortSignal.timeout(4000),
+                    });
+                    if (!res.ok) {
+                        const errBody = await res.json().catch(() => ({}));
+                        console.warn("[saveData] local file sync failed:", res.status, errBody);
+                    } else {
+                        console.log("[saveData] Data saved to local users.json");
+                    }
+                } catch (e) {
+                    console.warn("[saveData] local server unreachable, kept browser storage only:", e.message || e);
+                }
+            }
+            return; // never touch Supabase for local accounts
+        }
+
+        // GOOGLE / SUPABASE PROFILE
+        if (currentUser && supabaseClient) {
+            const { error: supabaseError } = await supabaseClient
+                .from("profiles")
+                .update({ app_data: data })
+                .eq("id", currentUser);
+
+            if (supabaseError) {
+                console.error("[saveData] Supabase update error:", supabaseError.message);
+                showToast("Failed to sync to cloud: " + supabaseError.message, "error");
+                return;
+            }
+            console.log("[saveData] Data synced to Supabase successfully.");
         }
     } catch (error) {
-        console.error("Could not save Momento data:", error);
+        console.error("[saveData] Could not save Momento data:", error);
+        showToast("Failed to save data.", "error");
     }
 }
 
@@ -2287,6 +2378,7 @@ function importPresets(event) {
             Object.keys(incoming).forEach(name => {
                 if (!name || typeof incoming[name] !== "object") return;
                 if (Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name)) {
+                   
                     const alt = name + " (imported)";
                     data.presets[alt] = incoming[name];
                 } else {
@@ -2328,7 +2420,11 @@ function renderTasks() {
         return;
     }
 
-    tasks.forEach((task, index) => createTaskRow(task, index));
+    tasks.forEach((task, index) => {
+        // Auto sleep blocks stay in data for analytics but are never shown
+        if (task.isSleep) return;
+        createTaskRow(task, index);
+    });
 }
 
 function createTaskRow(task, index) {
@@ -2548,10 +2644,6 @@ function createTaskRow(task, index) {
 
     container.appendChild(wrap);
 }
-
-/* -------------------------------------------------------------------------- */
-/* Special block-detail overlay (cover-up screen opened from a task row)       */
-/* -------------------------------------------------------------------------- */
 let _blockDetailModal = null;
 let _blockDetailTaskRef = null;
 
@@ -2775,12 +2867,43 @@ function parseTime(v) {
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
+
+
+function canOpenBlockInFocus(task) {
+    if (!task || task.isSleep) return { ok: false, reason: "Sleep blocks can't be focused." };
+    const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay;
+    if (data.currentDay !== todayIdx) {
+        return { ok: false, reason: "You can only focus blocks on today's day." };
+    }
+    if (task.completed) {
+        return { ok: false, reason: "This block is already done." };
+    }
+    const day = DAYS[data.currentDay];
+    if (typeof canCompleteTaskInOrder === "function" && !canCompleteTaskInOrder(day, task)) {
+        return { ok: false, reason: "Finish earlier tasks first — no skipping ahead!" };
+    }
+    const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+    const startM = timeToMinutes(task.start);
+    const endM = timeToMinutes(task.end);
+    // Allow focus from 1h before start until the block ends (handle overnight)
+    const inWindow = (endM > startM)
+        ? (nowM >= startM - 60 && nowM < endM)
+        : (nowM >= startM - 60 || nowM < endM);
+    if (!inWindow) {
+        return { ok: false, reason: "Too early / outside this block's time — only within 1 hour of start until it ends." };
+    }
+    return { ok: true };
+}
+
 function startBlockFocus(task, index) {
+    const check = canOpenBlockInFocus(task);
+    if (!check.ok) {
+        showToast("⛔ " + check.reason, "warn");
+        return;
+    }
     if (typeof openMusicPage === "function") openMusicPage();
     if (typeof openFocusMode === "function") {
         openFocusMode(task, index);
-    } else {
-        _focusTaskRef = { task, index, day: DAYS[data.currentDay] };
     }
     _focusTaskRef = { task, index, day: DAYS[data.currentDay] };
     const label = document.getElementById("music-focus-task");
@@ -2808,29 +2931,34 @@ function addTaskRow() {
 }
 
 function ensureSleepBlock() {
+    // Auto-insert a HIDDEN sleep block from the end of the last real block
+    // to the start of the next day's first real block. Used only for sleep
+    // analytics — never shown in the UI and never awards XP.
     DAYS.forEach((day, i) => {
         const tasks = data.schedules[day];
-        if (!tasks || tasks.length === 0) return;
+        if (!tasks) return;
 
-        const withoutSleep = tasks.filter(t => !(t.isSleep));
-        data.schedules[day] = withoutSleep;
+        // Keep only non-auto-sleep tasks (user-named "Sleep" blocks stay)
+        const withoutAutoSleep = tasks.filter(t => !t.isSleep);
+        data.schedules[day] = withoutAutoSleep;
 
-        const last = withoutSleep[withoutSleep.length - 1];
-        if (!last) return;
+        if (withoutAutoSleep.length === 0) return;
 
-        const isSleepTask = t => /sleep|zzz|bed/i.test(t.task || "");
-        if (isSleepTask(last)) return;
+        const last = withoutAutoSleep[withoutAutoSleep.length - 1];
+        if (!last || !last.end) return;
 
-        const nextDay = DAYS[(i + 1) % DAYS.length];
-        const nextTasks = (data.schedules[nextDay] || []).filter(t => !t.isSleep && !/sleep|zzz|bed/i.test(t.task || ""));
-        const wakeTime = nextTasks.length > 0 ? nextTasks[0].start : "07:00";
+        const nextDay = DAYS[(i + 1) % 7];
+        const nextTasks = (data.schedules[nextDay] || []).filter(t => !t.isSleep);
+        const wakeTime = (nextTasks.length > 0 && nextTasks[0].start) ? nextTasks[0].start : "07:00";
 
+        // Always fill the overnight gap, even if the last block is named "Sleep"
         data.schedules[day].push({
             start: last.end,
             end: wakeTime,
             task: "Sleep 😴",
             completed: false,
-            isSleep: true
+            isSleep: true,
+            hidden: true
         });
     });
 }
@@ -3030,7 +3158,7 @@ function createNewPreset() {
     populatePresetMenus();
     renderPresetsManager();
     input.value = "";
-    showSavedMessage(`✓ "${name}" saved as a new preset.`);
+    alert(`Saved current schedule as "${name}"!`);
 }
 
 function deleteSelectedPreset() {
@@ -3097,7 +3225,8 @@ function isTaskActive(task) {
 
 function updateActiveTask() {
     const rows = document.querySelectorAll(".task-row");
-    const tasks = data.schedules[DAYS[data.currentDay]] || [];
+    // Rows only include non-sleep tasks (sleep is hidden)
+    const tasks = (data.schedules[DAYS[data.currentDay]] || []).filter(t => !t.isSleep);
     const isViewingToday = data.currentDay === getTodayIndex();
 
     rows.forEach((row, index) => {
@@ -3493,10 +3622,7 @@ function showXPPopup(xpGain, taskName, levelInfo) {
         }
     }
 
-    // Force a reflow to ensure the popup is in the DOM before animating
     void popup.offsetWidth;
-
-    // Trigger fade-in animation after a small delay (fixes Electron timing issue)
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             popup.style.opacity = "1";
@@ -3505,8 +3631,6 @@ function showXPPopup(xpGain, taskName, levelInfo) {
         });
     });
 
-    // Don't auto-remove - let user click WOOHOO button to dismiss
-    // Remove the auto-timeout completely so popup stays until user clicks
 }
 
 function showLevelUp(rank) {
@@ -3566,8 +3690,8 @@ function showLevelDown(oldRank, newRank) {
     const existing = document.getElementById("leveldown-card");
     if (existing) existing.remove();
     const el = document.createElement("div");
-    el.id = "leveldown-card";
     el.className = "leveldown-card";
+    el.id = "leveldown-card";
     el.innerHTML = `
         <div class="leveldown-inner">
             <div class="leveldown-emoji">😬</div>
@@ -3869,74 +3993,898 @@ function computeWeeklyReview() {
     const catTotal = {};
 
     DAYS.forEach(day => {
-        const tasks = (data.schedules[day] || []).filter(t => !t.isSleep);
+        const tasks = (data.schedules[day] || []).filter(t => t.task);
+        const total = tasks.length;
         const done = tasks.filter(t => t.completed).length;
-        perDay[day] = { total: tasks.length, done, pct: tasks.length ? Math.round((done / tasks.length) * 100) : 0 };
-        totalBlocks += tasks.length;
+        totalBlocks += total;
         completedBlocks += done;
+
         tasks.forEach(t => {
-            if (t.completed && t.xpAmount) xpFromWeek += t.xpAmount;
-            const cat = (typeof detectCategory === "function" ? detectCategory(t.task || "") : "General");
+            if (t.xpAwarded && t.xpAmount) xpFromWeek += t.xpAmount;
+            const cat = detectCategory(t.task || "");
             catTotal[cat] = (catTotal[cat] || 0) + 1;
             if (t.completed) catDone[cat] = (catDone[cat] || 0) + 1;
         });
+
+        perDay[day] = {
+            total,
+            done,
+            pct: total > 0 ? Math.round((done / total) * 100) : 0
+        };
     });
 
-    const overallPct = totalBlocks ? Math.round((completedBlocks / totalBlocks) * 100) : 0;
-    let bestDay = null;
-    let bestScore = -1;
-    let worstDay = null;
-    let worstScore = Infinity;
-
+    let bestDay = null, worstDay = null, bestPct = -1, worstPct = 101;
     DAYS.forEach(day => {
         const d = perDay[day];
         if (d.total === 0) return;
-        const score = d.done * 1000 + d.pct;
-        if (score > bestScore) {
-            bestScore = score;
-            bestDay = day;
-        }
-        if (d.pct < worstScore || (d.pct === worstScore && d.done < (perDay[worstDay] && perDay[worstDay].done))) {
-            worstScore = d.pct;
-            worstDay = day;
-        }
+        if (d.pct > bestPct) { bestPct = d.pct; bestDay = day; }
+        if (d.pct < worstPct) { worstPct = d.pct; worstDay = day; }
     });
-    if (bestDay && worstDay === bestDay && overallPct === 100) worstDay = null;
-
-    let verdict = "Quiet week — schedule a few blocks and stack some wins.";
-    if (overallPct >= 90) verdict = "Mythic-tier week. You crushed it.";
-    else if (overallPct >= 70) verdict = "Strong week. Keep the streak alive.";
-    else if (overallPct >= 40) verdict = "Solid progress. Tighten the weak days and you’ll climb fast.";
-    else if (totalBlocks > 0) verdict = "Rough week — reset tomorrow and knock out the first block.";
 
     const topCats = Object.keys(catTotal)
-        .map(c => ({
-            name: c,
-            done: catDone[c] || 0,
-            total: catTotal[c],
-            pct: Math.round(((catDone[c] || 0) / catTotal[c]) * 100)
+        .map(name => ({
+            name,
+            total: catTotal[name],
+            done: catDone[name] || 0,
+            pct: catTotal[name] > 0 ? Math.round(((catDone[name] || 0) / catTotal[name]) * 100) : 0
         }))
-        .sort((a, b) => b.done - a.done)
-        .slice(0, 4);
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5);
+
+    const overallPct = totalBlocks > 0 ? Math.round((completedBlocks / totalBlocks) * 100) : 0;
+    const levelInfo = getLevelInfo(data.xp || 0);
+
+    let verdict;
+    if (totalBlocks === 0) verdict = "📭 No scheduled blocks this week yet.";
+    else if (overallPct >= 90) verdict = "🔥 Outstanding week — you crushed it!";
+    else if (overallPct >= 70) verdict = "💪 Solid week, keep the momentum going.";
+    else if (overallPct >= 40) verdict = "🙂 Decent progress — a few gaps to tighten up.";
+    else verdict = "📉 Tough week — let's reset and rebuild the routine.";
 
     return {
-        totalBlocks,
-        completedBlocks,
-        overallPct,
         perDay,
         bestDay,
         worstDay,
         bestDone: bestDay ? perDay[bestDay].done : 0,
         bestTotal: bestDay ? perDay[bestDay].total : 0,
-        bestPct: bestDay ? perDay[bestDay].pct : 0,
-        worstPct: worstDay ? perDay[worstDay].pct : 0,
-        xp: data.xp || 0,
-        xpFromWeek,
-        streak: data.streak || 0,
-        rank: (typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0).rank : "?"),
+        bestPct: bestPct < 0 ? 0 : bestPct,
+        worstPct: worstDay ? worstPct : 0,
+        topCats,
         verdict,
-        topCats
+        rank: levelInfo.rank,
+        xp: data.xp || 0,
+        streak: data.streak || 0,
+        overallPct,
+        completedBlocks,
+        totalBlocks,
+        xpFromWeek
     };
+}
+
+let _previewWeek = null;
+let _previewDay = "Monday";
+
+// Was called by applyAnalyserFix() but was never defined anywhere in the
+// source files — implemented here so "Regenerate" in the Week Analyser
+// actually works. Builds a week schedule biased toward the categories the
+// selected intent wants (and away from ones it doesn't), sized to the
+// intent's sleep target.
+function generateSmartWeekFromIntent(prompt) {
+    const intentKey = Object.keys(ANALYSER_INTENTS).find(k => ANALYSER_INTENTS[k].prompt === prompt);
+    const cfg = intentKey ? ANALYSER_INTENTS[intentKey].checks : {};
+    const wanted = cfg.wantedCats && cfg.wantedCats.length ? cfg.wantedCats : ["📚 Study/Work", "🎮 Gaming/Relax"];
+    const unwanted = cfg.unwantedCats || [];
+
+    const CAT_BLOCKS = {
+        "📚 Study/Work": [{ title: "Deep Work / Study Block", dur: 150 }, { title: "Focused Study Session", dur: 90 }],
+        "🏃 Exercise": [{ title: "Workout / Training", dur: 60 }, { title: "Run / Cardio", dur: 45 }],
+        "🎮 Gaming/Relax": [{ title: "Gaming / Free Time", dur: 90 }, { title: "Relax & Unwind", dur: 60 }]
+    };
+    const pickBlock = (cat) => {
+        const opts = CAT_BLOCKS[cat] || [{ title: cat.replace(/^\S+\s*/, "") || "Free Block", dur: 60 }];
+        return opts[Math.floor(Math.random() * opts.length)];
+    };
+    const fmt = (m) => `${String(Math.floor((m % 1440) / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+    const week = {};
+    DAYS.forEach(day => {
+        const isWeekend = (day === "Saturday" || day === "Sunday");
+        let cursor = 8 * 60;
+        const blocks = [];
+        const addBlock = (title, durMin) => {
+            blocks.push({
+                id: `block_${day.slice(0, 3)}_${Date.now()}_${blocks.length}`,
+                task: title,
+                start: fmt(cursor),
+                end: fmt(cursor + durMin),
+                completed: false
+            });
+            cursor += durMin;
+        };
+
+        addBlock("Morning Routine", 45);
+        wanted.forEach(cat => {
+            if (unwanted.includes(cat)) return;
+            const b = pickBlock(cat);
+            addBlock(b.title, b.dur);
+        });
+        addBlock("Lunch Break", 45);
+        if (!unwanted.includes("📚 Study/Work") && !wanted.includes("📚 Study/Work") && !isWeekend) {
+            const b = pickBlock("📚 Study/Work");
+            addBlock(b.title, 90);
+        }
+        addBlock(isWeekend ? "Hobbies & Personal Time" : "Evening Review & Reset", 90);
+
+        cursor = 23 * 60;
+        addBlock("Sleep 😴", (cfg.minSleepHours || 8) * 60);
+
+        week[day] = blocks;
+    });
+
+    return week;
+}
+
+function applyAnalyserFix() {
+    if (!_analyserIntent) return;
+    const prompt = ANALYSER_INTENTS[_analyserIntent].prompt;
+    try {
+        _previewWeek = generateSmartWeekFromIntent(prompt);
+    } catch(e) { console.error(e); return; }
+    _previewDay = "Monday";
+    closeAnalyser();
+    openPreview();
+}
+
+function openPreview() {
+    renderPreviewTabs();
+    renderPreviewDay();
+    document.getElementById("preview-modal").classList.remove("hidden");
+}
+
+function closePreview() {
+    document.getElementById("preview-modal").classList.add("hidden");
+    _previewWeek = null;
+}
+
+function renderPreviewTabs() {
+    const c = document.getElementById("preview-day-tabs");
+    if (!c) return;
+    c.innerHTML = "";
+    DAYS.forEach(day => {
+        const btn = document.createElement("button");
+        btn.className = `builder-tab${day === _previewDay ? " active" : ""}`;
+        btn.textContent = day.substring(0, 3);
+        btn.onclick = () => { _previewDay = day; renderPreviewTabs(); renderPreviewDay(); };
+        c.appendChild(btn);
+    });
+}
+
+function renderPreviewDay() {
+    const c = document.getElementById("preview-blocks");
+    if (!c || !_previewWeek) return;
+    const tasks = _previewWeek[_previewDay] || [];
+    c.innerHTML = tasks.map((t, i) => `
+        <div class="preview-block-row">
+            <span class="preview-time">${t.start} – ${t.end}</span>
+            <input type="text" value="${t.task || ""}" oninput="_previewWeek['${_previewDay}'][${i}].task=this.value" class="preview-task-input">
+        </div>
+    `).join("");
+}
+
+function keepPreview() {
+    if (!_previewWeek) return;
+    DAYS.forEach(day => {
+        data.schedules[day] = JSON.parse(JSON.stringify(_previewWeek[day] || []));
+    });
+    data.appliedRoutine = `AI: ${ANALYSER_INTENTS[_analyserIntent]?.label || "Generated"}`;
+    saveData();
+    renderCurrentDay();
+    populatePresetMenus();
+    closePreview();
+    showSavedMessage(`✓ Applied: ${ANALYSER_INTENTS[_analyserIntent]?.label}`);
+}
+
+function getHiddenBuiltIns() {
+    if (!Array.isArray(data.hiddenBuiltInPresets)) data.hiddenBuiltInPresets = [];
+    return data.hiddenBuiltInPresets;
+}
+
+function isBuiltInPreset(name) {
+    return Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name);
+}
+
+function isPresetHidden(name) {
+    return isBuiltInPreset(name) && getHiddenBuiltIns().includes(name);
+}
+
+function hideBuiltInPreset(name) {
+    if (!isBuiltInPreset(name)) return;
+    const list = getHiddenBuiltIns();
+    if (!list.includes(name)) list.push(name);
+    data.hiddenBuiltInPresets = list;
+    saveData();
+    renderPresetsManager();
+    populatePresetMenus();
+    showToast(`Hidden "${name}"`, "info");
+}
+
+function unhideBuiltInPreset(name) {
+    data.hiddenBuiltInPresets = getHiddenBuiltIns().filter((n) => n !== name);
+    if (!data.presets[name] && BUILT_IN_PRESETS[name]) {
+        data.presets[name] = convertPreset(BUILT_IN_PRESETS[name]);
+    }
+    saveData();
+    renderPresetsManager();
+    populatePresetMenus();
+    showToast(`Restored "${name}"`, "info");
+}
+
+function renderPresetsManager() {
+    const listContainer = document.getElementById("presets-manager-list");
+    if (!listContainer) return;
+
+    data.presets = data.presets || {};
+    listContainer.innerHTML = "";
+
+    const names = Object.keys(data.presets).filter((name) => !isPresetHidden(name));
+    const hidden = getHiddenBuiltIns().filter((name) => isBuiltInPreset(name));
+
+    if (names.length === 0 && hidden.length === 0) {
+        listContainer.innerHTML = `<p style="color:#aaa; font-size:0.8rem;">No custom presets saved.</p>`;
+        return;
+    }
+
+    names.forEach((name) => {
+        const row = document.createElement("div");
+        row.className = "preset-item-row";
+        const safe = String(name).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        const builtIn = isBuiltInPreset(name);
+        const actionBtn = builtIn
+            ? `<button type="button" onclick="hideBuiltInPreset('${safe}')" class="btn-icon" title="Hide built-in preset">🙈</button>`
+            : `<button type="button" onclick="deletePreset('${safe}')" class="btn-icon" title="Delete Preset">🗑️</button>`;
+        row.innerHTML = `
+            <span>${builtIn ? "📦 " : ""}${name}</span>
+            <div class="preset-item-actions">
+                <button type="button" onclick="applyNamedPreset('${safe}')" class="btn-icon" title="Apply Preset">▶️</button>
+                ${actionBtn}
+            </div>
+        `;
+        listContainer.appendChild(row);
+    });
+
+    if (hidden.length) {
+        const section = document.createElement("div");
+        section.className = "preset-hidden-section";
+        section.innerHTML = `<p class="preset-hidden-label">Hidden built-ins</p>`;
+        hidden.forEach((name) => {
+            const row = document.createElement("div");
+            row.className = "preset-item-row preset-item-hidden";
+            const safe = String(name).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            row.innerHTML = `
+                <span style="opacity:0.6">📦 ${name}</span>
+                <div class="preset-item-actions">
+                    <button type="button" onclick="unhideBuiltInPreset('${safe}')" class="btn-icon" title="Show again">👁️</button>
+                </div>
+            `;
+            section.appendChild(row);
+        });
+        listContainer.appendChild(section);
+    }
+}
+
+function saveCurrentAsPreset() {
+    const input = document.getElementById("save-preset-input");
+    const name = input ? input.value.trim() : "";
+
+    if (!name) {
+        alert("Please enter a name for your preset.");
+        return;
+    }
+
+    data.presets[name] = deepClone(data.schedules);
+    saveData();
+    renderPresetsManager();
+    populatePresetMenus();
+    closeScratchBuilder();
+    input.value = "";
+    alert(`Saved current schedule as "${name}"!`);
+}
+
+function applyNamedPreset(name) {
+    if (!data.presets[name]) return;
+    if (!confirm(`Apply "${name}" to the entire week? XP from completed tasks will be removed.`)) return;
+    const infoBefore = getLevelInfo(data.xp || 0);
+    let lost = 0;
+    DAYS.forEach(day => {
+        if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true });
+    });
+    DAYS.forEach(day => {
+        data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
+            ...t, completed: false, xpAwarded: false, xpAmount: 0
+        }));
+    });
+    data.appliedRoutine = name;
+    saveData();
+    renderCurrentDay();
+    updateXPDisplay();
+    const infoAfter = getLevelInfo(data.xp || 0);
+    if (infoAfter.levelIndex < infoBefore.levelIndex) {
+        showLevelDown(infoBefore.rank, infoAfter.rank);
+    }
+    enforceLocksAfterXPChange();
+    showSavedMessage(lost > 0
+        ? `✓ "${name}" applied (−${lost} XP clawed back)`
+        : `✓ "${name}" applied`);
+}
+
+function deletePreset(name) {
+    if (Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name)) return alert("Built-in presets cannot be deleted.");
+    if (confirm(`Are you sure you want to delete preset "${name}"?`)) {
+        delete data.presets[name];
+        saveData();
+        renderPresetsManager();
+        populatePresetMenus();
+    }
+}
+
+function openScratchBuilder() {
+    scratchPresetData = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: [] };
+    activeBuilderDay = "Monday";
+    document.getElementById("scratch-preset-title").value = "";
+    renderBuilderTabs();
+    renderBuilderTasks();
+    document.getElementById("scratch-preset-modal").classList.remove("hidden");
+}
+
+function closeScratchBuilder() {
+    document.getElementById("scratch-preset-modal").classList.add("hidden");
+}
+
+function renderBuilderTabs() {
+    const container = document.getElementById("builder-day-tabs");
+    if (!container) return;
+    container.innerHTML = "";
+    DAYS.forEach(day => {
+        const btn = document.createElement("button");
+        btn.className = `builder-tab ${day === activeBuilderDay ? "active" : ""}`;
+        btn.textContent = day.substring(0, 3);
+        btn.onclick = () => { activeBuilderDay = day; renderBuilderTabs(); renderBuilderTasks(); };
+        container.appendChild(btn);
+    });
+}
+
+function addSlotToScratchBuilder() {
+    const start = document.getElementById("scratch-start").value;
+    const end = document.getElementById("scratch-end").value;
+    const task = document.getElementById("scratch-task-name").value.trim();
+
+    if (!task) return alert("Please enter a task description.");
+
+    scratchPresetData[activeBuilderDay].push({ start, end, task, completed: false });
+    scratchPresetData[activeBuilderDay].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+    document.getElementById("scratch-task-name").value = "";
+    renderBuilderTasks();
+}
+
+function removeSlotFromBuilder(index) {
+    scratchPresetData[activeBuilderDay].splice(index, 1);
+    renderBuilderTasks();
+}
+
+function renderBuilderTasks() {
+    const container = document.getElementById("builder-tasks-container");
+    if (!container) return;
+    const tasks = scratchPresetData[activeBuilderDay] || [];
+
+    if (tasks.length === 0) {
+        container.innerHTML = `<p style="color:#aaa; font-size:0.8rem;">No slots added for ${activeBuilderDay} yet.</p>`;
+        return;
+    }
+
+    container.innerHTML = tasks.map((t, idx) => `
+        <div class="preset-item-row">
+            <span><b>${t.start} - ${t.end}:</b> ${t.task}</span>
+            <button onclick="removeSlotFromBuilder(${idx})" class="btn-icon">✕</button>
+        </div>
+    `).join("");
+}
+
+function saveScratchPreset() {
+    const title = document.getElementById("scratch-preset-title").value.trim();
+    if (!title) return alert("Please give your new preset a name.");
+
+    data.presets[title] = scratchPresetData;
+    saveData();
+    renderPresetsManager();
+    populatePresetMenus();
+    closeScratchBuilder();
+    alert(`Successfully created preset "${title}"!`);
+}
+
+document.addEventListener("input", event => {
+    if (event.target.id === "daily-notes") {
+        data.notes[DAYS[data.currentDay]] = event.target.value;
+        saveData();
+    }
+});
+
+document.addEventListener("keydown", event => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        saveSchedule();
+    }
+
+    const tag = document.activeElement?.tagName;
+    const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+
+    if (!typing) {
+        if (event.key === "ArrowLeft") changeDay(-1);
+        if (event.key === "ArrowRight") changeDay(1);
+    }
+
+    if (event.key === "Escape") {
+        const sidebar = document.getElementById("preset-sidebar");
+        if (sidebar && sidebar.classList.contains("open")) toggleSidebar();
+        const todo = document.getElementById("todo-drawer");
+        if (todo && !todo.classList.contains("hidden")) toggleTodoDrawer();
+        const tl = document.getElementById("timeline-page");
+        if (tl && !tl.classList.contains("hidden")) closeTimelinePage();
+        const prog = document.getElementById("progress-panel");
+        if (prog && !prog.classList.contains("hidden")) closeProgressPanel();
+    }
+});
+
+document.addEventListener("click", (e) => {
+    const sidebar = document.getElementById("preset-sidebar");
+    const toggleBtn = document.getElementById("sidebar-toggle-btn");
+    if (!sidebar || !sidebar.classList.contains("open")) return;
+
+    if (!sidebar.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
+        toggleSidebar();
+    }
+});
+
+
+// ============================================================
+// Added from context_script.js: music player, focus mode,
+// todos, timeline, weekly review, and cloud/local auth support.
+// These were referenced elsewhere in this file (e.g. the
+// keydown handler calls toggleTodoDrawer/closeTimelinePage/
+// closeProgressPanel, and music-quick-open calls openMusicPage)
+// but were previously undefined or stubbed out.
+// ============================================================
+
+function openMusicPage() {
+    const page = document.getElementById("music-page");
+    if (!page) return;
+    page.classList.remove("hidden");
+    const day = DAYS[getTodayIndex()];
+    const now = new Date().getHours() * 60 + new Date().getMinutes();
+    const active = (data.schedules[day] || []).find(t =>
+        !t.completed && !t.isSleep &&
+        timeToMinutes(t.start) <= now && now < timeToMinutes(t.end)
+    );
+    const label = document.getElementById("music-focus-task");
+    if (label) label.textContent = active ? (active.task || "Untitled") : "No active block — free focus";
+    if (active) {
+        _focusTaskRef = { task: active, index: (data.schedules[day] || []).indexOf(active), day };
+    }
+    updateFocusTimerDisplay();
+    renderMicroTasks();
+    renderLocalTrackList();
+    updateNowPlayingVisibility();
+    if (!navigator.onLine) {
+        showToast("📡 Offline — local library still works", "info");
+    }
+}
+
+function profileStorageKey(username) {
+    return "Momento_profile_" + String(username || "").toLowerCase();
+}
+
+async function hashPassword(password, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(password),
+        "PBKDF2",
+        false,
+        ["deriveBits"]
+    );
+    const bits = await crypto.subtle.deriveBits(
+        {
+            name: "PBKDF2",
+            salt: enc.encode(salt),
+            iterations: 120000,
+            hash: "SHA-256"
+        },
+        keyMaterial,
+        256
+    );
+    return Array.from(new Uint8Array(bits))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+function loadAccounts() {
+    try {
+        return JSON.parse(localStorage.getItem(AUTH_ACCOUNTS_KEY) || "{}") || {};
+    } catch {
+        return {};
+    }
+}
+
+function saveAccounts(accounts) {
+    localStorage.setItem(AUTH_ACCOUNTS_KEY, JSON.stringify(accounts));
+}
+
+function getSession() {
+    try {
+        return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
+    } catch {
+        return null;
+    }
+}
+
+/** True when signed in with local offline account (not Google/Supabase). */
+function isLocalProfile() {
+    const s = getSession();
+    if (s && (s.cloud === false || s.localFile || !s.cloud)) {
+        if (s.username) return true;
+    }
+    // Supabase user ids are UUIDs; local usernames are short
+    if (currentUser && typeof currentUser === "string" && !/^[0-9a-f-]{36}$/i.test(currentUser) && currentUser.length <= 24) {
+        return true;
+    }
+    return false;
+}
+
+function setSession(session) {
+    if (session) localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+    else localStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+let _resolvedCloudBase = null;
+
+function listCloudCandidates() {
+    const seen = new Set();
+    const out = [];
+    const add = (u) => {
+        if (!u || typeof u !== "string") return;
+        const base = u.trim().replace(/\/$/, "");
+        if (!base || seen.has(base)) return;
+        seen.add(base);
+        out.push(base);
+    };
+    add(localStorage.getItem("MOMENTO_CLOUD_API"));
+    add(typeof window !== "undefined" ? window.MOMENTO_CLOUD_API : "");
+    add(localStorage.getItem("MOMENTO_MUSIC_API"));
+    add(localStorage.getItem("MOMENTO_MUSIC_API"));
+    add("http://127.0.0.1:8787");
+    add("http://localhost:8787");
+    return out;
+}
+
+function rememberCloudBase(base) {
+    if (!base) return;
+    _resolvedCloudBase = base.replace(/\/$/, "");
+    try {
+        localStorage.setItem("MOMENTO_CLOUD_API", _resolvedCloudBase);
+    } catch (e) {}
+}
+
+function getCloudApiBase() {
+    if (_resolvedCloudBase) return _resolvedCloudBase;
+    return listCloudCandidates()[0] || "http://127.0.0.1:8787";
+}
+
+async function probeCloudBase(base) {
+    try {
+        const res = await fetch(base.replace(/\/$/, "") + "/api/health", {
+            signal: AbortSignal.timeout(5000)
+        });
+        if (!res.ok) return false;
+        const j = await res.json().catch(() => null);
+        return !!(j && j.ok);
+    } catch {
+        return false;
+    }
+}
+
+async function resolveCloudApiBase() {
+    if (_resolvedCloudBase) {
+        if (await probeCloudBase(_resolvedCloudBase)) return _resolvedCloudBase;
+        _resolvedCloudBase = null;
+    }
+    const candidates = listCloudCandidates();
+    for (const base of candidates) {
+        if (await probeCloudBase(base)) {
+            rememberCloudBase(base);
+            return base;
+        }
+    }
+    return candidates[0] || "http://127.0.0.1:8787";
+}
+
+async function cloudRequest(path, opts) {
+    const base = (await resolveCloudApiBase()).replace(/\/$/, "");
+    const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+    
+    if (isMobileVercel) {
+        console.log(`[cloudRequest] Mobile Vercel: Requesting ${base}${path}`);
+    }
+    
+    let res;
+    try {
+        res = await fetch(base + path, {
+            ...opts,
+            headers: {
+                "Content-Type": "application/json",
+                ...(opts && opts.headers)
+            },
+            signal: AbortSignal.timeout(10000)
+        });
+    } catch (e) {
+        if (isMobileVercel) {
+            console.error(`[cloudRequest] Mobile Vercel fetch error:`, e.name, e.message);
+        }
+        throw e;
+    }
+    
+    let body = null;
+    try {
+        body = await res.json();
+    } catch {
+        body = null;
+    }
+    
+    if (!res.ok) {
+        const detail = (body && (body.detail || body.error)) || `HTTP ${res.status}`;
+        if (isMobileVercel) {
+            console.error(`[cloudRequest] Mobile Vercel HTTP error: ${res.status} - ${detail}`);
+        }
+        const err = new Error(detail);
+        err.status = res.status;
+        err.body = body;
+        err.url = base + path;
+        throw err;
+    }
+    
+    rememberCloudBase(base);
+    return body;
+}
+
+async function tryCloudSignup(username, password) {
+    try {
+        const base = await resolveCloudApiBase();
+        const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+        if (isMobileVercel) console.log("[auth] Mobile Vercel environment, cloud base:", base);
+        
+        return await cloudRequest("/api/auth/signup", {
+            method: "POST",
+            body: JSON.stringify({ username, password })
+        });
+    } catch (e) {
+        if (e.status === 409) throw new Error("Username already taken on cloud server");
+        
+        const isNetworkError = 
+            e.status === 404 ||
+            e.status === 502 ||
+            e.status === 503 ||
+            e.status >= 500 ||
+            e.name === "TimeoutError" ||
+            e.name === "AbortError" ||
+            e.message === "Failed to fetch" ||
+            e.message === "NetworkError" ||
+            e.message === "Network request failed";
+        
+        if (isNetworkError) {
+            const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+            if (isMobileVercel) {
+                console.error("[auth:mobile] Cloud signup failed on Vercel:", e.message, "status:", e.status);
+                const detail = e.message.includes("timeout") || e.name === "TimeoutError" 
+                    ? "server not responding"
+                    : e.status ? `server error (${e.status})`
+                    : "connection failed";
+                console.log(`[auth:mobile] Cloud unavailable (${detail}), will create local account`);
+            }
+            console.warn("[auth] cloud signup unavailable, will use local:", e.message);
+            return null;
+        }
+        throw e;
+    }
+}
+
+async function tryCloudLogin(username, password) {
+    try {
+        const base = await resolveCloudApiBase();
+        const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+        if (isMobileVercel) console.log("[auth] Mobile Vercel environment detected, cloud base:", base);
+        
+        return await cloudRequest("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ username, password })
+        });
+    } catch (e) {
+        if (e.status === 401) throw new Error("Wrong password or no cloud account");
+        
+        const isNetworkError = 
+            e.status === 404 ||
+            e.status === 502 ||
+            e.status === 503 ||
+            e.status >= 500 ||
+            e.name === "TimeoutError" ||
+            e.name === "AbortError" ||
+            e.message === "Failed to fetch" ||
+            e.message === "NetworkError" ||
+            e.message === "Network request failed";
+        
+        if (isNetworkError) {
+            const isMobileVercel = typeof window !== "undefined" && window.location.hostname.includes("vercel");
+            if (isMobileVercel) {
+                console.error("[auth:mobile] Cloud login failed on Vercel:", e.message, "status:", e.status);
+                const detail = e.message.includes("timeout") || e.name === "TimeoutError" 
+                    ? "server not responding (timeout)"
+                    : e.status ? `server error (${e.status})`
+                    : "connection failed";
+                console.log(`[auth:mobile] Will try local auth. Cloud issue: ${detail}`);
+            }
+            console.warn("[auth] cloud login unavailable, will try local:", e.message);
+            return null;
+        }
+        throw e;
+    }
+}
+
+async function tryCloudPull(token) {
+    try {
+        return await cloudRequest("/api/auth/data", {
+            method: "GET",
+            headers: { Authorization: "Bearer " + token }
+        });
+    } catch {
+        return null;
+    }
+}
+
+async function tryCloudPush(token, payload) {
+    try {
+        await cloudRequest("/api/auth/data", {
+            method: "PUT",
+            headers: { Authorization: "Bearer " + token },
+            body: JSON.stringify({ data: payload })
+        });
+    } catch {
+        /* offline / no server */
+    }
+}
+
+async function authSignup(username, password) {
+    // Local offline accounts only — never talk to Railway / cloud for this flow.
+    const key = username.toLowerCase();
+    if (!/^[a-z0-9_]{3,24}$/i.test(username)) {
+        throw new Error("Use letters, numbers, underscore only (3–24 chars)");
+    }
+    if (!password || password.length < 4) {
+        throw new Error("Password must be at least 4 characters");
+    }
+
+    // 1) Prefer writing through the local music server → C:\Momento\users.json (Electron)
+    try {
+        const base = (localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787").replace(/\/$/, "");
+        const res = await fetch(base + "/api/auth/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: key, password }),
+            signal: AbortSignal.timeout(4000),
+        });
+        let body = null;
+        try { body = await res.json(); } catch (e) { body = null; }
+        if (res.status === 409) {
+            throw new Error("Username already taken on this device");
+        }
+        if (res.ok && body && body.token) {
+            setSession({ username: key, token: body.token, cloud: false, localFile: true });
+            currentUser = key;
+            if (body.data) applyProfileData(body.data);
+            else {
+                migrateLegacyDataIfAny(key);
+                loadData();
+            }
+            finishAuth();
+            showToast("Local account created · saved on this PC", "info");
+            return;
+        }
+        // Non-ok but not 409 → fall through to browser localStorage
+        if (!res.ok) {
+            console.warn("[Auth] local server signup failed, using browser storage:", res.status, body);
+        }
+    } catch (e) {
+        if (e.message && e.message.includes("already taken")) throw e;
+        console.warn("[Auth] local server unavailable, using browser storage:", e.message || e);
+    }
+
+    // 2) Fallback: browser localStorage only (still offline, no cloud)
+    const accounts = loadAccounts();
+    if (accounts[key]) throw new Error("Username already taken on this device");
+    const salt = crypto.getRandomValues(new Uint8Array(16)).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "");
+    const passHash = await hashPassword(password, salt);
+    accounts[key] = { salt, passHash, created: Date.now() };
+    saveAccounts(accounts);
+    setSession({ username: key, token: null, cloud: false });
+    currentUser = key;
+    migrateLegacyDataIfAny(key);
+    loadData();
+    finishAuth();
+    showToast("Local account created on this device", "info");
+}
+
+async function authLogin(username, password) {
+    // Local offline login only — never use Railway / cloud for this form.
+    const key = username.toLowerCase();
+    if (!password) throw new Error("Enter your password");
+
+    // 1) Local music server → C:\Momento\users.json
+    try {
+        const base = (localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787").replace(/\/$/, "");
+        const res = await fetch(base + "/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: key, password }),
+            signal: AbortSignal.timeout(4000),
+        });
+        let body = null;
+        try { body = await res.json(); } catch (e) { body = null; }
+        if (res.ok && body && body.token) {
+            setSession({ username: key, token: body.token, cloud: false, localFile: true });
+            currentUser = key;
+            if (body.data) applyProfileData(body.data);
+            else loadData();
+            finishAuth();
+            showToast("Welcome back, " + key, "info");
+            return;
+        }
+        if (res.status === 401) {
+            const msg = (body && body.error) || "";
+            // Server found the user but password mismatched
+            if (/wrong password/i.test(msg)) {
+                throw new Error("Wrong password");
+            }
+            // No account on disk — fall through to browser storage
+            console.warn("[Auth] local file login rejected:", msg);
+        }
+    } catch (e) {
+        // Real auth errors must surface (wrong password, etc.)
+        if (e && e.message && /wrong password|already taken|enter your password/i.test(e.message)) {
+            throw e;
+        }
+        console.warn("[Auth] local server unavailable, trying browser storage:", e.message || e);
+    }
+
+    // 2) Browser localStorage fallback
+    const accounts = loadAccounts();
+    const acc = accounts[key];
+    if (!acc) {
+        throw new Error("No local account found — use Sign up to create one on this device");
+    }
+    const passHash = await hashPassword(password, acc.salt);
+    if (passHash !== acc.passHash) throw new Error("Wrong password");
+    setSession({ username: key, token: null, cloud: false });
+    currentUser = key;
+    loadData();
+    finishAuth();
+    showToast("Welcome back, " + key, "info");
+}
+
+function migrateLegacyDataIfAny(username) {
+    try {
+        const legacy = localStorage.getItem(STORAGE_KEY);
+        const profileKey = profileStorageKey(username);
+        if (legacy && !localStorage.getItem(profileKey)) {
+            localStorage.setItem(profileKey, legacy);
+        }
+    } catch (e) {}
 }
 
 function openWeeklyReview() {
@@ -4052,42 +5000,27 @@ function closeWeeklyReview() {
     if (panel) panel.classList.add("hidden");
 }
 
-
 let _musicVolume = 0.4;
-let _streamPlaying = false;
-let _localTracks = [];
-let _localIndex = 0;
-let _localPlaying = false;
-let _npSource = null;
-let _npTimer = null;
-let _archivePlaying = false;
-let _npWantVisible = false;
-const LOCAL_MUSIC_DB = "Momento_local_music";
-const LOCAL_MUSIC_STORE = "tracks";
 
-function openMusicPage() {
-    const page = document.getElementById("music-page");
-    if (!page) return;
-    page.classList.remove("hidden");
-    const day = DAYS[getTodayIndex()];
-    const now = new Date().getHours() * 60 + new Date().getMinutes();
-    const active = (data.schedules[day] || []).find(t =>
-        !t.completed && !t.isSleep &&
-        timeToMinutes(t.start) <= now && now < timeToMinutes(t.end)
-    );
-    const label = document.getElementById("music-focus-task");
-    if (label) label.textContent = active ? (active.task || "Untitled") : "No active block — free focus";
-    if (active) {
-        _focusTaskRef = { task: active, index: (data.schedules[day] || []).indexOf(active), day };
-    }
-    updateFocusTimerDisplay();
-    renderMicroTasks();
-    renderLocalTrackList();
-    updateNowPlayingVisibility();
-    if (!navigator.onLine) {
-        showToast("📡 Offline — local library still works", "info");
-    }
-}
+let _streamPlaying = false;
+
+let _localTracks = [];
+
+let _localIndex = 0;
+
+let _localPlaying = false;
+
+let _npSource = null;
+
+let _npTimer = null;
+
+let _archivePlaying = false;
+
+let _npWantVisible = false;
+
+const LOCAL_MUSIC_DB = "Momento_local_music";
+
+const LOCAL_MUSIC_STORE = "tracks";
 
 function closeMusicPage() {
     const page = document.getElementById("music-page");
@@ -4184,16 +5117,19 @@ function startNpTimer() {
     _npTimer = setInterval(updateNpTimes, 500);
     updateNpTimes();
 }
+
 function stopNpTimer() {
     if (_npTimer) clearInterval(_npTimer);
     _npTimer = null;
 }
+
 function formatAudioTime(sec) {
     if (!isFinite(sec) || sec < 0) return "0:00";
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return m + ":" + String(s).padStart(2, "0");
 }
+
 function updateNpTimes() {
     const cur = document.getElementById("np-current");
     const dur = document.getElementById("np-duration");
@@ -4210,11 +5146,7 @@ function updateNpTimes() {
     dur.textContent = formatAudioTime(audio.duration);
 }
 
-
-
-
 const MUSIC_API = () => localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787";
-
 
 const PIPED_INSTANCES = [
     "https://pipedapi.kavin.rocks",
@@ -4223,10 +5155,15 @@ const PIPED_INSTANCES = [
     "https://api.piped.private.coffee",
     "https://pipedapi.projekt.net.in",
 ];
+
 let _musicResults = [];
+
 let _altMusicHost = null;
+
 let _ytPlayer = null;
+
 let _ytPlayerReady = false;
+
 let _ytApiLoading = null;
 
 async function pipedFetch(pathAndQuery) {
@@ -4433,8 +5370,11 @@ async function playYouTubeVideo(videoId) {
 }
 
 function pauseYouTubePlayer() { if (_ytPlayer && _ytPlayerReady) try { _ytPlayer.pauseVideo(); } catch(e){} }
+
 function resumeYouTubePlayer() { if (_ytPlayer && _ytPlayerReady) try { _ytPlayer.playVideo(); } catch(e){} }
+
 function stopYouTubePlayer() { if (_ytPlayer && _ytPlayerReady) try { _ytPlayer.stopVideo(); } catch(e){} }
+
 function setYouTubePlayerVolume(vol0to1) { if (_ytPlayer && _ytPlayerReady) try { _ytPlayer.setVolume(Math.round(vol0to1 * 100)); } catch(e){} }
 
 async function getAltMusicHost() {
@@ -4578,8 +5518,6 @@ function renderMusicResults(listEl) {
     });
 }
 
-
-
 async function playTrackById(trackId) {
   console.log("[DEBUG MUSIC] playTrackById called with:", trackId, "type:", typeof trackId);
   console.log("[DEBUG MUSIC] _musicResults:", _musicResults);
@@ -4606,12 +5544,12 @@ async function playTrackById(trackId) {
   await playMusicResult(index);
 }
 
-
 function escapeHtml(str) {
     return (str || "").replace(/[&<>'"]/g, 
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
     );
 }
+
 function tryPlayAudioUrl(audio, url, timeoutMs = 7000) {
     return new Promise((resolve, reject) => {
         let settled = false;
@@ -4718,9 +5656,9 @@ async function playMusicResult(i, _triedIds) {
 }
 
 async function playArchiveByIndex(i) { return playMusicResult(i); }
+
 async function playArchiveItem() {}
 
-// Play a specific track object directly (no index lookup, no results mutation)
 async function playMusicResultForTrack(t, _triedIds) {
     if (!t) return;
     const triedIds = _triedIds instanceof Set ? _triedIds : new Set();
@@ -5073,14 +6011,16 @@ function timelineRemoveBlock(index) {
 }
 
 let _focusTimerInterval = null;
+
 let _focusSecondsLeft = 25 * 60;
+
 let _focusIsRunning = false;
+
 let _focusIsBreak = false;
+
 let _focusTaskRef = null;
+
 let _focusMicroTasks = [];
-let _ambientAudioCtx = null;
-let _ambientNodes = [];
-let _currentAmbient = "none";
 
 function openFocusMode(task, index) {
     _focusTaskRef = { task, index, day: DAYS[data.currentDay] };
@@ -5192,18 +6132,23 @@ function toggleFocusTimer() {
 
 function awardFocusSessionBonus() {
     const ref = _focusTaskRef;
+    // Only reward when focus is linked to a real, active, today block — no free XP farm
     const onActive =
         ref &&
         ref.task &&
+        !ref.task.isSleep &&
         !ref.task.completed &&
         typeof isTaskActive === "function" &&
         isTaskActive(ref.task) &&
         data.currentDay === getTodayIndex();
 
-    const bonus = onActive ? 35 : 15;
-    const label = onActive
-        ? (ref.task.task || "Active block")
-        : "Focus session";
+    if (!onActive) {
+        showToast("Session done — link an active today block for XP", "info");
+        return;
+    }
+
+    const bonus = 35;
+    const label = ref.task.task || "Active block";
 
     const before = data.xp || 0;
     data.xp = before + bonus;
@@ -5248,13 +6193,42 @@ function skipFocusPhase() {
 function completeFocusTask() {
     if (!_focusTaskRef) return;
     const { task, day } = _focusTaskRef;
-    if (!task.completed) {
-        task.completed = true;
-        awardXPForTask(task);
-        saveData();
-        renderCurrentDay();
+    if (!task || task.completed) {
+        closeFocusMode();
+        return;
     }
+    if (task.isSleep) {
+        showToast("⛔ Sleep blocks don't award XP", "warn");
+        closeFocusMode();
+        return;
+    }
+    const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay;
+    const dayName = day || DAYS[data.currentDay];
+    const dayIdx = DAYS.indexOf(dayName);
+    if (dayIdx !== todayIdx) {
+        showToast("⛔ You can only complete tasks on today's day!", "warn");
+        return;
+    }
+    if (typeof canCompleteTaskInOrder === "function" && !canCompleteTaskInOrder(dayName, task)) {
+        showToast("⛔ Finish earlier tasks first — no skipping ahead!", "warn");
+        return;
+    }
+    const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+    const startM = timeToMinutes(task.start);
+    if (startM - nowM > 60) {
+        showToast("⛔ Too early — only within 1 hour of start.", "warn");
+        return;
+    }
+    task.completed = true;
+    task.xpAwarded = false;
+    task.xpAmount = 0;
+    awardXPForTask(task);
+    saveData();
+    renderCurrentDay();
+    if (typeof updateXPDisplay === "function") updateXPDisplay();
+    if (typeof renderProgressTracker === "function") renderProgressTracker();
     closeFocusMode();
+    showToast("✓ Block done — XP awarded", "info");
 }
 
 function addMicroTask() {
@@ -5292,6 +6266,7 @@ function renderMicroTasks() {
 }
 
 function stopAmbient() {  }
+
 function setAmbient() {  }
 
 function addTodo() {
@@ -5747,331 +6722,4 @@ function runAnalysis() {
     container.innerHTML = `<div class="analyser-summary" style="border-color:${summaryColor}; color:${summaryColor}">${summaryText}</div>` + html;
     document.getElementById("analyser-footer").style.display = totalIssues > 0 ? "flex" : "none";
 }
-
-let _previewWeek = null;
-let _previewDay = "Monday";
-
-function applyAnalyserFix() {
-    if (!_analyserIntent) return;
-    const prompt = ANALYSER_INTENTS[_analyserIntent].prompt;
-    try {
-        _previewWeek = generateSmartWeekFromIntent(prompt);
-    } catch(e) { console.error(e); return; }
-    _previewDay = "Monday";
-    closeAnalyser();
-    openPreview();
-}
-
-function openPreview() {
-    renderPreviewTabs();
-    renderPreviewDay();
-    document.getElementById("preview-modal").classList.remove("hidden");
-}
-
-function closePreview() {
-    document.getElementById("preview-modal").classList.add("hidden");
-    _previewWeek = null;
-}
-
-function renderPreviewTabs() {
-    const c = document.getElementById("preview-day-tabs");
-    if (!c) return;
-    c.innerHTML = "";
-    DAYS.forEach(day => {
-        const btn = document.createElement("button");
-        btn.className = `builder-tab${day === _previewDay ? " active" : ""}`;
-        btn.textContent = day.substring(0, 3);
-        btn.onclick = () => { _previewDay = day; renderPreviewTabs(); renderPreviewDay(); };
-        c.appendChild(btn);
-    });
-}
-
-function renderPreviewDay() {
-    const c = document.getElementById("preview-blocks");
-    if (!c || !_previewWeek) return;
-    const tasks = _previewWeek[_previewDay] || [];
-    c.innerHTML = tasks.map((t, i) => `
-        <div class="preview-block-row">
-            <span class="preview-time">${t.start} – ${t.end}</span>
-            <input type="text" value="${t.task || ""}" oninput="_previewWeek['${_previewDay}'][${i}].task=this.value" class="preview-task-input">
-        </div>
-    `).join("");
-}
-
-function keepPreview() {
-    if (!_previewWeek) return;
-    DAYS.forEach(day => {
-        data.schedules[day] = JSON.parse(JSON.stringify(_previewWeek[day] || []));
-    });
-    data.appliedRoutine = `AI: ${ANALYSER_INTENTS[_analyserIntent]?.label || "Generated"}`;
-    saveData();
-    renderCurrentDay();
-    populatePresetMenus();
-    closePreview();
-    showSavedMessage(`✓ Applied: ${ANALYSER_INTENTS[_analyserIntent]?.label}`);
-}
-
-function getHiddenBuiltIns() {
-    if (!Array.isArray(data.hiddenBuiltInPresets)) data.hiddenBuiltInPresets = [];
-    return data.hiddenBuiltInPresets;
-}
-
-function isBuiltInPreset(name) {
-    return Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name);
-}
-
-function isPresetHidden(name) {
-    return isBuiltInPreset(name) && getHiddenBuiltIns().includes(name);
-}
-
-function hideBuiltInPreset(name) {
-    if (!isBuiltInPreset(name)) return;
-    const list = getHiddenBuiltIns();
-    if (!list.includes(name)) list.push(name);
-    data.hiddenBuiltInPresets = list;
-    saveData();
-    renderPresetsManager();
-    populatePresetMenus();
-    showToast(`Hidden "${name}"`, "info");
-}
-
-function unhideBuiltInPreset(name) {
-    data.hiddenBuiltInPresets = getHiddenBuiltIns().filter((n) => n !== name);
-    if (!data.presets[name] && BUILT_IN_PRESETS[name]) {
-        data.presets[name] = convertPreset(BUILT_IN_PRESETS[name]);
-    }
-    saveData();
-    renderPresetsManager();
-    populatePresetMenus();
-    showToast(`Restored "${name}"`, "info");
-}
-
-function renderPresetsManager() {
-    const listContainer = document.getElementById("presets-manager-list");
-    if (!listContainer) return;
-
-    data.presets = data.presets || {};
-    listContainer.innerHTML = "";
-
-    const names = Object.keys(data.presets).filter((name) => !isPresetHidden(name));
-    const hidden = getHiddenBuiltIns().filter((name) => isBuiltInPreset(name));
-
-    if (names.length === 0 && hidden.length === 0) {
-        listContainer.innerHTML = `<p style="color:#aaa; font-size:0.8rem;">No custom presets saved.</p>`;
-        return;
-    }
-
-    names.forEach((name) => {
-        const row = document.createElement("div");
-        row.className = "preset-item-row";
-        const safe = String(name).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-        const builtIn = isBuiltInPreset(name);
-        const actionBtn = builtIn
-            ? `<button type="button" onclick="hideBuiltInPreset('${safe}')" class="btn-icon" title="Hide built-in preset">🙈</button>`
-            : `<button type="button" onclick="deletePreset('${safe}')" class="btn-icon" title="Delete Preset">🗑️</button>`;
-        row.innerHTML = `
-            <span>${builtIn ? "📦 " : ""}${name}</span>
-            <div class="preset-item-actions">
-                <button type="button" onclick="applyNamedPreset('${safe}')" class="btn-icon" title="Apply Preset">▶️</button>
-                ${actionBtn}
-            </div>
-        `;
-        listContainer.appendChild(row);
-    });
-
-    if (hidden.length) {
-        const section = document.createElement("div");
-        section.className = "preset-hidden-section";
-        section.innerHTML = `<p class="preset-hidden-label">Hidden built-ins</p>`;
-        hidden.forEach((name) => {
-            const row = document.createElement("div");
-            row.className = "preset-item-row preset-item-hidden";
-            const safe = String(name).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-            row.innerHTML = `
-                <span style="opacity:0.6">📦 ${name}</span>
-                <div class="preset-item-actions">
-                    <button type="button" onclick="unhideBuiltInPreset('${safe}')" class="btn-icon" title="Show again">👁️</button>
-                </div>
-            `;
-            section.appendChild(row);
-        });
-        listContainer.appendChild(section);
-    }
-}
-
-function saveCurrentAsPreset() {
-    const input = document.getElementById("save-preset-input");
-    const name = input ? input.value.trim() : "";
-
-    if (!name) {
-        alert("Please enter a name for your preset.");
-        return;
-    }
-
-    data.presets[name] = deepClone(data.schedules);
-    saveData();
-    renderPresetsManager();
-    populatePresetMenus();
-    input.value = "";
-    alert(`Saved current schedule as "${name}"!`);
-}
-
-function applyNamedPreset(name) {
-    if (!data.presets[name]) return;
-    if (!confirm(`Apply "${name}" to the entire week? XP from completed tasks will be removed.`)) return;
-    const infoBefore = getLevelInfo(data.xp || 0);
-    let lost = 0;
-    DAYS.forEach(day => {
-        if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true });
-    });
-    DAYS.forEach(day => {
-        data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
-            ...t, completed: false, xpAwarded: false, xpAmount: 0
-        }));
-    });
-    data.appliedRoutine = name;
-    saveData();
-    renderCurrentDay();
-    updateXPDisplay();
-    const infoAfter = getLevelInfo(data.xp || 0);
-    if (infoAfter.levelIndex < infoBefore.levelIndex) {
-        showLevelDown(infoBefore.rank, infoAfter.rank);
-    }
-    enforceLocksAfterXPChange();
-    showSavedMessage(lost > 0
-        ? `✓ "${name}" applied (−${lost} XP clawed back)`
-        : `✓ "${name}" applied`);
-}
-
-function deletePreset(name) {
-    if (Object.prototype.hasOwnProperty.call(BUILT_IN_PRESETS, name)) return alert("Built-in presets cannot be deleted.");
-    if (confirm(`Are you sure you want to delete preset "${name}"?`)) {
-        delete data.presets[name];
-        saveData();
-        renderPresetsManager();
-        populatePresetMenus();
-    }
-}
-
-function openScratchBuilder() {
-    scratchPresetData = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: [] };
-    activeBuilderDay = "Monday";
-    document.getElementById("scratch-preset-title").value = "";
-    renderBuilderTabs();
-    renderBuilderTasks();
-    document.getElementById("scratch-preset-modal").classList.remove("hidden");
-}
-
-function closeScratchBuilder() {
-    document.getElementById("scratch-preset-modal").classList.add("hidden");
-}
-
-function renderBuilderTabs() {
-    const container = document.getElementById("builder-day-tabs");
-    if (!container) return;
-    container.innerHTML = "";
-    DAYS.forEach(day => {
-        const btn = document.createElement("button");
-        btn.className = `builder-tab ${day === activeBuilderDay ? "active" : ""}`;
-        btn.textContent = day.substring(0, 3);
-        btn.onclick = () => {
-            activeBuilderDay = day;
-            renderBuilderTabs();
-            renderBuilderTasks();
-        };
-        container.appendChild(btn);
-    });
-}
-
-function addSlotToScratchBuilder() {
-    const start = document.getElementById("scratch-start").value;
-    const end = document.getElementById("scratch-end").value;
-    const task = document.getElementById("scratch-task-name").value.trim();
-
-    if (!task) return alert("Please enter a task description.");
-
-    scratchPresetData[activeBuilderDay].push({ start, end, task, completed: false });
-    scratchPresetData[activeBuilderDay].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-
-    document.getElementById("scratch-task-name").value = "";
-    renderBuilderTasks();
-}
-
-function removeSlotFromBuilder(index) {
-    scratchPresetData[activeBuilderDay].splice(index, 1);
-    renderBuilderTasks();
-}
-
-function renderBuilderTasks() {
-    const container = document.getElementById("builder-tasks-container");
-    if (!container) return;
-    const tasks = scratchPresetData[activeBuilderDay] || [];
-
-    if (tasks.length === 0) {
-        container.innerHTML = `<p style="color:#aaa; font-size:0.8rem;">No slots added for ${activeBuilderDay} yet.</p>`;
-        return;
-    }
-
-    container.innerHTML = tasks.map((t, idx) => `
-        <div class="preset-item-row">
-            <span><b>${t.start} - ${t.end}:</b> ${t.task}</span>
-            <button onclick="removeSlotFromBuilder(${idx})" class="btn-icon">✕</button>
-        </div>
-    `).join("");
-}
-
-function saveScratchPreset() {
-    const title = document.getElementById("scratch-preset-title").value.trim();
-    if (!title) return alert("Please give your new preset a name.");
-
-    data.presets[title] = scratchPresetData;
-    saveData();
-    renderPresetsManager();
-    populatePresetMenus();
-    closeScratchBuilder();
-    alert(`Successfully created preset "${title}"!`);
-}
-
-document.addEventListener("input", event => {
-    if (event.target.id === "daily-notes") {
-        data.notes[DAYS[data.currentDay]] = event.target.value;
-        saveData();
-    }
-});
-
-document.addEventListener("keydown", event => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        saveSchedule();
-    }
-
-    const tag = document.activeElement?.tagName;
-    const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-
-    if (!typing) {
-        if (event.key === "ArrowLeft") changeDay(-1);
-        if (event.key === "ArrowRight") changeDay(1);
-    }
-
-    if (event.key === "Escape") {
-        const sidebar = document.getElementById("preset-sidebar");
-        if (sidebar && sidebar.classList.contains("open")) toggleSidebar();
-        const todo = document.getElementById("todo-drawer");
-        if (todo && !todo.classList.contains("hidden")) toggleTodoDrawer();
-        const tl = document.getElementById("timeline-page");
-        if (tl && !tl.classList.contains("hidden")) closeTimelinePage();
-        const prog = document.getElementById("progress-panel");
-        if (prog && !prog.classList.contains("hidden")) closeProgressPanel();
-    }
-});
-
-document.addEventListener("click", (e) => {
-    const sidebar = document.getElementById("preset-sidebar");
-    const toggleBtn = document.getElementById("sidebar-toggle-btn");
-    if (!sidebar || !sidebar.classList.contains("open")) return;
-
-    if (!sidebar.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
-        toggleSidebar();
-    }
-});
 

@@ -3402,6 +3402,7 @@ body.fx-complete .task-row.completed {
 .auth-error.hidden { display: none; }
 .auth-submit {
     margin-top: 4px;
+    margin-left: 18px; /* nudge Google button a bit to the right */
     border: none;
     border-radius: 12px;
     padding: 14px;
@@ -3411,9 +3412,69 @@ body.fx-complete .task-row.completed {
     font-size: 0.95rem;
     cursor: pointer;
     font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: calc(100% - 18px);
+    box-sizing: border-box;
 }
 .auth-submit:hover { filter: brightness(1.08); }
 .auth-submit:disabled { opacity: 0.6; cursor: wait; }
+
+/* —— Local offline account under Google —— */
+.local-auth-wrap {
+    margin-top: 14px;
+    width: 100%;
+}
+.auth-or {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0 12px;
+    color: #7a7198;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.auth-or::before,
+.auth-or::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+}
+.auth-local-toggle {
+    width: 100%;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: transparent;
+    color: #cfc6e8;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: inherit;
+}
+.auth-local-toggle:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.22);
+}
+.local-auth-wrap .auth-form {
+    margin-top: 14px;
+}
+.local-auth-wrap .auth-form.hidden {
+    display: none;
+}
+.auth-local-submit {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+.local-auth-wrap .auth-hint code {
+    font-size: 0.72rem;
+    color: #a89cc8;
+}
+
 .auth-hint {
     margin: 16px 0 0;
     font-size: 0.78rem;

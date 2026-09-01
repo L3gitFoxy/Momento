@@ -1,3 +1,4 @@
 node_modules/
 dist/
 music-server/momento-profile.json
+music-server/.env

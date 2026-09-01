@@ -4,14 +4,34 @@ const { URL } = require("url");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
+const os = require("os");
+
+// Google OAuth Configs (Set these in environment or replace with your credentials)
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "YOUR_GOOGLE_CLIENT_SECRET";
+const REDIRECT_URI = "http://127.0.0.1:8787/auth/google/callback";
 
 const DEFAULT_PORT = process.env.PORT || 8787;
-const PROFILE_DIR =
-  process.env.MOMENTO_DATA_DIR ||
-  process.env.RAILWAY_VOLUME_MOUNT_PATH ||
-  (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID ? path.join("/data") : __dirname);
-const PROFILE_FILE = path.join(PROFILE_DIR, "momento-profiles.json");
-// Store tokens in-memory AND persist to file for session recovery
+
+// Local accounts live on disk so Electron works offline.
+// Windows: C:\Momento\users.json  |  else: ~/Momento/users.json
+function resolveMomentoUserFile() {
+  if (process.env.MOMENTO_USERS_FILE) return process.env.MOMENTO_USERS_FILE;
+  if (process.env.MOMENTO_DATA_DIR) return path.join(process.env.MOMENTO_DATA_DIR, "users.json");
+  if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+    return path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, "users.json");
+  }
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) {
+    return path.join("/data", "users.json");
+  }
+  if (process.platform === "win32") {
+    return path.join("C:\\", "Momento", "users.json");
+  }
+  return path.join(os.homedir(), "Momento", "users.json");
+}
+const PROFILE_FILE = resolveMomentoUserFile();
+const PROFILE_DIR = path.dirname(PROFILE_FILE);
+
 const tokensMemory = new Map();
 const tokenExpiry = new Map();
 
@@ -20,15 +40,37 @@ console.log("[Momento] Profile file:", PROFILE_FILE);
 function loadProfiles() {
   try {
     const data = JSON.parse(fs.readFileSync(PROFILE_FILE, "utf8"));
-    // Restore in-memory tokens from persistent storage on startup
     if (data.sessionTokens) {
       Object.entries(data.sessionTokens).forEach(([token, username]) => {
         tokensMemory.set(token, username);
-        tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+        tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000);
       });
     }
     return data;
   } catch {
+    // One-time migrate from older momento-profiles.json next to this file / in music-server
+    const legacyCandidates = [
+      path.join(__dirname, "momento-profiles.json"),
+      path.join(PROFILE_DIR, "momento-profiles.json"),
+    ];
+    for (const leg of legacyCandidates) {
+      try {
+        if (fs.existsSync(leg)) {
+          const data = JSON.parse(fs.readFileSync(leg, "utf8"));
+          if (data && data.users) {
+            try { saveProfiles(data); } catch (e) {}
+            if (data.sessionTokens) {
+              Object.entries(data.sessionTokens).forEach(([token, username]) => {
+                tokensMemory.set(token, username);
+                tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000);
+              });
+            }
+            console.log("[Momento] Migrated accounts from", leg, "→", PROFILE_FILE);
+            return data;
+          }
+        }
+      } catch (e) {}
+    }
     return { users: {}, sessionTokens: {} };
   }
 }
@@ -37,7 +79,6 @@ function saveProfiles(db) {
   try {
     fs.mkdirSync(path.dirname(PROFILE_FILE), { recursive: true });
   } catch (e) {}
-  // Persist active tokens to file for recovery after restart
   db.sessionTokens = Object.fromEntries(tokensMemory);
   fs.writeFileSync(PROFILE_FILE, JSON.stringify(db, null, 2), "utf8");
 }
@@ -167,6 +208,26 @@ function createHandler() {
         return;
       }
 
+      // -------------------------------------------------------------
+      // GOOGLE OAUTH ROUTES (SUPABASE INTEGRATION)
+      // -------------------------------------------------------------
+      if (u.pathname === "/auth/google") {
+        const supabaseUrl = "https://zfvaylgvhgmwmlpiwjzw.supabase.co";
+        const redirectUrl = `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent("http://127.0.0.1:8787/")}`;
+        res.writeHead(302, { Location: redirectUrl });
+        res.end();
+        return;
+      }
+
+      if (u.pathname === "/auth/google/callback") {
+        res.writeHead(302, { Location: "/" });
+        res.end();
+        return;
+      }
+
+      // -------------------------------------------------------------
+      // EXISTING API & AUTH ROUTES
+      // -------------------------------------------------------------
       if (u.pathname === "/api/auth/signup" && req.method === "POST") {
         const body = await readBody(req);
         const username = String(body.username || "").trim().toLowerCase();
@@ -187,8 +248,8 @@ function createHandler() {
         saveProfiles(db);
         const token = makeToken();
         tokensMemory.set(token, username);
-        tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-        saveProfiles(db); // Persist token immediately
+        tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000);
+        saveProfiles(db);
         return sendJson(res, 200, { token, username, data: null });
       }
 
@@ -204,10 +265,10 @@ function createHandler() {
         }
         const token = makeToken();
         tokensMemory.set(token, username);
-        tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+        tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000);
         const db2 = loadProfiles();
         db2.sessionTokens = Object.fromEntries(tokensMemory);
-        saveProfiles(db2); // Persist token immediately
+        saveProfiles(db2);
         return sendJson(res, 200, { token, username, data: user.data || null });
       }
 

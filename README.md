@@ -8,11 +8,7 @@ weekly time-block planner + daily check-in, runs entirely in the browser. no bac
 
 ## why
 
-most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is just one file (app), opens instantly, and can either keep everything on your machine, or in cloud storage to sync your account(s) on every device.
-
-## is it secure?
-
-Momento uses Google OAuth via Supabase solely to authenticate your account and load your personal task data. We do not store, sell, or share your Google profile data with third parties.
+most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is just one file (app), opens instantly, and keeps everything on your machine. No sign-in, log-in or anything of the kind!
 
 ## what is Momento?
 
@@ -23,7 +19,6 @@ Plan the day, play the day, level up. Built for anyone who gets more done when i
 ## files
 
 ```
-cloud-config.js Cloud config
 index.html   UI/markup
 script.js    data model, presets, rendering, drag/drop, analytics
 style.css    dark theme, sidebar drawer, badges
@@ -33,7 +28,12 @@ package.json & package-lock.json useful for packing project in single .exe appli
 ./node_modules helper modules + electron
 ./dist contains one file application
 ./assets contains icon
-./music-server/ contains backend/syncing related stuff
+./music-server/server.js controls music servers
+
+Main file:
+
+**Momento Setup 3.0.2.exe**
+
 ```
 
 
@@ -45,8 +45,8 @@ https://momento-silk.vercel.app
 **just open it:**
 ```bash
 git clone https://github.com/l3gitfoxy/momento.git
-npm install
-npm start
+cd momento/dist
+open Momento Setup 3.0.2.exe
 ```
 
 **just install the exe file** (needed if your browser blocks local file access for JS modules):
@@ -59,4 +59,3 @@ it's a double-page app, poke around the main files (not inside node_modules or d
 ## license
 
 [Apache License 2.0](LICENSE)
-

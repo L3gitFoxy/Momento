@@ -1,14 +1,12 @@
 {
   "name": "momento",
-  "version": "4.2.0",
-  "description": "Momento — offline-first schedule app with optional music",
+  "version": "5.0.0",
+  "description": "Momento — offline-first gamified schedule app with optional google sync",
   "main": "electron-main.js",
   "scripts": {
-    "start": "electron .",
-    "music": "node music-server/server.js",
-    "web": "npx --yes serve -p 3000 ."
+    "start": "electron ."
   },
-"build": {
+  "build": {
     "appId": "com.momento.app",
     "productName": "Momento",
     "icon": "assets/icon.ico",

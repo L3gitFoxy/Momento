@@ -4,7 +4,7 @@ const { startMusicServer } = require('./music-server/server');
 
 let mainWindow = null;
 let musicServer = null;
-const MUSIC_PORT = 8787;
+const MUSIC_PORT = process.env.PORT || 8787;
 
 async function createWindow() {
   try {
@@ -42,9 +42,46 @@ async function createWindow() {
     `).catch(() => {});
   });
 
+  // Allow Google / Supabase OAuth to stay inside the app window.
+  // Opening them externally breaks the redirect back to localhost:8787.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const u = new URL(url);
+      const isOAuth =
+        u.hostname.includes("accounts.google.com") ||
+        u.hostname.includes("google.com") ||
+        u.hostname.includes("supabase.co") ||
+        u.hostname === "127.0.0.1" ||
+        u.hostname === "localhost";
+      if (isOAuth) {
+        return { action: "allow" };
+      }
+    } catch (e) {}
     shell.openExternal(url);
     return { action: "deny" };
+  });
+
+  // Do NOT intercept navigation to Google / Supabase – the OAuth flow must
+  // complete inside this window so the final redirect lands on localhost.
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    try {
+      const u = new URL(url);
+      const isOAuthRelated =
+        u.hostname.includes("accounts.google.com") ||
+        u.hostname.includes("google.com") ||
+        u.hostname.includes("supabase.co") ||
+        u.hostname === "127.0.0.1" ||
+        u.hostname === "localhost";
+      if (isOAuthRelated) {
+        return; // allow navigation inside the app
+      }
+    } catch (e) {}
+    // Block navigation away from the app for unrelated sites
+    if (!url.startsWith(`http://127.0.0.1:${MUSIC_PORT}`) &&
+        !url.startsWith(`http://localhost:${MUSIC_PORT}`)) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
   });
 
   mainWindow.on("closed", () => {
@@ -53,6 +90,7 @@ async function createWindow() {
 
   await mainWindow.loadURL(`http://127.0.0.1:${MUSIC_PORT}`);
 }
+
 app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {
