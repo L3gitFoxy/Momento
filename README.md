@@ -29,10 +29,7 @@ package.json & package-lock.json useful for packing project in single .exe appli
 ./dist contains one file application
 ./assets contains icon
 ./music-server/server.js controls music servers
-
-Main file:
-
-**Momento Setup 3.0.2.exe**
+./music-server/.env  contains required environmental variables
 
 ```
 
@@ -45,9 +42,16 @@ https://momento-silk.vercel.app
 **just open it:**
 ```bash
 git clone https://github.com/l3gitfoxy/momento.git
-cd momento/dist
-open Momento Setup 3.0.2.exe
+npm start
 ```
+
+OR
+
+```bash
+git clone https://github.com/l3gitfoxy/momento.git
+node music-server/server.js
+```
+
 
 **just install the exe file** (needed if your browser blocks local file access for JS modules):
 - Download the exe setup file from the latest release and watch the magic happen!
