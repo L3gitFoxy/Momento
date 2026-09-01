@@ -10,6 +10,10 @@ weekly time-block planner + daily check-in, runs entirely in the browser. no bac
 
 most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is just one file (app), opens instantly, and can either keep everything on your machine, or in cloud storage to sync your account(s) on every device.
 
+## is it secure?
+
+Momento uses Google OAuth via Supabase solely to authenticate your account and load your personal task data. We do not store, sell, or share your Google profile data with third parties.
+
 ## what is Momento?
 
 Momento turns your week into something you actually want to open. Time blocks feel like game levels, checking them off drops XP, and ranks climb from Starter to Mythic — that little hit of progress is intentional. Streaks, unlockable themes, a focus mode with ambient sound, and a persistent to-do list keep the loop going without feeling like another boring planner. 
@@ -56,6 +60,3 @@ it's a double-page app, poke around the main files (not inside node_modules or d
 
 [Apache License 2.0](LICENSE)
 
-## data collection
-
-the app collects your email only and / or phone number only.
