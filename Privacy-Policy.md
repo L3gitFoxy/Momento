@@ -2,7 +2,7 @@
 
 **Effective Date:** September 1, 2026
 
-Momento ("we," "our," or "us") respects your privacy and is committed to protecting your personal data. This Privacy Policy explains how Momento collects, uses, and safeguards your information when you use our desktop application and associated services.
+Momento respects your privacy and is committed to protecting your personal data. This Privacy Policy explains how Momento collects, uses, and safeguards your information when you use our desktop application and associated services.
 
 ## 1. Information We Collect
 When you use Momento, we may collect the following types of information:
