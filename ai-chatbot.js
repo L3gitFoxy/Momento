@@ -854,7 +854,7 @@ const AI_DATABASE = {
             patterns: [/(?:open|show|view)\s+(?:my\s+)?(?:todo|to-?do)/i],
             handler: () => {
                 try { toggleTodoDrawer(); } catch(e) {}
-                return `📋 Opened your **Persistent To-Dos**. They stay until you complete them (+40 XP each).`;
+                return `📋 Opened your **Persistent To-Dos**. They stay until you complete them (+80 XP each, exclusive of multipliers).`;
             }
         },
 

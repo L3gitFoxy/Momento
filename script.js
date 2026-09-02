@@ -1719,31 +1719,68 @@ const CATEGORY_KEYWORDS = {
         "mock", "past paper", "syllabus", "subject", "tutor", "tutorial", "focus block", "focus",
         "do work", "job", "office", "meeting", "email", "client", "project",
         "sprint", "coding", "code", "dev", "deploy", "deadline", "report",
-        "presentation", "freelance", "business", "startup", "manager"
+        "presentation", "freelance", "business", "startup", "manager","complete work",
+        "work block", "work focus", "work session", "work study", "work prep",
+         "work task", "work project", "work assignment", "work meeting",
+        "complete", "finish", "submit", "deliver", "review", "plan", "organize", "organise",
+        "schedule", "prioritize", "prioritise", "research", "analyze", "analyse",
+        "brainstorm", "collaborate", "teamwork", "strategy", "goal setting",
+        "time management", "productivity", "efficiency", "optimization",
+        "optimisation", "problem solving", "critical thinking",
+        "decision making", "communication", "presentation skills",
+        "public speaking", "negotiation", "conflict resolution",
+        "leadership", "mentoring", "coaching"
     ],
     "🏃 Exercise": [
         "football", "exercise", "physical", "play down", "sport", "sports",
         "gym", "workout", "fitness", "cardio", "run", "running", "jog",
         "jogging", "walk", "walking", "swim", "swimming", "cycling",
         "yoga", "pilates", "hiit", "crossfit", "training", "weights",
-        "lifting", "stretch", "stretching", "basketball", "tennis"
+        "lifting", "stretch", "stretching", "basketball", "tennis",
+        "soccer", "volleyball", "hiking", "climbing", "martial arts",
+        "boxing", "kickboxing", "dance", "aerobics", "zumba", "rowing",
+        "elliptical", "skiing", "snowboarding", "surfing", "skateboarding",
+        "rollerblading", "rock climbing", "kayaking", "canoeing",
+        "paddleboarding", "archery", "fencing", "golf", "badminton",
+        "table tennis", "squash", "racquetball"
     ],
     "🎮 Gaming/Relax": [
         "minecraft", "gaming", "game", "games", "relax", "relaxing", "tv",
         "do whatever", "free time", "wind down", "chill", "chilling",
         "you time", "hobby", "hobbies", "leisure", "nap", "rest",
-        "youtube", "netflix", "movie", "music", "podcast", "reading for fun"
+        "youtube", "netflix", "movie", "music", "podcast", "reading for fun",
+        "board games", "card games", "puzzles", "crafts", "drawing",
+        "painting", "photography", "gardening", "cooking for fun",
+        "baking", "knitting", "sewing", "scrapbooking", "journaling",
+        "meditation", "mindfulness", "self-care", "spa day", "massage",
+        "aromatherapy", "essential oils", "relaxation techniques",
+        "stress relief", "mental health break"
     ],
     "🍔 Food": [
         "food", "dinner", "lunch", "breakfast", "eat", "eating", "snack",
-        "meal", "cook", "cooking", "brunch", "supper", "takeaway", "takeout"
+        "meal", "cook", "cooking", "brunch", "supper", "takeaway", "takeout",
+        "mcdonalds", "kfc", "burger", "pizza", "sushi", "pasta", "salad",
+        "sandwich", "taco", "burrito", "noodles", "ramen", "curry", "stir fry",
+        "grill", "barbecue", "bbq", "roast", "bake", "fry", "steam",
+        "microwave", "oven", "pantry", "grocery shopping"
     ],
     "🌅 Morning/Routine": [
         "morning routine", "morning", "wake up", "get ready", "shower",
-        "brush", "routine", "get up", "prepare"
+        "brush", "routine", "get up", "prepare", "start day", "morning prep", "morning ritual", "morning habits",
+        "morning exercise", "morning meditation", "morning journaling",
+        "morning reading", "morning planning", "morning review",
+        "morning reflection", "morning gratitude", "morning affirmations",
+        "morning visualization", "morning stretching", "morning yoga",
+        "morning walk", "morning run", "morning workout"
     ],
     "😴 Rest": [
-        "sleep", "nap", "rest", "bed", "bedtime", "zzz", "sleep 😴"
+        "sleep", "nap", "rest", "bed", "bedtime", "zzz", "sleep 😴",
+        "night", "dream", "relax", "unwind", "recharge", "power nap",
+        "sleep hygiene", "sleep schedule", "sleep routine", "sleep tracker",
+        "sleep quality", "sleep deprivation", "insomnia", "circadian rhythm",
+        "REM sleep", "deep sleep", "light sleep", "sleep cycle", "sleep study",
+        "sleep disorder", "sleep apnea", "snoring", "restful sleep",
+        "sleep environment", "sleep comfort", "sleep position"
     ]
 };
 
@@ -4093,11 +4130,7 @@ function computeWeeklyReview() {
 let _previewWeek = null;
 let _previewDay = "Monday";
 
-// Was called by applyAnalyserFix() but was never defined anywhere in the
-// source files — implemented here so "Regenerate" in the Week Analyser
-// actually works. Builds a week schedule biased toward the categories the
-// selected intent wants (and away from ones it doesn't), sized to the
-// intent's sleep target.
+
 function generateSmartWeekFromIntent(prompt) {
     const intentKey = Object.keys(ANALYSER_INTENTS).find(k => ANALYSER_INTENTS[k].prompt === prompt);
     const cfg = intentKey ? ANALYSER_INTENTS[intentKey].checks : {};
@@ -4301,6 +4334,26 @@ function renderPresetsManager() {
     }
 }
 
+function getTodoXPValue(text) {
+    const baseXP = 80;
+    const textLower = String(text || "").toLowerCase();
+    const matchesKeywords = (keywords) =>
+        Array.isArray(keywords) && keywords.some((kw) => textLower.includes(String(kw).toLowerCase()));
+
+    let xp = baseXP;
+    if (matchesKeywords(CATEGORY_KEYWORDS["📚 Study/Work"])) {
+        xp = Math.round(baseXP * 2);
+    } else if (matchesKeywords(CATEGORY_KEYWORDS["🏃 Exercise"])) {
+        xp = Math.round(baseXP * 1.75);
+    } else if (matchesKeywords(CATEGORY_KEYWORDS["🍔 Food"])) {
+        xp = Math.round(baseXP * 1.5);
+    } else if (matchesKeywords(CATEGORY_KEYWORDS["🎮 Gaming/Relax"])) {
+        xp = Math.round(baseXP * 1.25);
+    }
+
+    return xp + Math.min(30, Math.max(0, (data.streak || 0)));
+}
+
 function saveCurrentAsPreset() {
     const input = document.getElementById("save-preset-input");
     const name = input ? input.value.trim() : "";
@@ -4475,14 +4528,7 @@ document.addEventListener("click", (e) => {
 });
 
 
-// ============================================================
-// Added from context_script.js: music player, focus mode,
-// todos, timeline, weekly review, and cloud/local auth support.
-// These were referenced elsewhere in this file (e.g. the
-// keydown handler calls toggleTodoDrawer/closeTimelinePage/
-// closeProgressPanel, and music-quick-open calls openMusicPage)
-// but were previously undefined or stubbed out.
-// ============================================================
+
 
 function openMusicPage() {
     const page = document.getElementById("music-page");
@@ -6324,7 +6370,7 @@ function toggleTodo(id) {
     const t = (data.todos || []).find(x => x.id === id);
     if (!t) return;
     const was = t.completed;
-    const baseXP = 40;
+    const baseXP = 80;
 
     if (!was) {
         const created = t.createdAt || (t.created ? Date.parse(t.created) : Date.now());
@@ -6349,10 +6395,9 @@ function toggleTodo(id) {
         }
 
         t.completed = true;
-        t.xpAwarded = baseXP;
-        data.xp = (data.xp || 0) + baseXP;
-        data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
+
         const todayStr = new Date().toDateString();
+
         if (data.lastCompletedDate !== todayStr) {
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
@@ -6369,8 +6414,14 @@ function toggleTodo(id) {
             }
             data.lastCompletedDate = todayStr;
         }
+
+        const xpEarned = getTodoXPValue(t.text);
+        t.xpAwarded = xpEarned;
+        data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
+        data.xp = (data.xp || 0) + xpEarned;
+
         const infoAfter = getLevelInfo(data.xp || 0);
-        showXPPopup(baseXP, t.text, infoAfter);
+        showXPPopup(xpEarned, t.text, infoAfter);
         playRewardSound("complete");
         updateXPDisplay();
         if (infoAfter.levelIndex > infoBefore.levelIndex) {
@@ -6379,7 +6430,7 @@ function toggleTodo(id) {
             playRewardSound("levelup");
         }
     } else {
-        const loss = typeof t.xpAwarded === "number" && t.xpAwarded > 0 ? t.xpAwarded : baseXP;
+        const loss = typeof t.xpAwarded === "number" && t.xpAwarded > 0 ? t.xpAwarded : getTodoXPValue(t.text);
         const infoBefore = getLevelInfo(data.xp || 0);
         data.xp = Math.max(0, (data.xp || 0) - loss);
         data.totalTasksCompleted = Math.max(0, (data.totalTasksCompleted || 0) - 1);

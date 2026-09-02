@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-    <!-- Put this AT THE VERY TOP inside <head> -->
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -441,7 +441,7 @@
             <strong>📋 Persistent To-Dos</strong>
             <button onclick="toggleTodoDrawer()" class="close-btn">&#10005;</button>
         </div>
-        <p class="todo-drawer-hint">These stay until you complete them — +40 XP each</p>
+        <p class="todo-drawer-hint">These stay until you complete them, +80 XP each (exclusive of multipliers)</p>
         <ul id="todo-list"></ul>
         <div class="todo-add-row">
             <input type="text" id="todo-input" placeholder="Add a lasting to-do..." onkeydown="if(event.key==='Enter')addTodo()">
