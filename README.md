@@ -8,7 +8,7 @@ Weekly time-block planner + daily check-in, runs entirely in the browser. no bac
 
 ## Why
 
-most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is just one file (app), opens instantly, and keeps everything on your machine. No sign-in, log-in or anything of the kind!
+Most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is just one file (app), opens instantly, and keeps everything on your machine or on the secure cloud storage (Supabase)!
 
 ## What is Momento?
 
