@@ -32,7 +32,7 @@ package.json & package-lock.json useful for packing project in single .exe appli
 ./node_modules helper modules + electron
 ./dist contains one file application
 ./assets contains icon
-./music-server/server.js controls music servers
+./music-server/server.js controls music servers and hackend
 ./music-server/.env  contains required environmental variables
 
 ```

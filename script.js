@@ -102,7 +102,7 @@ function setupAuthStateListener() {
                     console.log('[Auth] User profile loaded.');
                     finishAuth();
                     hideAuthScreen();
-                    showToast(`Welcome back, ${session.user.email || 'user'}!`, 'info');
+                    showWelcomeBack();
                 }
             } catch (err) {
                 console.error('[Auth] Unexpected error fetching profile:', err);
@@ -237,8 +237,13 @@ function getDefaultAppData() {
         lastCompletedDate: null,
         totalTasksCompleted: 0,
         todos: [],
+        calendarEvents: [],
         rewardsUnlocked: [],
-        preferredChime: "default"
+        preferredChime: "default",
+        sfxEnabled: true,
+        levelUpSoundEnabled: true,
+        confettiEnabled: true,
+        activeCosmetics: []
     };
 }
 
@@ -1476,6 +1481,11 @@ function applyProfileData(parsed) {
         data.lastCompletedDate = parsed.lastCompletedDate || null;
         data.totalTasksCompleted = parsed.totalTasksCompleted || 0;
         data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
+        data.calendarEvents = Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [];
+        if (parsed.sfxEnabled !== undefined) data.sfxEnabled = !!parsed.sfxEnabled;
+        if (parsed.levelUpSoundEnabled !== undefined) data.levelUpSoundEnabled = !!parsed.levelUpSoundEnabled;
+        if (parsed.confettiEnabled !== undefined) data.confettiEnabled = !!parsed.confettiEnabled;
+        data.activeCosmetics = Array.isArray(parsed.activeCosmetics) ? parsed.activeCosmetics : [];
         data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
         data.themeId = parsed.themeId || "purple";
         data.preferredChime = parsed.preferredChime || "default";
@@ -1498,19 +1508,25 @@ function finishAuth() {
         chip.onclick = openProfileMenu;
         // Prefer local username, then Supabase email
         const session = typeof getSession === "function" ? getSession() : null;
+        function setChipInitial(name) {
+            const raw = (name || "U").trim();
+            const letter = raw.charAt(0).toUpperCase() || "U";
+            chip.textContent = letter;
+            chip.title = "Account — " + raw;
+        }
         if (session && session.username) {
-            chip.textContent = "👤 " + session.username;
+            setChipInitial(session.username);
         } else if (currentUser && !String(currentUser).includes("-")) {
-            chip.textContent = "👤 " + currentUser;
+            setChipInitial(currentUser);
         } else if (supabaseClient && supabaseClient.auth) {
             supabaseClient.auth.getUser().then(({ data: { user } }) => {
                 const displayName = user?.email ? user.email.split("@")[0] : (currentUser || "user");
-                chip.textContent = "👤 " + displayName;
+                setChipInitial(displayName);
             }).catch(() => {
-                chip.textContent = "👤 " + (currentUser || "user");
+                setChipInitial(currentUser || "user");
             });
         } else {
-            chip.textContent = "👤 " + (currentUser || "user");
+            setChipInitial(currentUser || "user");
         }
     }
     try {
@@ -1637,7 +1653,7 @@ async function bootstrapAuth() {
                         if (body && body.data) {
                             applyProfileData(body.data);
                             finishAuth();
-                            showToast("Welcome back, " + localSession.username, "info");
+                            showWelcomeBack();
                             return true;
                         }
                     } else if (res.status === 401) {
@@ -1650,7 +1666,7 @@ async function bootstrapAuth() {
             }
             loadData();
             finishAuth();
-            showToast("Welcome back, " + localSession.username + " (offline)", "info");
+            showWelcomeBack();
             return true;
         } catch (e) {
             console.error("[Bootstrap] local session restore failed", e);
@@ -1797,9 +1813,14 @@ let data = {
     streak: 0,
     lastCompletedDate: null,
     totalTasksCompleted: 0,
-    todos: [],          
-    rewardsUnlocked: [], 
-    preferredChime: "default"
+    todos: [],
+    calendarEvents: [],
+    rewardsUnlocked: [],
+    preferredChime: "default",
+    sfxEnabled: true,
+    levelUpSoundEnabled: true,
+    confettiEnabled: true,
+    activeCosmetics: []
 };
 
 let currentActiveTaskName = null;
@@ -1968,6 +1989,11 @@ function applyAppDataObject(parsed) {
     data.lastCompletedDate = parsed.lastCompletedDate || null;
     data.totalTasksCompleted = parsed.totalTasksCompleted || 0;
     data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
+        data.calendarEvents = Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [];
+        if (parsed.sfxEnabled !== undefined) data.sfxEnabled = !!parsed.sfxEnabled;
+        if (parsed.levelUpSoundEnabled !== undefined) data.levelUpSoundEnabled = !!parsed.levelUpSoundEnabled;
+        if (parsed.confettiEnabled !== undefined) data.confettiEnabled = !!parsed.confettiEnabled;
+        data.activeCosmetics = Array.isArray(parsed.activeCosmetics) ? parsed.activeCosmetics : [];
     data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
     data.themeId = parsed.themeId || "purple";
     data.preferredChime = parsed.preferredChime || "default";
@@ -2118,6 +2144,25 @@ const THEME_CATALOG = [
     { id: "candy", name: "Candy", color: "#fd79a8", hover: "#e84393", alpha: "rgba(253,121,168,0.3)",
       bg: "linear-gradient(160deg,#1a0e18 0%,#181028 50%,#1a1018 100%)", card: "#221428", border: "#3a2540",
       text: "#fce8f4", muted: "#8a5a78", rewardId: "theme_candy", gradient: true },
+    /* Distinct standout themes */
+    { id: "ember", name: "Ember", color: "#ff5722", hover: "#e64a19", alpha: "rgba(255,87,34,0.35)",
+      bg: "linear-gradient(145deg,#2a0a00 0%,#1a0505 40%,#0d0000 100%)", card: "#2c1208", border: "#5c2a10",
+      text: "#ffe8d6", muted: "#a07050", rewardId: "theme_ember", gradient: true },
+    { id: "glacier", name: "Glacier", color: "#81d4fa", hover: "#4fc3f7", alpha: "rgba(129,212,250,0.3)",
+      bg: "linear-gradient(180deg,#0a1628 0%,#0e2038 50%,#061018 100%)", card: "#0f1e30", border: "#1a3a55",
+      text: "#e3f6ff", muted: "#6a9ab0", rewardId: "theme_glacier", gradient: true },
+    { id: "toxic", name: "Toxic", color: "#c6ff00", hover: "#aeea00", alpha: "rgba(198,255,0,0.28)",
+      bg: "linear-gradient(160deg,#0a1400 0%,#0c1a08 45%,#051008 100%)", card: "#101c08", border: "#2a4010",
+      text: "#f0ffe0", muted: "#7a9a40", rewardId: "theme_toxic", gradient: true },
+    { id: "royal", name: "Royal", color: "#aa00ff", hover: "#7c00cc", alpha: "rgba(170,0,255,0.32)",
+      bg: "radial-gradient(ellipse at 30% 20%,#2a0040 0%,#100018 55%,#080010 100%)", card: "#1a0028", border: "#4a0080",
+      text: "#f5e6ff", muted: "#9a70b8", rewardId: "theme_royal", gradient: true },
+    { id: "bloodmoon", name: "Blood Moon", color: "#c62828", hover: "#8e0000", alpha: "rgba(198,40,40,0.35)",
+      bg: "linear-gradient(200deg,#1a0000 0%,#2a0808 35%,#0a0000 100%)", card: "#220808", border: "#5a1515",
+      text: "#ffd6d6", muted: "#a06060", rewardId: "theme_bloodmoon", gradient: true },
+    { id: "matrix", name: "Matrix", color: "#00e676", hover: "#00c853", alpha: "rgba(0,230,118,0.3)",
+      bg: "#000a00", card: "#001400", border: "#003300",
+      text: "#b9f6ca", muted: "#4caf50", rewardId: "theme_matrix" },
 ];
 
 function isThemeUnlocked(theme) {
@@ -2582,11 +2627,19 @@ function createTaskRow(task, index) {
     deleteBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         const day = DAYS[data.currentDay];
+        // If the block was completed and awarded XP, revoke it
+        if (task.completed && !task.isSleep && (task.xpAwarded || task.xpAmount)) {
+            if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
+            task.xpAwarded = true;
+            revokeXPForTask(task);
+            showToast(`🗑️ Block deleted — −${task.xpAmount || 0} XP revoked`, "warn");
+        }
         data.schedules[day].splice(index, 1);
         saveData();
         renderTasks();
         renderProgressTracker();
         renderWeeklyAnalytics();
+        updateXPDisplay();
     });
 
     if (!Array.isArray(task.microTasks)) task.microTasks = [];
@@ -2803,6 +2856,8 @@ function openBlockDetail(task, index) {
     document.getElementById("bd-task-name").value = task.task || "";
     document.getElementById("bd-start").value = formatTime(task.start) || "";
     document.getElementById("bd-end").value = formatTime(task.end) || "";
+    attachSmartTimeInput(document.getElementById("bd-start"));
+    attachSmartTimeInput(document.getElementById("bd-end"));
     document.getElementById("bd-notes").value = task.notes || "";
     document.getElementById("bd-completed").checked = !!task.completed;
     renderBlockDetailMicros();
@@ -2922,6 +2977,98 @@ function formatTime(t) {
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${hh}:${mm}`;
 }
+
+/** Smart HH:MM typing: auto leading 0, auto colon, digits only */
+function attachSmartTimeInput(el) {
+    if (!el || el.dataset.smartTime === "1") return;
+    el.dataset.smartTime = "1";
+    el.setAttribute("maxlength", "5");
+    el.setAttribute("inputmode", "numeric");
+    el.setAttribute("placeholder", el.placeholder || "09:00");
+
+    el.addEventListener("keydown", (e) => {
+        // Allow nav/edit keys
+        if (["Backspace","Delete","Tab","ArrowLeft","ArrowRight","Home","End"].includes(e.key)) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (!/^\d$/.test(e.key)) {
+            e.preventDefault();
+            return;
+        }
+        const start = el.selectionStart || 0;
+        const end = el.selectionEnd || 0;
+        let val = el.value || "";
+        // If selection spans, remove it first
+        if (start !== end) {
+            val = val.slice(0, start) + val.slice(end);
+        }
+        const digits = val.replace(/\D/g, "");
+        // Build next digit sequence from caret context is complex; rebuild from digits + new key
+        // Simpler approach: if full, block extra digits
+        if (digits.length >= 4 && start === end) {
+            e.preventDefault();
+            return;
+        }
+    });
+
+    el.addEventListener("input", () => {
+        let digits = (el.value || "").replace(/\D/g, "").slice(0, 4);
+        if (!digits) { el.value = ""; return; }
+
+        // First digit of hour: if 3-9, treat as single digit hour → pad 0
+        if (digits.length === 1) {
+            const d = parseInt(digits[0], 10);
+            if (d >= 3) {
+                el.value = "0" + digits[0] + ":";
+                try { el.setSelectionRange(3, 3); } catch(e){}
+                return;
+            }
+            el.value = digits;
+            return;
+        }
+        if (digits.length === 2) {
+            let hh = parseInt(digits, 10);
+            if (hh > 23) {
+                // invalid two-digit hour — keep first and start over
+                digits = digits[0];
+                el.value = digits;
+                return;
+            }
+            el.value = digits + ":";
+            try { el.setSelectionRange(3, 3); } catch(e){}
+            return;
+        }
+        // 3 or 4 digits
+        let hh = digits.slice(0, 2);
+        let mm = digits.slice(2);
+        if (parseInt(hh, 10) > 23) hh = "23";
+        if (mm.length === 1) {
+            el.value = hh + ":" + mm;
+            return;
+        }
+        if (parseInt(mm, 10) > 59) mm = "59";
+        el.value = hh + ":" + mm;
+    });
+
+    el.addEventListener("blur", () => {
+        const parsed = typeof parseTime === "function" ? parseTime(el.value) : null;
+        if (parsed) el.value = parsed;
+        else if (el.value && el.value.replace(/\D/g,"").length > 0) {
+            // try pad incomplete
+            let d = el.value.replace(/\D/g, "").slice(0,4);
+            if (d.length === 1) d = "0" + d + "00";
+            else if (d.length === 2) d = d + "00";
+            else if (d.length === 3) d = d + "0";
+            const p = parseTime(d.slice(0,2) + ":" + d.slice(2));
+            if (p) el.value = p;
+        }
+    });
+}
+
+function bindAllSmartTimeInputs(root) {
+    const scope = root || document;
+    scope.querySelectorAll("#bd-start, #bd-end, input.smart-time, input[data-smart-time]").forEach(attachSmartTimeInput);
+}
+
 function parseTime(v) {
     if (!v) return null;
     const m = /^(\d{1,2}):(\d{2})$/.exec(String(v).trim());
@@ -3462,6 +3609,18 @@ const REWARD_CATALOG = [
     { id: "theme_candy",      atLevel: 46, name: "Candy Gradient",        desc: "Unlock the Candy gradient theme" },
     { id: "theme_mythic",     atLevel: 48, name: "Mythic Aura",           desc: "Special Mythic glow on the XP pill" },
     { id: "title_mythic",     atLevel: 49, name: "Mythic Title",          desc: "Unlock the Mythic title under Momento" },
+    { id: "theme_ember",      atLevel: 15, name: "Ember Theme",           desc: "Fiery dark orange gradient" },
+    { id: "theme_glacier",    atLevel: 18, name: "Glacier Theme",         desc: "Icy blue glacial gradient" },
+    { id: "theme_toxic",      atLevel: 22, name: "Toxic Theme",           desc: "Neon acid green gradient" },
+    { id: "theme_royal",      atLevel: 26, name: "Royal Theme",           desc: "Deep purple radial glow" },
+    { id: "theme_bloodmoon",  atLevel: 32, name: "Blood Moon Theme",      desc: "Crimson night gradient" },
+    { id: "theme_matrix",     atLevel: 36, name: "Matrix Theme",          desc: "Classic green-on-black" },
+    { id: "sound_crystal",    atLevel: 14, name: "Crystal Chime",         desc: "Bright crystalline completion tone" },
+    { id: "sound_drum",       atLevel: 21, name: "Drum Hit",              desc: "Punchy drum on task complete" },
+    { id: "sound_sparkle",    atLevel: 30, name: "Sparkle Cascade",       desc: "Sparkly cascade on level-up" },
+    { id: "cosmetic_particles", atLevel: 16, name: "XP Particles",        desc: "Floating particles when you earn XP" },
+    { id: "cosmetic_glow",    atLevel: 24, name: "Block Glow",            desc: "Active blocks get a soft pulse glow" },
+    { id: "cosmetic_streakfire", atLevel: 33, name: "Streak Fire",        desc: "Animated fire icon on long streaks" },
 ];
 
 const CHIME_CATALOG = [
@@ -3469,6 +3628,9 @@ const CHIME_CATALOG = [
     { id: "victory",  name: "Victory",   rewardId: "sound_victory", unlockFeature: "sound_victory" },
     { id: "levelup",  name: "Fanfare",   rewardId: "sound_levelup", unlockFeature: "sound_levelup" },
     { id: "chill",    name: "Chill",     rewardId: "sound_chill",   unlockFeature: "sound_chill" },
+    { id: "crystal",  name: "Crystal",   rewardId: "sound_crystal", unlockFeature: "sound_crystal" },
+    { id: "drum",     name: "Drum",      rewardId: "sound_drum",    unlockFeature: "sound_drum" },
+    { id: "sparkle",  name: "Sparkle",   rewardId: "sound_sparkle", unlockFeature: "sound_sparkle" },
 ];
 
 const FEATURE_UNLOCKS = {
@@ -3480,9 +3642,12 @@ const FEATURE_UNLOCKS = {
     ai_clear_day: 3,    
     ai_clear_week: 7,   
     ai_bulk_edit: 6,    
-    sound_victory: 19,  
-    sound_levelup: 10,  
-    sound_chill: 28,    
+    sound_victory: 19,
+    sound_levelup: 10,
+    sound_chill: 28,
+    sound_crystal: 14,
+    sound_drum: 21,
+    sound_sparkle: 30,
 };
 
 function checkAndUnlockRewards(levelIndex) {
@@ -3772,10 +3937,84 @@ function showLevelDown(oldRank, newRank) {
     playRewardSound("down");
 }
 
+
+function getDisplayFirstName() {
+    try {
+        const session = typeof getSession === "function" ? getSession() : null;
+        if (session && session.username) return String(session.username).split(/[@\s]/)[0];
+        if (currentUser && !String(currentUser).includes("-")) return String(currentUser).split(/[@\s]/)[0];
+    } catch (e) {}
+    return "there";
+}
+
+function buildWelcomeBackMessage() {
+    const name = getDisplayFirstName();
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todos = data.todos || [];
+    const incompleteTodos = todos.filter(t => !t.completed);
+    const nearDue = incompleteTodos.filter(t => {
+        if (!t.dueDate) return false;
+        const due = new Date(t.dueDate + "T00:00:00");
+        const diff = Math.floor((due - today) / 86400000);
+        return diff >= 0 && diff <= 1; // today or tomorrow
+    });
+    const overdue = incompleteTodos.filter(t => {
+        if (!t.dueDate) return false;
+        const due = new Date(t.dueDate + "T00:00:00");
+        return due < today;
+    });
+
+    // Schedule blocks today incomplete
+    let nearBlocks = 0;
+    try {
+        const dayName = typeof DAYS !== "undefined" ? DAYS[getTodayIndex()] : null;
+        if (dayName && data.schedules && data.schedules[dayName]) {
+            const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+            data.schedules[dayName].forEach(t => {
+                if (t.isSleep || t.completed) return;
+                const s = timeToMinutes(t.start);
+                if (Math.abs(s - nowM) <= 180 || (s >= nowM && s - nowM <= 180)) nearBlocks++;
+            });
+        }
+    } catch (e) {}
+
+    // Calendar events same day within a few hours
+    let nearCal = 0;
+    try {
+        const iso = new Date().toISOString().slice(0,10);
+        const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+        (data.calendarEvents || []).forEach(ev => {
+            if (ev.date !== iso || ev.missedPrompted) return;
+            const s = timeToMinutes(ev.start || "00:00");
+            const e = timeToMinutes(ev.end || "00:00");
+            if (s - nowM <= 180 && e + 60 >= nowM) nearCal++;
+        });
+    } catch (e) {}
+
+    // Contextual only when something is due soon / overdue / nearing time
+    if (nearDue.length || overdue.length || nearBlocks || nearCal) {
+        const bits = [];
+        if (incompleteTodos.length) bits.push(`${incompleteTodos.length} incomplete to-do${incompleteTodos.length>1?"s":""}`);
+        if (nearDue.length) bits.push("items due today or tomorrow");
+        if (overdue.length) bits.push(`${overdue.length} overdue`);
+        if (nearBlocks || nearCal) bits.push("tasks nearing their time");
+        return `Welcome back, ${name}! You have ${bits.join(", ")} — finish them fast and keep grinding!`;
+    }
+    return `Welcome back, ${name}!`;
+}
+
+function showWelcomeBack() {
+    showToast(buildWelcomeBackMessage(), "info");
+}
+
+
 function showToast(msg, kind) {
     const el = document.createElement("div");
     el.className = "sync-toast" + (kind ? " toast-" + kind : "");
     el.textContent = msg;
+    el.style.zIndex = "2147483646";
+    // Always mount at end of body so it stacks above any open panel/modal
     document.body.appendChild(el);
     setTimeout(() => el.classList.add("show"), 20);
     setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 450); }, 7000);
@@ -3888,7 +4127,9 @@ function clearWeekSchedules() {
 }
 
 function playRewardSound(kind, forcePreview) {
+    if (!forcePreview && data.sfxEnabled === false && kind !== "down") return;
     if (!forcePreview && !data.notificationsEnabled && kind !== "down") return;
+    if (kind === "levelup" && data.levelUpSoundEnabled === false && !forcePreview) return;
     let tone = kind;
     if (kind === "complete") {
         const pref = data.preferredChime || "default";
@@ -3927,6 +4168,18 @@ function playRewardSound(kind, forcePreview) {
         } else if (tone === "down") {
             playTone(400, 0, 0.2, "sawtooth", 0.12);
             playTone(300, 0.15, 0.25, "sawtooth", 0.1);
+        } else if (tone === "crystal") {
+            playTone(1046.5, 0, 0.08, "sine", 0.2);
+            playTone(1318.5, 0.08, 0.1, "sine", 0.18);
+            playTone(1568, 0.16, 0.2, "triangle", 0.15);
+        } else if (tone === "drum") {
+            playTone(80, 0, 0.08, "square", 0.25);
+            playTone(60, 0.05, 0.12, "sawtooth", 0.15);
+        } else if (tone === "sparkle") {
+            playTone(1200, 0, 0.06, "sine", 0.12);
+            playTone(1500, 0.07, 0.06, "sine", 0.12);
+            playTone(1800, 0.14, 0.06, "sine", 0.1);
+            playTone(2100, 0.21, 0.15, "triangle", 0.1);
         } else {
             playChime();
         }
@@ -4923,7 +5176,7 @@ async function authLogin(username, password) {
             if (body.data) applyProfileData(body.data);
             else loadData();
             finishAuth();
-            showToast("Welcome back, " + key, "info");
+            showWelcomeBack();
             return;
         }
         if (res.status === 401) {
@@ -4957,7 +5210,7 @@ async function authLogin(username, password) {
     resetToDefaultAppData();
     loadData();
     finishAuth();
-    showToast("Welcome back, " + key, "info");
+    showWelcomeBack();
 }
 
 function migrateLegacyDataIfAny(username) {
@@ -6082,11 +6335,19 @@ function timelineRemoveBlock(index) {
     const tasks = data.schedules[day] || [];
     if (index < 0 || index >= tasks.length) return;
     if (tasks[index].isSleep) return;
+    const task = tasks[index];
+    if (task.completed && (task.xpAwarded || task.xpAmount)) {
+        if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
+        task.xpAwarded = true;
+        revokeXPForTask(task);
+        showToast(`🗑️ Block deleted — XP revoked`, "warn");
+    }
     tasks.splice(index, 1);
     saveData();
     renderTimelinePage();
     renderTasks();
     renderWeeklyAnalytics();
+    updateXPDisplay();
 }
 
 let _focusTimerInterval = null;
@@ -6353,15 +6614,20 @@ function addTodo() {
     if (!input) return;
     const text = input.value.trim();
     if (!text) return;
+    const dueEl = document.getElementById("todo-due-input");
+    const due = dueEl && dueEl.value ? dueEl.value : null;
     data.todos = data.todos || [];
     data.todos.push({
         id: Date.now() + Math.random().toString(36).slice(2,7),
         text,
         completed: false,
         created: new Date().toISOString(),
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        dueDate: due,
+        penaltyApplied: false
     });
     input.value = "";
+    if (dueEl) dueEl.value = "";
     saveData();
     renderTodos();
 }
@@ -6415,7 +6681,21 @@ function toggleTodo(id) {
             data.lastCompletedDate = todayStr;
         }
 
-        const xpEarned = getTodoXPValue(t.text);
+        let xpEarned = getTodoXPValue(t.text);
+        // Due-date scaling: on time = full, 1 day late = 0.5x, more = still award but mark overdue handled separately
+        if (t.dueDate) {
+            const due = new Date(t.dueDate + "T23:59:59");
+            const now = new Date();
+            const daysLate = Math.floor((now - due) / 86400000);
+            if (daysLate === 1) {
+                xpEarned = Math.round(xpEarned * 0.5);
+                showToast("⏰ 1 day late — half XP", "warn");
+            } else if (daysLate > 1) {
+                // Already penalized on login; completing late still gives reduced credit
+                xpEarned = Math.max(10, Math.round(xpEarned * 0.25));
+                showToast("⏰ Very late — 25% XP only", "warn");
+            }
+        }
         t.xpAwarded = xpEarned;
         data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
         data.xp = (data.xp || 0) + xpEarned;
@@ -6468,13 +6748,29 @@ function renderTodos() {
         return;
     }
     const sorted = [...todos].sort((a,b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1));
-    list.innerHTML = sorted.map(t => `
+    const today = new Date(); today.setHours(0,0,0,0);
+    list.innerHTML = sorted.map(t => {
+        let dueHtml = "";
+        if (t.dueDate && !t.completed) {
+            const due = new Date(t.dueDate + "T00:00:00");
+            const diff = Math.floor((due - today) / 86400000);
+            let cls = "todo-due";
+            let label = "Due " + t.dueDate;
+            if (diff < 0) { cls += " overdue"; label = Math.abs(diff) + "d overdue"; }
+            else if (diff === 0) { cls += " due-soon"; label = "Due today"; }
+            else if (diff === 1) { cls += " due-soon"; label = "Due tomorrow"; }
+            dueHtml = `<span class="${cls}">${label}</span>`;
+        } else if (t.dueDate && t.completed) {
+            dueHtml = `<span class="todo-due">was ${t.dueDate}</span>`;
+        }
+        return `
         <li class="todo-item ${t.completed ? "done" : ""}">
             <input type="checkbox" ${t.completed ? "checked" : ""} onchange="toggleTodo('${t.id}')">
             <span class="todo-text">${t.text}</span>
+            ${dueHtml}
             <button class="todo-remove" onclick="removeTodo('${t.id}')" title="Remove">✕</button>
-        </li>
-    `).join("");
+        </li>`;
+    }).join("");
 }
 
 let _tlDrag = null;
@@ -6807,3 +7103,527 @@ function runAnalysis() {
     document.getElementById("analyser-footer").style.display = totalIssues > 0 ? "flex" : "none";
 }
 
+
+
+/* ============================================================
+   Calendar, overdue todos, app customiser, cosmetics (added)
+   ============================================================ */
+
+let _calYear = new Date().getFullYear();
+let _calMonth = new Date().getMonth(); // 0-11
+let _calSelected = null; // YYYY-MM-DD
+let _calEditId = null;
+
+function openCalendarPage() {
+    const page = document.getElementById("calendar-page");
+    if (!page) return;
+    page.classList.remove("hidden");
+    const now = new Date();
+    _calYear = now.getFullYear();
+    _calMonth = now.getMonth();
+    if (!_calSelected) {
+        _calSelected = now.toISOString().slice(0, 10);
+    } else {
+        // Jump month nav to selected day
+        const parts = _calSelected.split("-").map(Number);
+        if (parts.length === 3) {
+            _calYear = parts[0];
+            _calMonth = parts[1] - 1;
+        }
+    }
+    renderCalendarYear();
+    renderCalDayPanel();
+}
+
+function closeCalendarPage() {
+    const page = document.getElementById("calendar-page");
+    if (page) page.classList.add("hidden");
+}
+
+function calChangeMonth(delta) {
+    _calMonth += delta;
+    while (_calMonth < 0) { _calMonth += 12; _calYear--; }
+    while (_calMonth > 11) { _calMonth -= 12; _calYear++; }
+    renderCalendarYear();
+}
+
+function calChangeYear(delta) {
+    // kept for compatibility
+    _calYear += delta;
+    renderCalendarYear();
+}
+
+function renderCalendarYear() {
+    const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const label = document.getElementById("cal-year-label");
+    if (label) label.textContent = `${monthNames[_calMonth]} ${_calYear}`;
+    const grid = document.getElementById("cal-year-grid");
+    if (!grid) return;
+    data.calendarEvents = data.calendarEvents || [];
+    const eventDays = new Set((data.calendarEvents || []).map(e => e.date));
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const first = new Date(_calYear, _calMonth, 1);
+    const startPad = first.getDay();
+    const daysInMonth = new Date(_calYear, _calMonth + 1, 0).getDate();
+
+    let html = `<div class="cal-month">`;
+    html += `<div class="cal-weekdays">${["S","M","T","W","T","F","S"].map(d=>`<span>${d}</span>`).join("")}</div>`;
+    html += `<div class="cal-days">`;
+    for (let i = 0; i < startPad; i++) html += `<button type="button" class="cal-day other-month" tabindex="-1"></button>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+        const iso = `${_calYear}-${String(_calMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+        let cls = "cal-day";
+        if (iso === todayStr) cls += " today";
+        if (iso === _calSelected) cls += " selected";
+        if (eventDays.has(iso)) cls += " has-events";
+        html += `<button type="button" class="${cls}" onclick="calSelectDay('${iso}')">${d}</button>`;
+    }
+    html += `</div></div>`;
+    grid.innerHTML = html;
+}
+
+function calSelectDay(iso) {
+    _calSelected = iso;
+    renderCalendarYear();
+    renderCalDayPanel();
+}
+
+function renderCalDayPanel() {
+    const label = document.getElementById("cal-selected-label");
+    const tl = document.getElementById("cal-day-timeline");
+    if (!label || !tl) return;
+    if (!_calSelected) {
+        label.textContent = "Select a day";
+        tl.innerHTML = `<div class="cal-gantt-empty">Select a day on the calendar</div>`;
+        return;
+    }
+    const d = new Date(_calSelected + "T12:00:00");
+    label.textContent = d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    const events = (data.calendarEvents || []).filter(e => e.date === _calSelected)
+        .sort((a,b) => (a.start || "").localeCompare(b.start || ""));
+
+    const START_H = 6, END_H = 22;
+    const hours = [];
+    for (let h = START_H; h < END_H; h++) hours.push(h);
+    const rangeM = (END_H - START_H) * 60;
+
+    if (!events.length) {
+        tl.innerHTML = `<div class="cal-gantt-empty">No events this day — click + Add Event to schedule something</div>`;
+        return;
+    }
+
+    let html = `<div class="cal-gantt-inner">`;
+    html += `<div class="cal-gantt-hours"><span>Timeline</span>`;
+    hours.forEach(h => { html += `<span>${String(h).padStart(2,"0")}</span>`; });
+    html += `</div>`;
+    events.forEach(ev => {
+        const sParts = (ev.start || "09:00").split(":").map(Number);
+        const eParts = (ev.end || "10:00").split(":").map(Number);
+        let sM = sParts[0]*60 + (sParts[1]||0) - START_H*60;
+        let eM = eParts[0]*60 + (eParts[1]||0) - START_H*60;
+        sM = Math.max(0, Math.min(rangeM, sM));
+        eM = Math.max(sM + 15, Math.min(rangeM, eM));
+        const leftPct = (sM / rangeM) * 100;
+        const widthPct = Math.max(3, ((eM - sM) / rangeM) * 100);
+        const safeTitle = String(ev.title || "Event").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+        html += `<div class="cal-gantt-row cal-gantt-clickable" onclick="calOpenEditEvent('${ev.id}')">
+            <div class="cal-gantt-label" title="${safeTitle}">
+                <strong>${safeTitle}</strong>
+                <small>${ev.start || "?"} – ${ev.end || "?"}</small>
+                <div class="row-actions">
+                    <button type="button" onclick="event.stopPropagation();calOpenEditEvent('${ev.id}')">Reschedule</button>
+                    <button type="button" class="danger" onclick="event.stopPropagation();calRemoveEvent('${ev.id}')">Remove</button>
+                </div>
+            </div>
+            <div class="cal-gantt-track">
+                <div class="cal-gantt-bar" style="left:${leftPct}%;width:${widthPct}%;" title="${safeTitle}: ${ev.start}–${ev.end}">
+                    <span>${ev.start}–${ev.end}</span>
+                </div>
+            </div>
+        </div>`;
+    });
+    html += `</div>`;
+    tl.innerHTML = html;
+}
+
+function calOpenAddEvent() {
+    _calEditId = null;
+    document.getElementById("cal-event-modal-title").textContent = "Add Event";
+    document.getElementById("cal-event-title").value = "";
+    document.getElementById("cal-event-date").value = _calSelected || new Date().toISOString().slice(0,10);
+    document.getElementById("cal-event-start").value = "09:00";
+    document.getElementById("cal-event-end").value = "10:00";
+    document.getElementById("cal-event-notes").value = "";
+    document.getElementById("cal-event-modal").classList.remove("hidden");
+    if (typeof attachSmartTimeInput === "function") {
+        attachSmartTimeInput(document.getElementById("cal-event-start"));
+        attachSmartTimeInput(document.getElementById("cal-event-end"));
+    }
+}
+
+function calOpenEditEvent(id) {
+    const ev = (data.calendarEvents || []).find(e => e.id === id);
+    if (!ev) return;
+    _calEditId = id;
+    document.getElementById("cal-event-modal-title").textContent = "Edit Event";
+    document.getElementById("cal-event-title").value = ev.title || "";
+    document.getElementById("cal-event-date").value = ev.date || "";
+    document.getElementById("cal-event-start").value = ev.start || "09:00";
+    document.getElementById("cal-event-end").value = ev.end || "10:00";
+    document.getElementById("cal-event-notes").value = ev.notes || "";
+    document.getElementById("cal-event-modal").classList.remove("hidden");
+    if (typeof attachSmartTimeInput === "function") {
+        attachSmartTimeInput(document.getElementById("cal-event-start"));
+        attachSmartTimeInput(document.getElementById("cal-event-end"));
+    }
+}
+
+function closeCalEventModal() {
+    document.getElementById("cal-event-modal").classList.add("hidden");
+    _calEditId = null;
+}
+
+function calSaveEvent() {
+    const title = (document.getElementById("cal-event-title").value || "").trim();
+    const date = document.getElementById("cal-event-date").value;
+    let start = document.getElementById("cal-event-start").value;
+    let end = document.getElementById("cal-event-end").value;
+    const notes = (document.getElementById("cal-event-notes").value || "").trim();
+    if (!title || !date) {
+        showToast("Title and date are required", "warn");
+        return;
+    }
+    start = (typeof parseTime === "function" ? parseTime(start) : start) || null;
+    end = (typeof parseTime === "function" ? parseTime(end) : end) || null;
+    if (!start || !end) {
+        showToast("Enter valid times as HH:MM (e.g. 09:30)", "warn");
+        return;
+    }
+    if (timeToMinutes(end) <= timeToMinutes(start)) {
+        showToast("End time must be after start time", "warn");
+        return;
+    }
+    document.getElementById("cal-event-start").value = start;
+    document.getElementById("cal-event-end").value = end;
+
+    data.calendarEvents = data.calendarEvents || [];
+    if (_calEditId) {
+        const ev = data.calendarEvents.find(e => e.id === _calEditId);
+        if (ev) {
+            ev.title = title; ev.date = date; ev.start = start; ev.end = end; ev.notes = notes;
+        }
+    } else {
+        data.calendarEvents.push({
+            id: Date.now() + Math.random().toString(36).slice(2,7),
+            title, date, start, end, notes
+        });
+    }
+    _calSelected = date;
+    saveData();
+    closeCalEventModal();
+    renderCalendarYear();
+    renderCalDayPanel();
+    showToast("📅 Event saved", "info");
+}
+
+function calRemoveEvent(id) {
+    data.calendarEvents = (data.calendarEvents || []).filter(e => e.id !== id);
+    saveData();
+    renderCalendarYear();
+    renderCalDayPanel();
+    showToast("Event removed", "info");
+}
+
+/* ---- Overdue todo penalties (scaled by rank step cost) ---- */
+function checkOverdueTodosOnLogin() {
+    data.todos = data.todos || [];
+    const today = new Date(); today.setHours(0,0,0,0);
+    const info = getLevelInfo(data.xp || 0);
+    const stepCost = info.needed || info.stepCost || 100;
+    const penalized = [];
+    let totalLoss = 0;
+
+    data.todos.forEach(t => {
+        if (t.completed || !t.dueDate || t.penaltyApplied) return;
+        const due = new Date(t.dueDate + "T00:00:00");
+        const daysLate = Math.floor((today - due) / 86400000);
+        if (daysLate <= 1) return; // 0 or 1 day: handled at completion time
+        // >1 day late: apply scaled penalty once
+        // Scale: ~8% of current rank step per extra day, capped, grows with level
+        const extra = daysLate - 1;
+        const penalty = Math.min(
+            Math.round(stepCost * 0.35),
+            Math.max(15, Math.round(stepCost * 0.08 * extra))
+        );
+        t.penaltyApplied = true;
+        t.penaltyAmount = penalty;
+        t.penaltyDaysLate = daysLate;
+        data.xp = Math.max(0, (data.xp || 0) - penalty);
+        totalLoss += penalty;
+        penalized.push({ text: t.text, daysLate, penalty });
+    });
+
+    if (penalized.length) {
+        saveData();
+        updateXPDisplay();
+        enforceLocksAfterXPChange();
+        const body = document.getElementById("overdue-penalty-body");
+        const modal = document.getElementById("overdue-penalty-modal");
+        if (body && modal) {
+            body.innerHTML = `<p>You failed to complete ${penalized.length} to-do(s) on time.</p>
+                <p><strong>−${totalLoss} XP</strong> removed as a scaled penalty (grows with your rank).</p>
+                ${penalized.map(p => `<div class="penalty-item"><strong>${p.text}</strong><br>${p.daysLate} days late · −${p.penalty} XP</div>`).join("")}
+                <p style="margin-top:10px;font-size:0.85rem;color:var(--muted-color)">Complete remaining to-dos for reduced XP. Stay on schedule!</p>`;
+            modal.classList.remove("hidden");
+        } else {
+            showToast(`⚠️ ${penalized.length} overdue to-do(s) — −${totalLoss} XP`, "warn");
+        }
+    }
+}
+
+function closeOverdueModal() {
+    const modal = document.getElementById("overdue-penalty-modal");
+    if (modal) modal.classList.add("hidden");
+}
+
+/* ---- App Customiser ---- */
+function openAppCustomiser() {
+    const panel = document.getElementById("app-customiser-panel");
+    if (!panel) return;
+    panel.classList.remove("hidden");
+    if (typeof renderThemeSwatches === "function") renderThemeSwatches();
+    if (typeof renderChimeSwatches === "function") renderChimeSwatches();
+    const sfx = document.getElementById("opt-sfx-enabled");
+    const lus = document.getElementById("opt-levelup-sound");
+    const conf = document.getElementById("opt-confetti");
+    if (sfx) sfx.checked = data.sfxEnabled !== false;
+    if (lus) lus.checked = data.levelUpSoundEnabled !== false;
+    if (conf) conf.checked = data.confettiEnabled !== false;
+    renderCosmeticsList();
+}
+
+function closeAppCustomiser() {
+    const panel = document.getElementById("app-customiser-panel");
+    if (panel) panel.classList.add("hidden");
+}
+
+function toggleSfxOption() {
+    const el = document.getElementById("opt-sfx-enabled");
+    data.sfxEnabled = el ? el.checked : true;
+    saveData();
+}
+function toggleLevelUpSound() {
+    const el = document.getElementById("opt-levelup-sound");
+    data.levelUpSoundEnabled = el ? el.checked : true;
+    saveData();
+}
+function toggleConfettiOption() {
+    const el = document.getElementById("opt-confetti");
+    data.confettiEnabled = el ? el.checked : true;
+    saveData();
+}
+
+const COSMETIC_CATALOG = [
+    { id: "cosmetic_particles", name: "XP Particles", desc: "Floating particles on XP gain", rewardId: "cosmetic_particles" },
+    { id: "cosmetic_glow", name: "Block Glow", desc: "Pulse glow on active blocks", rewardId: "cosmetic_glow" },
+    { id: "cosmetic_streakfire", name: "Streak Fire", desc: "Fire animation on long streaks", rewardId: "cosmetic_streakfire" },
+];
+
+function isCosmeticUnlocked(c) {
+    const r = REWARD_CATALOG.find(x => x.id === c.rewardId);
+    if (!r) return true;
+    const info = getLevelInfo(data.xp || 0);
+    return info.levelIndex >= r.atLevel;
+}
+
+function renderCosmeticsList() {
+    const box = document.getElementById("cosmetics-list");
+    if (!box) return;
+    data.activeCosmetics = data.activeCosmetics || [];
+    box.innerHTML = COSMETIC_CATALOG.map(c => {
+        const unlocked = isCosmeticUnlocked(c);
+        const active = data.activeCosmetics.includes(c.id);
+        return `<div class="cosmetic-row ${unlocked ? "" : "locked"}">
+            <div>
+                <div class="cos-name">${unlocked ? "" : "🔒 "}${c.name}</div>
+                <div class="cos-desc">${c.desc}</div>
+            </div>
+            ${unlocked
+                ? `<button type="button" class="btn-info btn-sm" onclick="toggleCosmetic('${c.id}')">${active ? "On ✓" : "Off"}</button>`
+                : `<span class="cos-badge">Locked</span>`}
+        </div>`;
+    }).join("");
+}
+
+function toggleCosmetic(id) {
+    data.activeCosmetics = data.activeCosmetics || [];
+    const i = data.activeCosmetics.indexOf(id);
+    if (i >= 0) data.activeCosmetics.splice(i, 1);
+    else data.activeCosmetics.push(id);
+    saveData();
+    renderCosmeticsList();
+    document.body.classList.toggle("cos-particles", data.activeCosmetics.includes("cosmetic_particles"));
+    document.body.classList.toggle("cos-glow", data.activeCosmetics.includes("cosmetic_glow"));
+    document.body.classList.toggle("cos-streakfire", data.activeCosmetics.includes("cosmetic_streakfire"));
+}
+
+/* Enhance updateXPDisplay with rank divisions (hook) */
+(function patchUpdateXPDisplay() {
+    const orig = typeof updateXPDisplay === "function" ? updateXPDisplay : null;
+    if (!orig) return;
+    window.updateXPDisplay = function() {
+        orig.apply(this, arguments);
+        const div = document.getElementById("xp-pill-divisions");
+        if (!div) return;
+        const info = getLevelInfo(data.xp || 0);
+        const segs = 5;
+        const filled = Math.round((info.progress || 0) * segs);
+        let html = "";
+        for (let i = 0; i < segs; i++) {
+            html += `<span class="${i < filled ? "filled" : ""}"></span>`;
+        }
+        div.innerHTML = html;
+    };
+})();
+
+/* Call overdue check after auth finishes */
+(function patchFinishAuth() {
+    const orig = typeof finishAuth === "function" ? finishAuth : null;
+    if (!orig) return;
+    window.finishAuth = function() {
+        orig.apply(this, arguments);
+        setTimeout(() => {
+            try { checkOverdueTodosOnLogin(); } catch (e) { console.error(e); }
+            data.activeCosmetics = data.activeCosmetics || [];
+            document.body.classList.toggle("cos-particles", data.activeCosmetics.includes("cosmetic_particles"));
+            document.body.classList.toggle("cos-glow", data.activeCosmetics.includes("cosmetic_glow"));
+            document.body.classList.toggle("cos-streakfire", data.activeCosmetics.includes("cosmetic_streakfire"));
+        }, 600);
+    };
+})();
+
+
+/* ---- Calendar urgency badge + missed-event prompt ---- */
+let _calUrgencyTimer = null;
+
+function updateCalendarUrgency() {
+    const btn = document.getElementById("calendar-btn");
+    if (!btn) return;
+    data.calendarEvents = data.calendarEvents || [];
+    const now = new Date();
+    const iso = now.toISOString().slice(0, 10);
+    const nowM = now.getHours() * 60 + now.getMinutes();
+    let anyNear = false;
+    let anyImminent = false; // 1-2 hours
+
+    data.calendarEvents.forEach(ev => {
+        if (ev.date !== iso) return;
+        const s = timeToMinutes(ev.start || "00:00");
+        const e = timeToMinutes(ev.end || ev.start || "00:00");
+        // nearing: same day, starts within 3h, not ended more than 1h ago
+        if (s - nowM <= 180 && nowM <= e + 60) anyNear = true;
+        // shivering: 30 minutes or less until start (or ongoing with <=30m left)
+        if (s - nowM >= 0 && s - nowM <= 30) anyImminent = true;
+        else if (nowM >= s && nowM <= e && (e - nowM) <= 30) anyImminent = true;
+    });
+
+    btn.classList.toggle("has-urgent", anyNear);
+    btn.classList.toggle("shiver", anyImminent);
+
+    // Missed: end time passed by > 1 hour, not yet prompted
+    data.calendarEvents.forEach(ev => {
+        if (ev.missedPrompted) return;
+        if (ev.date > iso) return;
+        const eM = timeToMinutes(ev.end || "00:00");
+        let endedAgo = null;
+        if (ev.date < iso) {
+            // previous day — treat as long past
+            endedAgo = 999;
+        } else {
+            endedAgo = nowM - eM;
+        }
+        if (endedAgo > 60) {
+            showMissedCalendarEventPopup(ev);
+        }
+    });
+}
+
+function showMissedCalendarEventPopup(ev) {
+    if (document.getElementById("missed-event-popup")) return; // one at a time
+    ev.missedPrompted = true;
+    saveData();
+
+    const name = typeof getDisplayFirstName === "function" ? getDisplayFirstName() : "there";
+    const popup = document.createElement("div");
+    popup.id = "missed-event-popup";
+    popup.className = "missed-event-popup";
+    popup.innerHTML = `
+        <div class="xp-popup-content" style="background:var(--card-bg);border:2px solid var(--accent-color);border-radius:16px;padding:24px 28px;color:var(--text-color);">
+            <div class="xp-popup-emoji">⏰</div>
+            <div class="xp-popup-title">Scheduled task ended</div>
+            <div class="xp-popup-task" style="margin:10px 0;font-size:1rem;">
+                Hey ${name}, it looks like <strong>${ev.title || "your event"}</strong>
+                (${ev.start || "?"}–${ev.end || "?"} on ${ev.date}) has already ended.
+                Were you able to complete it?
+            </div>
+            <div class="missed-event-actions">
+                <button type="button" class="btn-yes" data-act="yes">Yes — delete it</button>
+                <button type="button" class="btn-resched" data-act="resched">No — reschedule it</button>
+                <button type="button" class="btn-del" data-act="del">No — just delete the task</button>
+            </div>
+        </div>`;
+    document.body.appendChild(popup);
+
+    popup.addEventListener("click", (e) => {
+        const act = e.target.closest("[data-act]")?.dataset.act;
+        if (!act) return;
+        if (act === "yes" || act === "del") {
+            data.calendarEvents = (data.calendarEvents || []).filter(x => x.id !== ev.id);
+            saveData();
+            if (typeof renderCalendarYear === "function") renderCalendarYear();
+            if (typeof renderCalDayPanel === "function") renderCalDayPanel();
+            updateCalendarUrgency();
+            showToast(act === "yes" ? "Nice — event cleared" : "Event deleted", "info");
+            popup.remove();
+        } else if (act === "resched") {
+            popup.remove();
+            // Open calendar + edit modal for this event
+            if (typeof openCalendarPage === "function") openCalendarPage();
+            _calSelected = ev.date;
+            if (typeof renderCalendarYear === "function") renderCalendarYear();
+            if (typeof renderCalDayPanel === "function") renderCalDayPanel();
+            if (typeof calOpenEditEvent === "function") calOpenEditEvent(ev.id);
+            showToast("Pick a new date/time and save", "info");
+        }
+    });
+}
+
+function startCalendarUrgencyWatcher() {
+    if (_calUrgencyTimer) clearInterval(_calUrgencyTimer);
+    updateCalendarUrgency();
+    _calUrgencyTimer = setInterval(updateCalendarUrgency, 60 * 1000);
+}
+
+// Hook into finishAuth
+(function patchFinishAuthUrgency() {
+    const prev = window.finishAuth;
+    if (typeof prev !== "function") return;
+    window.finishAuth = function() {
+        prev.apply(this, arguments);
+        setTimeout(() => {
+            try { startCalendarUrgencyWatcher(); } catch (e) { console.error(e); }
+        }, 800);
+    };
+})();
+
+// Also start if already authed (page refresh mid-session)
+setTimeout(() => {
+    try {
+        if (document.getElementById("auth-screen")?.classList.contains("hidden") ||
+            !document.getElementById("auth-screen") ||
+            currentUser) {
+            startCalendarUrgencyWatcher();
+        }
+    } catch (e) {}
+}, 1500);

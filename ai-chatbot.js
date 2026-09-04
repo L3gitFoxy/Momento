@@ -453,14 +453,17 @@ const AI_DATABASE = {
                     `• Free-text area for daily notes and focus goals\n\n` +
                     `**◀ Tools sidebar** (right edge of screen)\n` +
                     `• Hover or click the Tools tab to open\n` +
-                    `• 🎨 Accent Theme — pick your colour\n` +
-                    `• 🔔 Sound toggle — enable/disable chimes\n` +
+                    `• 🎨 App Customiser — themes, chimes, cosmetics, sound toggles\n` +
+                    `• 🔔 Transition alerts toggle\n` +
                     `• 📊 Weekly Category Breakdown — hours per category\n` +
                     `• Preset Manager — save, apply, or delete presets\n` +
                     `• ✨ Create Preset From Scratch — build a preset day by day\n` +
                     `• 📊 Analyse My Week — check your week against a goal\n\n` +
+                    `**📅 Calendar button** (top bar)\n` +
+                    `• Full-year calendar for meetings & deadlines\n` +
+                    `• ! badge / shiver when an event is soon\n\n` +
                     `**🤖 AI button** (bottom-left, that's me!)\n` +
-                    `• Type commands to generate weeks, add/delete tasks, change themes\n` +
+                    `• Type commands to generate weeks, add/delete tasks, open calendar/customiser\n` +
                     `• Type **"help"** for the full command list`;
             }
         },
@@ -909,13 +912,33 @@ const AI_DATABASE = {
                 "🗑️ **Delete task:** \"delete task 3\" / \"delete Gym\"\n" +
                 "🧹 **Clear / Wipe:** \"clear day\" / \"wipe Monday\"\n" +
                 "💾 **Presets:** \"save preset X\" / \"apply X\" / \"list presets\"\n" +
-                "🎨 **Theme:** \"change theme to cyan\" (some locked until you rank up)\n" +
-                "📋 **To-Dos:** \"open todo list\"\n" +
+                "🎨 **Theme:** \"change theme to cyan\" / \"open customiser\" (themes unlock as you rank)\n" +
+                "📋 **To-Dos:** \"open todo list\" — persistent tasks with optional due dates\n" +
+                "📅 **Calendar:** \"open calendar\" — full-year events, meetings, deadlines\n" +
                 "📅 **Timeline:** \"open timeline\" 🔒 Beginner 3+\n" +
                 "📊 **Analyser:** \"open analyser\" 🔒 Amateur 3+\n" +
                 "⭐ **Progress:** \"open progress\" / \"show rewards\"\n" +
+                "✨ **Customiser:** \"open customiser\" — themes, chimes, cosmetics, sound toggles\n" +
                 "📅 **Schedule:** \"show my schedule\" / \"what's next\"\n" +
                 "🔔 **Sound:** \"mute\" / \"unmute\""
+        },
+        {
+            id: "open_calendar",
+            keywords: ["open calendar", "calendar", "full calendar", "show calendar", "events"],
+            patterns: [/(?:open|show|view)?\s*calendar/i, /full[- ]?year calendar/i],
+            handler: () => {
+                try { if (typeof openCalendarPage === "function") openCalendarPage(); } catch(e){}
+                return "📅 Opened the **full calendar**. Click a day to add meetings or events — they're saved with your account.";
+            }
+        },
+        {
+            id: "open_customiser",
+            keywords: ["open customiser", "customiser", "customizer", "app customiser", "themes panel", "cosmetics"],
+            patterns: [/(?:open|show)?\s*(?:app\s*)?customi[sz]er/i, /cosmetics/i],
+            handler: () => {
+                try { if (typeof openAppCustomiser === "function") openAppCustomiser(); } catch(e){}
+                return "🎨 Opened **App Customiser** — themes, completion chimes, sound toggles, and cosmetics.";
+            }
         }
 
     ]
@@ -1016,8 +1039,8 @@ function resolveLocalIntent(input, lower) {
         `• "generate study week" / "build a chill week"\n` +
         `• "add Gym from 07:00 to 08:00"\n` +
         `• "delete task 2" / "clear day"\n` +
-        `• "open todo" / "open progress" / "open timeline"\n` +
-        `• "change theme to cyan"\n` +
+        `• "open todo" / "open progress" / "open timeline" / "open calendar"\n` +
+        `• "open customiser" / "change theme to cyan"\n` +
         `• "help" for the full list`
     );
 }

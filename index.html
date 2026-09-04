@@ -28,10 +28,11 @@
     </div>
 
     <div id="top-status-bar" class="top-status-bar">
-        <button type="button" id="profile-chip" class="profile-chip hidden" onclick="openProfileMenu()" title="Account">👤</button>
+        <button type="button" id="calendar-btn" class="calendar-btn" onclick="openCalendarPage()" title="Full Calendar">📅</button>
+        <button type="button" id="profile-chip" class="profile-chip hidden" onclick="openProfileMenu()" title="Account">?</button>
         <button type="button" id="xp-pill" class="xp-pill xp-pill-fixed" onclick="openProgressPanel()" title="Progress & Rewards">
             <span class="xp-pill-rank" id="xp-pill-rank">Starter I</span>
-            <span class="xp-pill-bar"><span class="xp-pill-fill" id="xp-pill-fill" style="width:0%"></span></span>
+            <span class="xp-pill-bar xp-pill-bar-divided"><span class="xp-pill-fill" id="xp-pill-fill" style="width:0%"></span></span>
             <span class="xp-pill-pct" id="xp-pill-pct">0 left</span>
         </button>
     </div>
@@ -169,16 +170,10 @@
 
             
             <div class="sidebar-group">
-                <label>&#127912; Accent Theme</label>
-                <div class="theme-swatches" id="theme-swatches"></div>
-                <p class="theme-hint">Locked themes unlock via XP ranks</p>
-            </div>
-
-            
-            <div class="sidebar-group">
-                <label>&#127911; Completion Chimes</label>
-                <div class="chime-swatches" id="chime-swatches"></div>
-                <p class="theme-hint">Special chimes unlock via ranks — click to preview</p>
+                <button type="button" class="preset-btn btn-create-scratch" onclick="openAppCustomiser()" style="width:100%">
+                    🎨 App Customiser
+                </button>
+                <p class="theme-hint">Themes, sounds, cosmetics &amp; more</p>
             </div>
 
             
@@ -195,25 +190,11 @@
 
             
             <div class="sidebar-group">
-                <label>Master Preset (Full Week)</label>
-                <select id="preset-select"></select>
-                <button type="button" class="btn-primary" onclick="applyPreset()">Apply Preset</button>
-            </div>
-
-            
-            <div class="sidebar-group">
                 <label>Single Day Template</label>
                 <select id="single-day-preset-select"></select>
                 <button type="button" class="btn-warning" onclick="applySingleDayPreset()">
                     Apply to <span id="override-day-name">Today</span>
                 </button>
-            </div>
-
-            
-            <div class="sidebar-group">
-                <label>Delete Custom Preset</label>
-                <select id="delete-preset-select"></select>
-                <button type="button" class="btn-danger" onclick="deleteSelectedPreset()">&#128465;&#65039; Delete Preset</button>
             </div>
         </div>
     </div>
@@ -441,11 +422,135 @@
             <strong>📋 Persistent To-Dos</strong>
             <button onclick="toggleTodoDrawer()" class="close-btn">&#10005;</button>
         </div>
-        <p class="todo-drawer-hint">These stay until you complete them, +80 XP each (exclusive of multipliers)</p>
+        <p class="todo-drawer-hint">These stay until you complete them — penalty for late completion</p>
         <ul id="todo-list"></ul>
-        <div class="todo-add-row">
+        <div class="todo-add-row todo-add-row-ext">
             <input type="text" id="todo-input" placeholder="Add a lasting to-do..." onkeydown="if(event.key==='Enter')addTodo()">
+            <input type="date" id="todo-due-input" class="todo-due-input" title="Due date (optional)">
             <button onclick="addTodo()" class="todo-add-btn">Add</button>
+        </div>
+    </div>
+
+    
+    <div id="calendar-page" class="calendar-page hidden">
+        <div class="calendar-page-header">
+            <div>
+                <h2>📅 Full Calendar</h2>
+                <p class="calendar-page-sub">Schedule meetings, events &amp; deadlines · saved with your account</p>
+            </div>
+            <button type="button" class="btn-cancel" onclick="closeCalendarPage()">Close</button>
+        </div>
+        <div class="calendar-layout">
+            <div class="calendar-left">
+                <div class="cal-nav">
+                    <button type="button" class="nav-btn" onclick="calChangeMonth(-1)">◀</button>
+                    <span id="cal-year-label" class="cal-year-label">September 2026</span>
+                    <button type="button" class="nav-btn" onclick="calChangeMonth(1)">▶</button>
+                </div>
+                <div id="cal-year-grid" class="cal-month-single"></div>
+            </div>
+            <div class="calendar-right">
+                <div class="cal-day-header">
+                    <h3 id="cal-selected-label">Select a day</h3>
+                    <button type="button" class="btn-primary btn-sm" onclick="calOpenAddEvent()">+ Add Event</button>
+                </div>
+                <div id="cal-day-timeline" class="cal-day-timeline cal-gantt"></div>
+            </div>
+        </div>
+    </div>
+
+    
+    <div id="cal-event-modal" class="modal-overlay hidden">
+        <div class="modal-box cal-event-box">
+            <div class="modal-header">
+                <h3 id="cal-event-modal-title">Add Event</h3>
+                <button type="button" onclick="closeCalEventModal()" class="close-btn">&#10005;</button>
+            </div>
+            <div class="modal-body cal-event-body">
+                <label class="cal-field-label" for="cal-event-title">Title</label>
+                <input type="text" id="cal-event-title" placeholder="e.g. Meeting with team" class="cal-input">
+                <label class="cal-field-label" for="cal-event-date">Date</label>
+                <input type="date" id="cal-event-date" class="cal-input">
+                <div class="cal-time-row">
+                    <div>
+                        <label class="cal-field-label" for="cal-event-start">Start (HH:MM)</label>
+                        <input type="text" id="cal-event-start" class="cal-input smart-time" placeholder="09:00" maxlength="5" inputmode="numeric" value="09:00">
+                    </div>
+                    <div>
+                        <label class="cal-field-label" for="cal-event-end">End (HH:MM)</label>
+                        <input type="text" id="cal-event-end" class="cal-input smart-time" placeholder="10:00" maxlength="5" inputmode="numeric" value="10:00">
+                    </div>
+                </div>
+                <label class="cal-field-label" for="cal-event-notes">Notes (optional)</label>
+                <textarea id="cal-event-notes" class="cal-input cal-textarea" rows="3" placeholder="Details..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeCalEventModal()" class="btn-cancel">Cancel</button>
+                <button type="button" onclick="calSaveEvent()" class="btn-save-final">Save Event</button>
+            </div>
+        </div>
+    </div>
+
+    
+    <div id="app-customiser-panel" class="modal-overlay hidden">
+        <div class="modal-box progress-box customiser-box">
+            <div class="modal-header">
+                <h3>🎨 App Customiser</h3>
+                <button onclick="closeAppCustomiser()" class="close-btn">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <div class="sidebar-group">
+                    <label>&#127912; Accent Theme</label>
+                    <div class="theme-swatches" id="theme-swatches"></div>
+                    <p class="theme-hint">Locked themes unlock via XP ranks</p>
+                </div>
+                <hr class="sidebar-divider">
+                <div class="sidebar-group">
+                    <label>&#127911; Completion Chimes</label>
+                    <div class="chime-swatches" id="chime-swatches"></div>
+                    <p class="theme-hint">Special chimes unlock via ranks — click to preview</p>
+                </div>
+                <hr class="sidebar-divider">
+                <div class="sidebar-group">
+                    <label>&#128266; Sound Effects</label>
+                    <div class="customiser-toggles">
+                        <label class="toggle-row" for="opt-sfx-enabled">
+                            <input type="checkbox" id="opt-sfx-enabled" onchange="toggleSfxOption()">
+                            <span>Enable sound effects</span>
+                        </label>
+                        <label class="toggle-row" for="opt-levelup-sound">
+                            <input type="checkbox" id="opt-levelup-sound" onchange="toggleLevelUpSound()">
+                            <span>Level-up fanfare</span>
+                        </label>
+                        <label class="toggle-row" for="opt-confetti">
+                            <input type="checkbox" id="opt-confetti" onchange="toggleConfettiOption()">
+                            <span>Confetti on big XP</span>
+                        </label>
+                    </div>
+                </div>
+                <hr class="sidebar-divider">
+                <div class="sidebar-group">
+                    <label>✨ Cosmetics</label>
+                    <div id="cosmetics-list" class="cosmetics-list"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeAppCustomiser()" class="btn-cancel">Close</button>
+            </div>
+        </div>
+    </div>
+
+    
+    <div id="overdue-penalty-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:400px">
+            <div class="modal-header">
+                <h3>⚠️ Overdue To-Dos</h3>
+                <button onclick="closeOverdueModal()" class="close-btn">&#10005;</button>
+            </div>
+            <div class="modal-body" id="overdue-penalty-body"></div>
+            <div class="modal-footer">
+                <button onclick="closeOverdueModal()" class="btn-save-final">Got it</button>
+            </div>
         </div>
     </div>
 
