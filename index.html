@@ -27,10 +27,10 @@
         </div>
     </div>
 
-    <div id="top-status-bar" class="top-status-bar">
-        <button type="button" id="calendar-btn" class="calendar-btn" onclick="openCalendarPage()" title="Full Calendar">📅</button>
-        <button type="button" id="profile-chip" class="profile-chip hidden" onclick="openProfileMenu()" title="Account">?</button>
-        <button type="button" id="xp-pill" class="xp-pill xp-pill-fixed" onclick="openProgressPanel()" title="Progress & Rewards">
+    <div id="top-status-bar" class="top-status-bar" data-widget="status-bar">
+        <button type="button" id="profile-chip" class="profile-chip hidden" onclick="openProfileMenu()" title="Account" data-widget="profile-chip">?</button>
+        <button type="button" id="calendar-btn" class="calendar-btn" onclick="openCalendarPage()" title="Full Calendar" data-widget="calendar-btn">📅</button>
+        <button type="button" id="xp-pill" class="xp-pill xp-pill-fixed" onclick="openProgressPanel()" title="Progress & Rewards" data-widget="xp-pill">
             <span class="xp-pill-rank" id="xp-pill-rank">Starter I</span>
             <span class="xp-pill-bar xp-pill-bar-divided"><span class="xp-pill-fill" id="xp-pill-fill" style="width:0%"></span></span>
             <span class="xp-pill-pct" id="xp-pill-pct">0 left</span>
@@ -38,7 +38,7 @@
     </div>
 
     
-    <div class="card">
+    <div class="card" data-widget="main-card" id="main-card">
 
         
         <div class="top-bar">
@@ -134,8 +134,9 @@
     </div>
 
     
-    <div id="preset-sidebar" class="preset-sidebar">
-        <button type="button" id="sidebar-toggle-btn" class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle Presets">
+    <!-- crates entry injected via JS if needed -->
+    <div id="preset-sidebar" class="preset-sidebar" data-widget="tools-sidebar">
+        <button type="button" id="sidebar-toggle-btn" class="sidebar-toggle-btn" data-widget="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Presets">
             <span id="sidebar-arrow">&#9664;</span> Tools
         </button>
 
@@ -175,6 +176,15 @@
                 </button>
                 <p class="theme-hint">Themes, sounds, cosmetics &amp; more</p>
             </div>
+            <div class="sidebar-group">
+                <button type="button" class="preset-btn btn-create-scratch" onclick="openCratesPage()" style="width:100%">
+                    📦 Crates <span id="crate-keys-badge" class="crate-keys-badge"></span>
+                </button>
+                <button type="button" class="preset-btn btn-create-scratch" onclick="openBoostersPage()" style="width:100%;margin-top:8px">
+                    ⚡ XP Boosters
+                </button>
+                <p class="theme-hint">Keys from tasks &amp; to-dos · spin for rewards</p>
+            </div>
 
             
             <div class="sidebar-group">
@@ -200,7 +210,7 @@
     </div>
 
     
-    <div id="ai-chat-widget">
+    <div id="ai-chat-widget" data-widget="ai-chat">
         <button id="ai-chat-toggle" onclick="toggleChatWindow()">&#129302;</button>
 
         <div id="ai-chat-window" class="chat-hidden">
@@ -310,11 +320,12 @@
                 <div class="progress-streak" id="progress-streak">🔥 Streak: 0</div>
                 <hr class="sidebar-divider">
                 <h4>All Ranks</h4>
-                <p class="ranks-hint">Each rank costs more XP than the last</p>
-                <div id="ranks-ladder" class="ranks-ladder"></div>
-                <hr class="sidebar-divider">
-                <h4>Rewards</h4>
-                <div id="rewards-list" class="rewards-list"></div>
+                <p class="ranks-hint">Rank info on the left · reward for that rank on the right</p>
+                <div class="ranks-rewards-header">
+                    <span>Rank</span>
+                    <span>Reward</span>
+                </div>
+                <div id="ranks-ladder" class="ranks-ladder ranks-rewards-merged"></div>
             </div>
             <div class="modal-footer">
                 <button onclick="closeProgressPanel()" class="btn-cancel">Close</button>
@@ -342,7 +353,7 @@
 
     
     
-    <div id="music-page" class="music-page hidden">
+    <div id="music-page" class="music-page hidden" data-widget="music-page">
         <div class="music-page-header">
             <div>
                 <h2>🎵 Focus &amp; Music</h2>
@@ -351,7 +362,7 @@
             <button type="button" class="btn-cancel" onclick="closeMusicPage()">Close</button>
         </div>
         <div class="music-page-grid music-page-grid-2">
-            <section class="music-panel">
+            <section class="music-panel" data-widget="music-search">
                 <h3>🔍 Search music</h3>
                 <p class="music-hint">Search any song or artist online</p>
                 <div class="music-search-row">
@@ -362,7 +373,7 @@
                 <ul id="music-search-results" class="music-search-results"></ul>
             </section>
 
-            <section class="music-panel">
+            <section class="music-panel" data-widget="music-library">
                 <h3>📁 Your library</h3>
                 <p class="music-hint">Saved on this device between sessions</p>
                 <div class="music-local-row">
@@ -374,7 +385,7 @@
                 </ul>
             </section>
 
-            <section class="music-panel music-focus-panel">
+            <section class="music-panel music-focus-panel" data-widget="music-focus">
                 <h3>🎯 Focus timer</h3>
                 <p class="music-hint">Pomodoro while you listen</p>
                 <div class="focus-task-name" id="music-focus-task">Current task (optional)</div>
@@ -403,7 +414,7 @@
     </div>
 
     
-    <div id="now-playing-bar" class="now-playing-bar hidden">
+    <div id="now-playing-bar" class="now-playing-bar hidden" data-widget="now-playing">
         <div class="np-info">
             <div class="np-title" id="np-title">—</div>
             <div class="np-artist" id="np-artist">—</div>
@@ -411,12 +422,72 @@
         </div>
         <div class="np-controls">
             <button type="button" id="np-play-btn" onclick="toggleNowPlaying()" title="Play/Pause">▶</button>
+            <button type="button" id="np-loop-btn" class="np-loop-btn" onclick="toggleMusicLoop()" title="Repeat track">🔁</button>
             <input type="range" id="np-volume" min="0" max="100" value="40" oninput="setMusicVolume(this.value)" title="Volume">
             <button type="button" class="np-open" id="np-music-open" title="Open music">♫</button>
         </div>
     </div>
 
     
+    
+    <div id="crates-page" class="crates-page hidden">
+        <div class="crates-page-header">
+            <div>
+                <h2>📦 Crates</h2>
+                <p class="crates-sub">Spend keys · spin for XP, boosters, keys &amp; mythical cosmetics</p>
+            </div>
+            <button type="button" class="btn-cancel" onclick="closeCratesPage()">Close</button>
+        </div>
+        <div class="crates-page-body">
+            <div class="crates-stats">
+                <div class="crates-stat"><span>Keys</span><strong id="crate-keys-count">0</strong></div>
+                <div class="crates-stat"><span>Opened</span><strong id="crate-opened-count">0</strong></div>
+            </div>
+            <div class="crates-info-card">
+                <h4>How crates work</h4>
+                <ul>
+                    <li><strong>Keys:</strong> 5% chance when you complete a daily schedule block · 10% when you complete a to-do</li>
+                    <li><strong>Open:</strong> costs <strong>1 key</strong> · the reel spins sideways across rarities</li>
+                    <li><strong>Rarity odds:</strong> Common (heavily weighted) → Uncommon → Rare → Legendary → Mythical (very rare)</li>
+                    <li><strong>Common / Uncommon:</strong> small–decent XP (green / blue)</li>
+                    <li><strong>Uncommon:</strong> XP, keys, or simple colour themes (Soft Cyan / Soft Rose)</li>
+                    <li><strong>Rare:</strong> timed XP boosters 1.1× / 1.25× / 1.5× or simple themes (Soft Teal / Soft Sand)</li>
+                    <li><strong>Legendary:</strong> 2× boosters or extra keys (deep orange)</li>
+                    <li><strong>Mythical:</strong> crate-only cosmetics &amp; themes (red) — also listed in App Customiser as locked until won</li>
+                    <li><strong>Boosters:</strong> manage in Tools → XP Boosters · one active at a time · expire by clock time, not usage</li>
+                </ul>
+            </div>
+            <div class="crate-reel-wrap hidden">
+                <div class="crate-reel-window">
+                    <div class="crate-reel-pointer"></div>
+                    <div class="crate-reel" id="crate-reel"></div>
+                </div>
+            </div>
+            <div class="crates-actions">
+                <button type="button" class="btn-save-final" id="crate-open-btn" onclick="openOneCrate()">Open crate (1 key)</button>
+            </div>
+            <div id="crate-result-modal" class="crate-result-modal hidden"></div>
+            <h4 class="crates-hist-title">Recent drops</h4>
+            <ul id="crate-history" class="crate-history"></ul>
+        </div>
+    </div>
+
+    <div id="boosters-page" class="boosters-page hidden">
+        <div class="crates-page-header">
+            <div>
+                <h2>⚡ XP Boosters</h2>
+                <p class="crates-sub">Timed multipliers · real-world expiry · one active at a time</p>
+            </div>
+            <button type="button" class="btn-cancel" onclick="closeBoostersPage()">Close</button>
+        </div>
+        <div class="boosters-page-body">
+            <div id="booster-active" class="booster-active-card">No booster active</div>
+            <h4>Inventory</h4>
+            <ul id="booster-inventory" class="booster-inventory"></ul>
+            <p class="theme-hint">Boosters stack <em>after</em> category multipliers. Expired boosters are removed automatically.</p>
+        </div>
+    </div>
+
     <div id="todo-drawer" class="todo-drawer hidden">
         <div class="todo-drawer-header">
             <strong>📋 Persistent To-Dos</strong>
@@ -426,13 +497,13 @@
         <ul id="todo-list"></ul>
         <div class="todo-add-row todo-add-row-ext">
             <input type="text" id="todo-input" placeholder="Add a lasting to-do..." onkeydown="if(event.key==='Enter')addTodo()">
-            <input type="date" id="todo-due-input" class="todo-due-input" title="Due date (optional)">
+            <input type="date" id="todo-due-input" class="todo-due-input" title="Due date (required)" required>
             <button onclick="addTodo()" class="todo-add-btn">Add</button>
         </div>
     </div>
 
     
-    <div id="calendar-page" class="calendar-page hidden">
+    <div id="calendar-page" class="calendar-page hidden" data-widget="calendar-page">
         <div class="calendar-page-header">
             <div>
                 <h2>📅 Full Calendar</h2>
@@ -441,7 +512,7 @@
             <button type="button" class="btn-cancel" onclick="closeCalendarPage()">Close</button>
         </div>
         <div class="calendar-layout">
-            <div class="calendar-left">
+            <div class="calendar-left" data-widget="calendar-left">
                 <div class="cal-nav">
                     <button type="button" class="nav-btn" onclick="calChangeMonth(-1)">◀</button>
                     <span id="cal-year-label" class="cal-year-label">September 2026</span>
@@ -449,10 +520,13 @@
                 </div>
                 <div id="cal-year-grid" class="cal-month-single"></div>
             </div>
-            <div class="calendar-right">
+            <div class="calendar-right" data-widget="calendar-right">
                 <div class="cal-day-header">
                     <h3 id="cal-selected-label">Select a day</h3>
-                    <button type="button" class="btn-primary btn-sm" onclick="calOpenAddEvent()">+ Add Event</button>
+                    <div class="cal-day-actions">
+                        <button type="button" class="btn-info btn-sm" onclick="calOpenAddYearly()">🔁 Yearly</button>
+                        <button type="button" class="btn-primary btn-sm" onclick="calOpenAddEvent()">+ Add Event</button>
+                    </div>
                 </div>
                 <div id="cal-day-timeline" class="cal-day-timeline cal-gantt"></div>
             </div>
@@ -492,6 +566,29 @@
     </div>
 
     
+    
+    <div id="cal-yearly-modal" class="modal-overlay hidden">
+        <div class="modal-box cal-event-box">
+            <div class="modal-header">
+                <h3 id="cal-yearly-modal-title">Yearly Event</h3>
+                <button type="button" onclick="closeCalYearlyModal()" class="close-btn">&#10005;</button>
+            </div>
+            <div class="modal-body cal-event-body">
+                <p class="theme-hint" style="margin:0 0 8px">All-day · repeats every year on this date (no times — won’t trigger “task ended”)</p>
+                <label class="cal-field-label" for="cal-yearly-title">Title</label>
+                <input type="text" id="cal-yearly-title" class="cal-input" placeholder="e.g. Mom's birthday">
+                <label class="cal-field-label" for="cal-yearly-date">Date</label>
+                <input type="date" id="cal-yearly-date" class="cal-input">
+                <label class="cal-field-label" for="cal-yearly-notes">Notes (optional)</label>
+                <textarea id="cal-yearly-notes" class="cal-input cal-textarea" rows="2" placeholder="Details..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeCalYearlyModal()" class="btn-cancel">Cancel</button>
+                <button type="button" onclick="calSaveYearly()" class="btn-save-final">Save Yearly Event</button>
+            </div>
+        </div>
+    </div>
+
     <div id="app-customiser-panel" class="modal-overlay hidden">
         <div class="modal-box progress-box customiser-box">
             <div class="modal-header">
@@ -499,6 +596,11 @@
                 <button onclick="closeAppCustomiser()" class="close-btn">&#10005;</button>
             </div>
             <div class="modal-body">
+                <div class="sidebar-group crates-customiser-hint">
+                    <button type="button" class="preset-btn" style="width:100%" onclick="closeAppCustomiser();openCratesPage()">📦 Open Crates</button>
+                    <button type="button" class="preset-btn" style="width:100%;margin-top:6px" onclick="closeAppCustomiser();openBoostersPage()">⚡ XP Boosters</button>
+                </div>
+                <hr class="sidebar-divider">
                 <div class="sidebar-group">
                     <label>&#127912; Accent Theme</label>
                     <div class="theme-swatches" id="theme-swatches"></div>
@@ -522,11 +624,18 @@
                             <input type="checkbox" id="opt-levelup-sound" onchange="toggleLevelUpSound()">
                             <span>Level-up fanfare</span>
                         </label>
-                        <label class="toggle-row" for="opt-confetti">
+                        <label class="toggle-row" for="opt-confetti" id="opt-confetti-row">
                             <input type="checkbox" id="opt-confetti" onchange="toggleConfettiOption()">
-                            <span>Confetti on big XP</span>
+                            <span id="opt-confetti-label">Confetti on big XP</span>
                         </label>
                     </div>
+                </div>
+                <hr class="sidebar-divider">
+                <div class="sidebar-group">
+                    <button type="button" class="preset-btn btn-create-scratch" style="width:100%" onclick="openWidgetCustomiser()">
+                        🧩 Customise UI Widgets
+                    </button>
+                    <p class="theme-hint">Drag elements on each scene · positions save with your account</p>
                 </div>
                 <hr class="sidebar-divider">
                 <div class="sidebar-group">
@@ -541,6 +650,32 @@
     </div>
 
     
+    
+    <div id="widget-customiser-panel" class="modal-overlay hidden">
+        <div class="modal-box progress-box widget-customiser-box">
+            <div class="modal-header">
+                <h3>🧩 Customise UI</h3>
+                <button type="button" onclick="closeWidgetCustomiser()" class="close-btn">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <p class="theme-hint" style="margin-top:0">Pick a scene, then drag highlighted widgets. Positions save automatically.</p>
+                <div class="widget-scene-tabs" id="widget-scene-tabs">
+                    <button type="button" class="widget-scene-tab active" data-scene="main" onclick="setWidgetScene('main')">Main page</button>
+                </div>
+                <ul class="widget-list-hint" id="widget-list-hint"></ul>
+                <div class="widget-customiser-actions">
+                    <button type="button" class="btn-info" onclick="startWidgetDragMode()">Start dragging</button>
+                    <button type="button" class="btn-danger btn-sm" onclick="resetWidgetLayout()">Reset this scene</button>
+                    <button type="button" class="btn-danger btn-sm" onclick="resetAllWidgetLayouts()">Reset all layouts</button>
+                </div>
+                <p class="theme-hint" id="widget-drag-status">Drag mode off</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeWidgetCustomiser()" class="btn-cancel">Close</button>
+            </div>
+        </div>
+    </div>
+
     <div id="overdue-penalty-modal" class="modal-overlay hidden">
         <div class="modal-box" style="max-width:400px">
             <div class="modal-header">
@@ -555,7 +690,7 @@
     </div>
 
     
-    <div id="timeline-page" class="timeline-page hidden">
+    <div id="timeline-page" class="timeline-page hidden" data-widget="timeline-page">
         <div class="timeline-page-header">
             <div>
                 <h2>📅 Timeline Visualizer</h2>
@@ -569,8 +704,8 @@
         </div>
         <p class="todo-hint">Drag blocks up/down to move • Drag top/bottom edges to resize • Snaps to 15 min</p>
         <div class="timeline-page-body">
-            <div id="timeline-viz" class="timeline-viz timeline-viz-full"></div>
-            <div class="timeline-side">
+            <div id="timeline-viz" data-widget="timeline-viz" class="timeline-viz timeline-viz-full"></div>
+            <div class="timeline-side" data-widget="timeline-side">
                 <div class="timeline-side-header">
                     <strong>Blocks</strong>
                     <button type="button" class="btn-add-micro" onclick="timelineAddBlock()">+ Add</button>

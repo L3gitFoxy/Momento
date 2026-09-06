@@ -29,6 +29,29 @@ function resolveMomentoUserFile() {
   }
   return path.join(os.homedir(), "Momento", "users.json");
 }
+
+function resolveOfflineSyncFile() {
+  if (process.env.MOMENTO_OFFLINE_SYNC) return process.env.MOMENTO_OFFLINE_SYNC;
+  if (process.platform === "win32") {
+    return path.join("C:\\", "Momento", "Offline-Sync.json");
+  }
+  return path.join(os.homedir(), "Momento", "Offline-Sync.json");
+}
+const OFFLINE_SYNC_FILE = resolveOfflineSyncFile();
+
+function readOfflineSync() {
+  try {
+    return JSON.parse(fs.readFileSync(OFFLINE_SYNC_FILE, "utf8"));
+  } catch {
+    return null;
+  }
+}
+function writeOfflineSync(payload) {
+  fs.mkdirSync(path.dirname(OFFLINE_SYNC_FILE), { recursive: true });
+  fs.writeFileSync(OFFLINE_SYNC_FILE, JSON.stringify(payload, null, 2), "utf8");
+  return OFFLINE_SYNC_FILE;
+}
+
 const PROFILE_FILE = resolveMomentoUserFile();
 const PROFILE_DIR = path.dirname(PROFILE_FILE);
 
@@ -65,7 +88,16 @@ function loadProfiles() {
                 tokenExpiry.set(token, Date.now() + 30 * 24 * 60 * 60 * 1000);
               });
             }
-            console.log("[Momento] Migrated accounts from", leg, "→", PROFILE_FILE);
+            // Archive legacy file so it stops reappearing / being treated as live storage
+            try {
+              const archived = leg + ".migrated.bak";
+              if (fs.existsSync(archived)) fs.unlinkSync(archived);
+              fs.renameSync(leg, archived);
+              console.log("[Momento] Migrated accounts from", leg, "→", PROFILE_FILE, "(legacy renamed to .migrated.bak)");
+            } catch (renErr) {
+              try { fs.unlinkSync(leg); } catch (e2) {}
+              console.log("[Momento] Migrated accounts from", leg, "→", PROFILE_FILE, "(legacy removed)");
+            }
             return data;
           }
         }
@@ -203,6 +235,27 @@ function createHandler() {
     }
     const u = new URL(req.url, "http://127.0.0.1");
     try {
+      
+      if (u.pathname === "/api/offline-sync" && req.method === "PUT") {
+        const body = await readBody(req);
+        const file = writeOfflineSync({
+          updatedAt: Date.now(),
+          userId: body.userId || null,
+          email: body.email || null,
+          data: body.data || body,
+        });
+        return sendJson(res, 200, { ok: true, file });
+      }
+      if (u.pathname === "/api/offline-sync" && req.method === "GET") {
+        const stored = readOfflineSync();
+        if (!stored) return sendJson(res, 404, { error: "No offline sync file" });
+        return sendJson(res, 200, stored);
+      }
+      if (u.pathname === "/api/offline-sync" && req.method === "DELETE") {
+        try { fs.unlinkSync(OFFLINE_SYNC_FILE); } catch (e) {}
+        return sendJson(res, 200, { ok: true });
+      }
+
       if (u.pathname === "/api/health") {
         sendJson(res, 200, { ok: true, service: "Momento Music", auth: true });
         return;

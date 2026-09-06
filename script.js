@@ -62,7 +62,18 @@ function setupAuthStateListener() {
     supabaseClient.auth.onAuthStateChange(async (event, session) => {
         console.log('[Auth] Auth State Change:', event, session ? 'Session present' : 'No session');
 
-        if (event === 'SIGNED_IN' && session) {
+        if (event === 'TOKEN_REFRESHED') {
+            // Tab focus / token refresh — do NOT reload profile (would wipe local checkmarks)
+            return;
+        }
+
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+            // Supabase fires SIGNED_IN / recovery on window focus — skip full reload after first hydrate
+            if (_authProfileHydrated && _authHydratedUserId === session.user.id) {
+                console.log('[Auth] Already hydrated for this user — skip profile reload on focus');
+                currentUser = session.user.id;
+                return;
+            }
             currentUser = session.user.id;
             try {
                 let { data: profileData, error: fetchError } = await supabaseClient
@@ -90,6 +101,8 @@ function setupAuthStateListener() {
                     } else {
                         console.log('[Auth] New user profile created.');
                         applyProfileData(defaultAppData);
+                        _authProfileHydrated = true;
+                        _authHydratedUserId = session.user.id;
                         finishAuth();
                         hideAuthScreen();
                         showToast(`Welcome, ${session.user.email || 'user'}! Your data is now synced.`, 'success');
@@ -100,6 +113,8 @@ function setupAuthStateListener() {
                 } else if (profileData) {
                     applyProfileData(profileData.app_data);
                     console.log('[Auth] User profile loaded.');
+                    _authProfileHydrated = true;
+                    _authHydratedUserId = session.user.id;
                     finishAuth();
                     hideAuthScreen();
                     showWelcomeBack();
@@ -111,6 +126,8 @@ function setupAuthStateListener() {
         } else if (event === 'SIGNED_IN') {
             // handled above
         } else if (event === 'SIGNED_OUT') {
+            _authProfileHydrated = false;
+            _authHydratedUserId = null;
             // Only clear Google/Supabase state — do NOT destroy local offline accounts
             if (isLocalProfile && typeof isLocalProfile === 'function' && isLocalProfile()) {
                 console.log('[Auth] Ignoring Supabase SIGNED_OUT — local offline session active');
@@ -238,12 +255,26 @@ function getDefaultAppData() {
         totalTasksCompleted: 0,
         todos: [],
         calendarEvents: [],
+        dismissedMissedEvents: [],
         rewardsUnlocked: [],
         preferredChime: "default",
         sfxEnabled: true,
         levelUpSoundEnabled: true,
         confettiEnabled: true,
-        activeCosmetics: []
+        activeCosmetics: [],
+    crateKeys: 0,
+    cratesOpened: 0,
+    crateHistory: [],
+    boosterInventory: [],
+    activeBooster: null,
+    crateUnlocks: [],
+        crateKeys: 0,
+        cratesOpened: 0,
+        crateHistory: [],
+        boosterInventory: [],
+        activeBooster: null,
+        crateUnlocks: [],
+        widgetLayout: {}
     };
 }
 
@@ -1319,6 +1350,8 @@ const STORAGE_KEY = "Momento_data_v5";
 const AUTH_ACCOUNTS_KEY = "Momento_accounts_v1";
 const AUTH_SESSION_KEY = "Momento_session_v1";
 let currentUser = null;
+let _authProfileHydrated = false;
+let _authHydratedUserId = null;
 
 function showAuthScreen() {
     const el = document.getElementById("auth-screen");
@@ -1482,10 +1515,20 @@ function applyProfileData(parsed) {
         data.totalTasksCompleted = parsed.totalTasksCompleted || 0;
         data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
         data.calendarEvents = Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [];
+        data.dismissedMissedEvents = Array.isArray(parsed.dismissedMissedEvents) ? parsed.dismissedMissedEvents : (data.dismissedMissedEvents || []);
+        data.dismissedMissedEvents = Array.isArray(parsed.dismissedMissedEvents) ? parsed.dismissedMissedEvents : (data.dismissedMissedEvents || []);
         if (parsed.sfxEnabled !== undefined) data.sfxEnabled = !!parsed.sfxEnabled;
         if (parsed.levelUpSoundEnabled !== undefined) data.levelUpSoundEnabled = !!parsed.levelUpSoundEnabled;
         if (parsed.confettiEnabled !== undefined) data.confettiEnabled = !!parsed.confettiEnabled;
         data.activeCosmetics = Array.isArray(parsed.activeCosmetics) ? parsed.activeCosmetics : [];
+        data.crateKeys = Number(parsed.crateKeys) || 0;
+        data.cratesOpened = Number(parsed.cratesOpened) || 0;
+        data.crateHistory = Array.isArray(parsed.crateHistory) ? parsed.crateHistory : [];
+        data.boosterInventory = Array.isArray(parsed.boosterInventory) ? parsed.boosterInventory : [];
+        data.activeBooster = parsed.activeBooster || null;
+        data.crateUnlocks = Array.isArray(parsed.crateUnlocks) ? parsed.crateUnlocks : [];
+
+        data.widgetLayout = (parsed.widgetLayout && typeof parsed.widgetLayout === 'object') ? parsed.widgetLayout : {};
         data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
         data.themeId = parsed.themeId || "purple";
         data.preferredChime = parsed.preferredChime || "default";
@@ -1820,7 +1863,8 @@ let data = {
     sfxEnabled: true,
     levelUpSoundEnabled: true,
     confettiEnabled: true,
-    activeCosmetics: []
+    activeCosmetics: [],
+    widgetLayout: {}
 };
 
 let currentActiveTaskName = null;
@@ -1956,8 +2000,10 @@ function checkAutoWeeklyReset() {
         saveData();
         setTimeout(() => showSavedMessage("🧹 New week detected! Checklist auto-reset."), 1000);
     } else {
-        data.lastResetWeek = currentWeek;
-        saveData();
+        if (data.lastResetWeek !== currentWeek) {
+            data.lastResetWeek = currentWeek;
+            saveData();
+        }
     }
 }
 
@@ -1990,10 +2036,19 @@ function applyAppDataObject(parsed) {
     data.totalTasksCompleted = parsed.totalTasksCompleted || 0;
     data.todos = Array.isArray(parsed.todos) ? parsed.todos : [];
         data.calendarEvents = Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [];
+        data.dismissedMissedEvents = Array.isArray(parsed.dismissedMissedEvents) ? parsed.dismissedMissedEvents : (data.dismissedMissedEvents || []);
         if (parsed.sfxEnabled !== undefined) data.sfxEnabled = !!parsed.sfxEnabled;
         if (parsed.levelUpSoundEnabled !== undefined) data.levelUpSoundEnabled = !!parsed.levelUpSoundEnabled;
         if (parsed.confettiEnabled !== undefined) data.confettiEnabled = !!parsed.confettiEnabled;
         data.activeCosmetics = Array.isArray(parsed.activeCosmetics) ? parsed.activeCosmetics : [];
+        data.crateKeys = Number(parsed.crateKeys) || 0;
+        data.cratesOpened = Number(parsed.cratesOpened) || 0;
+        data.crateHistory = Array.isArray(parsed.crateHistory) ? parsed.crateHistory : [];
+        data.boosterInventory = Array.isArray(parsed.boosterInventory) ? parsed.boosterInventory : [];
+        data.activeBooster = parsed.activeBooster || null;
+        data.crateUnlocks = Array.isArray(parsed.crateUnlocks) ? parsed.crateUnlocks : [];
+
+        data.widgetLayout = (parsed.widgetLayout && typeof parsed.widgetLayout === 'object') ? parsed.widgetLayout : {};
     data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
     data.themeId = parsed.themeId || "purple";
     data.preferredChime = parsed.preferredChime || "default";
@@ -2163,11 +2218,31 @@ const THEME_CATALOG = [
     { id: "matrix", name: "Matrix", color: "#00e676", hover: "#00c853", alpha: "rgba(0,230,118,0.3)",
       bg: "#000a00", card: "#001400", border: "#003300",
       text: "#b9f6ca", muted: "#4caf50", rewardId: "theme_matrix" },
+    { id: "theme_crate_void", name: "Void Pulse", color: "#7c3aed", hover: "#5b21b6", alpha: "rgba(124,58,237,0.35)",
+      bg: "linear-gradient(135deg,#0f0c29,#302b63,#24243e)", card: "#1a1535", border: "#4c1d95",
+      text: "#ede9fe", muted: "#a78bfa", crateOnly: true, gradient: true },
+    { id: "theme_crate_solar", name: "Solar Flare", color: "#f97316", hover: "#ea580c", alpha: "rgba(249,115,22,0.35)",
+      bg: "linear-gradient(135deg,#431407,#7c2d12,#f97316)", card: "#2a1208", border: "#c2410c",
+      text: "#ffedd5", muted: "#fdba74", crateOnly: true, gradient: true },
+    { id: "theme_crate_nebula", name: "Nebula Drift", color: "#ec4899", hover: "#db2777", alpha: "rgba(236,72,153,0.35)",
+      bg: "linear-gradient(135deg,#4c1d95,#db2777,#6366f1)", card: "#2a1030", border: "#9d174d",
+      text: "#fce7f3", muted: "#f9a8d4", crateOnly: true, gradient: true },
+    { id: "theme_crate_softcyan", name: "Soft Cyan", color: "#22d3ee", hover: "#06b6d4", alpha: "rgba(34,211,238,0.28)",
+      bg: "#0a1520", card: "#0f1e2a", border: "#1a3a48", text: "#e0f7fa", muted: "#5a9aaa", crateOnly: true },
+    { id: "theme_crate_softrose", name: "Soft Rose", color: "#fb7185", hover: "#f43f5e", alpha: "rgba(251,113,133,0.28)",
+      bg: "#1a1014", card: "#24161c", border: "#3d2530", text: "#fce8ec", muted: "#8a6a72", crateOnly: true },
+    { id: "theme_crate_softteal", name: "Soft Teal", color: "#2dd4bf", hover: "#14b8a6", alpha: "rgba(45,212,191,0.28)",
+      bg: "#0a1614", card: "#0f221e", border: "#1a3a34", text: "#e0f5f2", muted: "#5a8a82", crateOnly: true },
+    { id: "theme_crate_softsand", name: "Soft Sand", color: "#d2b48c", hover: "#c4a574", alpha: "rgba(210,180,140,0.28)",
+      bg: "#16140e", card: "#1e1c14", border: "#3a3528", text: "#f5f0e6", muted: "#8a8070", crateOnly: true },
 ];
 
 function isThemeUnlocked(theme) {
     if (!theme) return false;
     if (theme.id === "purple") return true;
+    if (theme.crateOnly || String(theme.id || "").startsWith("theme_crate_")) {
+        return typeof isCrateUnlocked === "function" && isCrateUnlocked(theme.id);
+    }
     if (theme.rewardId) {
         const reward = (typeof REWARD_CATALOG !== "undefined")
             ? REWARD_CATALOG.find(r => r.id === theme.rewardId) : null;
@@ -2184,7 +2259,11 @@ function setThemeById(id) {
     const theme = THEME_CATALOG.find(t => t.id === id);
     if (!theme) return;
     if (!isThemeUnlocked(theme)) {
-        alert(`🔒 "${theme.name}" is locked. Level up to unlock it!`);
+        if (theme.crateOnly || String(theme.id || "").startsWith("theme_crate_")) {
+            alert(`🔒 "${theme.name}" is locked — only unlockable from crates.`);
+        } else {
+            alert(`🔒 "${theme.name}" is locked. Level up to unlock it!`);
+        }
         return;
     }
     data.themeId = id;
@@ -2292,7 +2371,9 @@ function renderThemeSwatches() {
         const cell = document.createElement("button");
         cell.type = "button";
         cell.className = "theme-chip" + (active ? " theme-chip-active" : "") + (!unlocked ? " theme-chip-locked" : "");
-        cell.title = unlocked ? theme.name : `🔒 ${theme.name} — level up to unlock`;
+        cell.title = unlocked ? theme.name : (theme.crateOnly || String(theme.id||"").startsWith("theme_crate_")
+            ? `🔒 ${theme.name} — only unlockable from crates`
+            : `🔒 ${theme.name} — level up to unlock`);
         cell.onclick = () => setThemeById(theme.id);
 
         const swatch = document.createElement("span");
@@ -2425,7 +2506,7 @@ function getDateForDay(dayName) {
 
 function renderProgressTracker() {
     const day = DAYS[data.currentDay];
-    const tasks = data.schedules[day] || [];
+    const tasks = (data.schedules[day] || []).filter(t => !t.isSleep);
     let badge = document.getElementById("progress-tracker-badge");
 
     if (!badge) {
@@ -2579,23 +2660,23 @@ function createTaskRow(task, index) {
                 return;
             }
             task.completed = true;
-            console.log("[DEBUG] Task completed:", task.task, "isSleep:", task.isSleep, "xpAwarded before:", task.xpAwarded);
-
-            // IMPORTANT: Reset xpAwarded when re-completing a task
-            task.xpAwarded = false;
-            task.xpAmount = 0;
-
             if (!task.isSleep) {
-                console.log("[DEBUG] Calling awardXPForTask...");
-                awardXPForTask(task);
+                // XP only the first time this block is completed
+                if (!task.xpAwarded) {
+                    awardXPForTask(task);
+                }
+                // Key roll only once ever for this block (keyGenerated never cleared)
+                if (!task.keyGenerated) {
+                    task.keyGenerated = true;
+                    try { tryGrantCrateKey(0.05, "daily block"); } catch (e) {}
+                }
             }
         } else if (!checkbox.checked && wasCompleted) {
             task.completed = false;
-            if (!task.isSleep) {
-                if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
-                task.xpAwarded = true;
+            if (!task.isSleep && task.xpAwarded) {
                 revokeXPForTask(task);
             }
+            // keyGenerated stays true — no key farming via uncheck/recheck
         } else {
             task.completed = checkbox.checked;
         }
@@ -3307,13 +3388,15 @@ function applyPreset() {
     const select = document.getElementById("preset-select");
     if (!select || !select.value) return alert("Select a preset first.");
     const name = select.value;
-    if (!confirm(`Apply "${name}" to the ENTIRE week? XP from completed tasks will be clawed back.`)) return;
+    if (!confirm(`Apply "${name}" to today and upcoming days only? Past days stay as-is (no XP waste).`)) return;
 
+    const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : 0;
     let lost = 0;
-    DAYS.forEach(day => { if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true }); });
-    DAYS.forEach(day => {
+    DAYS.forEach((day, i) => {
+        if (i < todayIdx) return; // past days untouched
+        if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true });
         data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
-            ...t, completed: false, xpAwarded: false, xpAmount: 0
+            ...t, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false
         }));
     });
     data.appliedRoutine = name;
@@ -3323,8 +3406,8 @@ function applyPreset() {
     enforceLocksAfterXPChange();
     select.value = "";
     showSavedMessage(lost > 0
-        ? `✓ "${name}" applied (−${lost} XP clawed back)`
-        : `✓ "${name}" applied to entire week.`);
+        ? `✓ "${name}" applied to today onward (−${lost} XP clawed back)`
+        : `✓ "${name}" applied to today and upcoming days.`);
 }
 
 function applySingleDayPreset() {
@@ -3582,45 +3665,56 @@ function getLevelInfo(xp) {
 }
 
 const REWARD_CATALOG = [
+    // Exactly one reward per level. Crate keys only on levels that had no other unlock.
+    { id: "crate_keys_1",     atLevel: 1,  name: "1 Crate Key",           desc: "Earn 1 crate key", crateKeys: 1 },
     { id: "xp_boost_s3",      atLevel: 2,  name: "+20 Bonus XP",          desc: "One-time +20 XP at Starter III", bonusXP: 20 },
+    { id: "crate_keys_3",     atLevel: 3,  name: "1 Crate Key",           desc: "Earn 1 crate key", crateKeys: 1 },
     { id: "theme_cyan",       atLevel: 4,  name: "Cyan Theme",            desc: "Unlock the Cyan colour theme" },
+    { id: "crate_keys_5",     atLevel: 5,  name: "1 Crate Key",           desc: "Earn 1 crate key", crateKeys: 1 },
     { id: "xp_boost_b2",      atLevel: 6,  name: "+35 Bonus XP",          desc: "One-time +35 XP at Beginner 2", bonusXP: 35 },
     { id: "feature_timeline", atLevel: 7,  name: "Timeline Visualizer",   desc: "Unlock the day timeline visualizer" },
+    { id: "crate_keys_8",     atLevel: 8,  name: "2 Crate Keys",          desc: "Earn 2 crate keys", crateKeys: 2 },
     { id: "theme_coral",      atLevel: 9,  name: "Coral Theme",           desc: "Unlock the Coral colour theme" },
     { id: "sound_levelup",    atLevel: 10, name: "Level-Up Fanfare",      desc: "Special arpeggio when you level up" },
+    { id: "theme_ember",      atLevel: 11, name: "Ember Theme",           desc: "Fiery dark orange gradient" },
     { id: "feature_analyser", atLevel: 12, name: "Week Analyser",         desc: "Unlock Analyse My Week" },
+    { id: "sound_crystal",    atLevel: 13, name: "Crystal Chime",         desc: "Bright crystalline completion tone" },
     { id: "theme_amber",      atLevel: 14, name: "Amber Theme",           desc: "Unlock the Amber colour theme" },
     { id: "confetti",         atLevel: 15, name: "Confetti Celebration",  desc: "Confetti on big XP gains" },
+    { id: "cosmetic_particles", atLevel: 16, name: "XP Particles",        desc: "Floating particles when you earn XP" },
     { id: "theme_green",      atLevel: 17, name: "Green Theme",           desc: "Unlock the Green colour theme" },
+    { id: "theme_glacier",    atLevel: 18, name: "Glacier Theme",         desc: "Icy blue glacial gradient" },
     { id: "sound_victory",    atLevel: 19, name: "Victory Fanfare",       desc: "Special chime on task complete" },
     { id: "theme_rose",       atLevel: 20, name: "Rose Theme",            desc: "Unlock the Rose colour theme" },
+    { id: "sound_drum",       atLevel: 21, name: "Drum Hit",              desc: "Punchy drum on task complete" },
     { id: "focus_plus",       atLevel: 22, name: "Focus+ Modes",          desc: "Extra timer lengths (15/45/60)" },
+    { id: "theme_toxic",      atLevel: 23, name: "Toxic Theme",           desc: "Neon acid green gradient" },
     { id: "xp_boost_skilled", atLevel: 24, name: "+100 Bonus XP",         desc: "One-time +100 XP at Skilled 5", bonusXP: 100 },
+    { id: "cosmetic_glow",    atLevel: 25, name: "Block Glow",            desc: "Active blocks get a soft pulse glow" },
     { id: "theme_gold",       atLevel: 26, name: "Gold Theme",            desc: "Unlock the Gold colour theme" },
+    { id: "theme_royal",      atLevel: 27, name: "Royal Theme",           desc: "Deep purple radial glow" },
     { id: "sound_chill",      atLevel: 28, name: "Chill Chime",            desc: "Softer completion tone" },
+    { id: "sound_sparkle",    atLevel: 29, name: "Sparkle Cascade",       desc: "Sparkly cascade on level-up" },
     { id: "theme_ocean",      atLevel: 30, name: "Ocean Theme",           desc: "Unlock the Ocean colour theme" },
+    { id: "theme_bloodmoon",  atLevel: 31, name: "Blood Moon Theme",      desc: "Crimson night gradient" },
     { id: "badge_legend",     atLevel: 32, name: "Legend Badge",          desc: "Show a Legend badge on your progress pill" },
+    { id: "cosmetic_streakfire", atLevel: 33, name: "Streak Fire",        desc: "Animated fire icon on long streaks" },
     { id: "theme_forest",     atLevel: 34, name: "Forest Theme",          desc: "Unlock the Forest colour theme" },
+    { id: "theme_matrix",     atLevel: 35, name: "Matrix Theme",          desc: "Classic green-on-black" },
     { id: "theme_neon",       atLevel: 36, name: "Neon Theme",            desc: "Unlock the Neon colour theme" },
+    { id: "crate_keys_37",    atLevel: 37, name: "2 Crate Keys",          desc: "Earn 2 crate keys", crateKeys: 2 },
     { id: "xp_boost_master",  atLevel: 38, name: "+250 Bonus XP",         desc: "One-time +250 XP at Master 4", bonusXP: 250 },
+    { id: "crate_keys_39",    atLevel: 39, name: "2 Crate Keys",          desc: "Earn 2 crate keys", crateKeys: 2 },
     { id: "theme_midnight",   atLevel: 40, name: "Midnight Theme",        desc: "Unlock the Midnight colour theme" },
+    { id: "crate_keys_41",    atLevel: 41, name: "3 Crate Keys",          desc: "Earn 3 crate keys", crateKeys: 3 },
     { id: "theme_sunset",     atLevel: 42, name: "Sunset Gradient",       desc: "Unlock the Sunset gradient theme" },
+    { id: "crate_keys_43",    atLevel: 43, name: "3 Crate Keys",          desc: "Earn 3 crate keys", crateKeys: 3 },
     { id: "theme_aurora",     atLevel: 44, name: "Aurora Gradient",       desc: "Unlock the Aurora gradient theme" },
+    { id: "crate_keys_45",    atLevel: 45, name: "3 Crate Keys",          desc: "Earn 3 crate keys", crateKeys: 3 },
     { id: "theme_candy",      atLevel: 46, name: "Candy Gradient",        desc: "Unlock the Candy gradient theme" },
+    { id: "crate_keys_47",    atLevel: 47, name: "5 Crate Keys",          desc: "Earn 5 crate keys", crateKeys: 5 },
     { id: "theme_mythic",     atLevel: 48, name: "Mythic Aura",           desc: "Special Mythic glow on the XP pill" },
     { id: "title_mythic",     atLevel: 49, name: "Mythic Title",          desc: "Unlock the Mythic title under Momento" },
-    { id: "theme_ember",      atLevel: 15, name: "Ember Theme",           desc: "Fiery dark orange gradient" },
-    { id: "theme_glacier",    atLevel: 18, name: "Glacier Theme",         desc: "Icy blue glacial gradient" },
-    { id: "theme_toxic",      atLevel: 22, name: "Toxic Theme",           desc: "Neon acid green gradient" },
-    { id: "theme_royal",      atLevel: 26, name: "Royal Theme",           desc: "Deep purple radial glow" },
-    { id: "theme_bloodmoon",  atLevel: 32, name: "Blood Moon Theme",      desc: "Crimson night gradient" },
-    { id: "theme_matrix",     atLevel: 36, name: "Matrix Theme",          desc: "Classic green-on-black" },
-    { id: "sound_crystal",    atLevel: 14, name: "Crystal Chime",         desc: "Bright crystalline completion tone" },
-    { id: "sound_drum",       atLevel: 21, name: "Drum Hit",              desc: "Punchy drum on task complete" },
-    { id: "sound_sparkle",    atLevel: 30, name: "Sparkle Cascade",       desc: "Sparkly cascade on level-up" },
-    { id: "cosmetic_particles", atLevel: 16, name: "XP Particles",        desc: "Floating particles when you earn XP" },
-    { id: "cosmetic_glow",    atLevel: 24, name: "Block Glow",            desc: "Active blocks get a soft pulse glow" },
-    { id: "cosmetic_streakfire", atLevel: 33, name: "Streak Fire",        desc: "Animated fire icon on long streaks" },
 ];
 
 const CHIME_CATALOG = [
@@ -3645,9 +3739,9 @@ const FEATURE_UNLOCKS = {
     sound_victory: 19,
     sound_levelup: 10,
     sound_chill: 28,
-    sound_crystal: 14,
+    sound_crystal: 13,
     sound_drum: 21,
-    sound_sparkle: 30,
+    sound_sparkle: 29,
 };
 
 function checkAndUnlockRewards(levelIndex) {
@@ -3658,6 +3752,10 @@ function checkAndUnlockRewards(levelIndex) {
             data.rewardsUnlocked.push(r.id);
             if (r.bonusXP) {
                 data.xp = (data.xp || 0) + r.bonusXP;
+            }
+            if (r.crateKeys) {
+                data.crateKeys = (Number(data.crateKeys) || 0) + Number(r.crateKeys);
+                try { if (typeof updateCrateKeysBadge === "function") updateCrateKeysBadge(); } catch (e) {}
             }
             newly.push(r);
         }
@@ -3805,6 +3903,24 @@ function triggerCompletionFx(levelInfo) {
     setTimeout(() => document.body.classList.remove("fx-complete"), 700);
 }
 
+function spawnXpParticles(count) {
+    count = count || 12;
+    const layer = document.createElement("div");
+    layer.className = "xp-particle-layer";
+    document.body.appendChild(layer);
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement("div");
+        p.className = "xp-particle";
+        p.style.left = (35 + Math.random() * 30) + "vw";
+        p.style.bottom = (10 + Math.random() * 25) + "vh";
+        p.style.background = ["#6c5ce7", "#00cec9", "#f9ca24", "#fd79a8"][i % 4];
+        p.style.animationDelay = (Math.random() * 0.35) + "s";
+        p.style.setProperty("--dx", ((Math.random() - 0.5) * 140) + "px");
+        layer.appendChild(p);
+    }
+    setTimeout(() => { try { layer.remove(); } catch (e) {} }, 1800);
+}
+
 function showXPPopup(xpGain, taskName, levelInfo) {
     console.log("[DEBUG] showXPPopup called with:", { xpGain, taskName, levelInfo });
 
@@ -3842,7 +3958,7 @@ function showXPPopup(xpGain, taskName, levelInfo) {
     console.log("[DEBUG] Popup appended to body, current opacity:", popup.style.opacity);
     console.log("[DEBUG] Popup computed style:", window.getComputedStyle(popup).display, window.getComputedStyle(popup).opacity);
 
-    if (hasReward("confetti") && xpGain >= 60) {
+    if (hasReward("confetti") && data.confettiEnabled !== false && xpGain >= 60) {
         for (let i = 0; i < 24; i++) {
             const conf = document.createElement("div");
             conf.className = "confetti-piece";
@@ -3851,6 +3967,9 @@ function showXPPopup(xpGain, taskName, levelInfo) {
             conf.style.animationDelay = (Math.random()*0.4) + "s";
             popup.appendChild(conf);
         }
+    }
+    if ((data.activeCosmetics || []).includes("cosmetic_particles")) {
+        spawnXpParticles(Math.min(30, 8 + Math.round(xpGain / 10)));
     }
 
     void popup.offsetWidth;
@@ -4010,11 +4129,15 @@ function showWelcomeBack() {
 
 
 function showToast(msg, kind) {
+    // Dismiss any existing toasts so they don't stack
+    document.querySelectorAll(".sync-toast").forEach(t => {
+        t.classList.remove("show");
+        try { t.remove(); } catch (e) {}
+    });
     const el = document.createElement("div");
     el.className = "sync-toast" + (kind ? " toast-" + kind : "");
     el.textContent = msg;
     el.style.zIndex = "2147483646";
-    // Always mount at end of body so it stacks above any open panel/modal
     document.body.appendChild(el);
     setTimeout(() => el.classList.add("show"), 20);
     setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 450); }, 7000);
@@ -4260,47 +4383,41 @@ function openProgressPanel() {
 
     const ranksEl = document.getElementById("ranks-ladder");
     if (ranksEl) {
+        const rewardByLevel = {};
+        (REWARD_CATALOG || []).forEach(r => {
+            if (!rewardByLevel[r.atLevel]) rewardByLevel[r.atLevel] = [];
+            rewardByLevel[r.atLevel].push(r);
+        });
         ranksEl.innerHTML = LEVEL_TABLE.map((lv, i) => {
             const prev = i === 0 ? 0 : LEVEL_TABLE[i - 1].xpNeeded;
             const cost = lv.stepCost || (lv.xpNeeded - prev);
             const reached = have >= lv.xpNeeded;
-            const current = i === info.levelIndex && have < (LEVEL_TABLE[LEVEL_TABLE.length-1].xpNeeded);
-            const isCurrent = (!reached && have >= prev) || (i === info.levelIndex && have < lv.xpNeeded);
             const working = have >= prev && have < lv.xpNeeded;
             const cls = reached ? "rank-done" : working ? "rank-current" : "rank-locked";
             const icon = reached ? "✓" : working ? "▶" : "·";
-            return `<div class="rank-row ${cls}">
+            const rewards = rewardByLevel[i] || [];
+            let rewardHtml = `<span class="rank-reward-empty">—</span>`;
+            if (rewards.length) {
+                rewardHtml = rewards.map(r => {
+                    const unlocked = isRewardUnlockedByRank(r);
+                    return `<span class="rank-reward-chip ${unlocked ? "unlocked" : "locked"}" title="${r.desc}">
+                        <span class="rank-reward-check">${unlocked ? "✓" : "🔒"}</span>
+                        ${r.name}
+                    </span>`;
+                }).join("");
+            }
+            return `<div class="rank-row rank-row-merged ${cls}">
                 <span class="rank-icon">${icon}</span>
-                <span class="rank-name">${lv.rank}</span>
-                <span class="rank-cost">${cost} XP</span>
-                <span class="rank-cum">${lv.xpNeeded} total</span>
+                <div class="rank-info">
+                    <span class="rank-name">${lv.rank}</span>
+                    <span class="rank-meta">${cost} XP · ${lv.xpNeeded} total</span>
+                </div>
+                <div class="rank-reward-cell">${rewardHtml}</div>
             </div>`;
         }).join("");
     }
-
-    const list = document.getElementById("rewards-list");
-    if (list) {
-        list.innerHTML = REWARD_CATALOG.map(r => {
-            const unlocked = isRewardUnlockedByRank(r);
-            const rankName = (LEVEL_TABLE[r.atLevel] || {}).rank || "?";
-            const need = LEVEL_TABLE[r.atLevel]?.xpNeeded || 0;
-            const remain = Math.max(0, need - have);
-            const progress = Math.min(100, Math.round((have / Math.max(need, 1)) * 100));
-            return `
-                <div class="reward-row ${unlocked ? "unlocked" : "locked"}">
-                    <div class="reward-row-top">
-                        <span class="reward-icon">${unlocked ? "✅" : "🔒"}</span>
-                        <span class="reward-name">${r.name}</span>
-                        <span class="reward-req">${unlocked ? "Unlocked" : rankName}</span>
-                    </div>
-                    <div class="reward-desc">${r.desc}</div>
-                    ${!unlocked ? `<div class="xp-bar-wrap small"><div class="xp-bar-fill" style="width:${progress}%"></div></div>
-                    <div class="reward-prog">${remain} XP more · unlocks at ${rankName}</div>` : ""}
-                </div>`;
-        }).join("");
-    }
     panel.classList.remove("hidden");
-    updateXPDisplay(); 
+    updateXPDisplay();
 }
 
 function computeWeeklyReview() {
@@ -4312,7 +4429,7 @@ function computeWeeklyReview() {
     const catTotal = {};
 
     DAYS.forEach(day => {
-        const tasks = (data.schedules[day] || []).filter(t => t.task);
+        const tasks = (data.schedules[day] || []).filter(t => t.task && !t.isSleep);
         const total = tasks.length;
         const done = tasks.filter(t => t.completed).length;
         totalBlocks += total;
@@ -4488,8 +4605,12 @@ function renderPreviewDay() {
 
 function keepPreview() {
     if (!_previewWeek) return;
-    DAYS.forEach(day => {
-        data.schedules[day] = JSON.parse(JSON.stringify(_previewWeek[day] || []));
+    const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : 0;
+    DAYS.forEach((day, i) => {
+        if (i < todayIdx) return; // do not overwrite past days
+        data.schedules[day] = JSON.parse(JSON.stringify(_previewWeek[day] || [])).map(t => ({
+            ...t, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false
+        }));
     });
     data.appliedRoutine = `AI: ${ANALYSER_INTENTS[_analyserIntent]?.label || "Generated"}`;
     saveData();
@@ -4627,15 +4748,15 @@ function saveCurrentAsPreset() {
 
 function applyNamedPreset(name) {
     if (!data.presets[name]) return;
-    if (!confirm(`Apply "${name}" to the entire week? XP from completed tasks will be removed.`)) return;
+    if (!confirm(`Apply "${name}" to today and upcoming days only? Past days stay as-is.`)) return;
     const infoBefore = getLevelInfo(data.xp || 0);
+    const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : 0;
     let lost = 0;
-    DAYS.forEach(day => {
+    DAYS.forEach((day, i) => {
+        if (i < todayIdx) return;
         if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true });
-    });
-    DAYS.forEach(day => {
         data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
-            ...t, completed: false, xpAwarded: false, xpAmount: 0
+            ...t, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false
         }));
     });
     data.appliedRoutine = name;
@@ -4648,8 +4769,8 @@ function applyNamedPreset(name) {
     }
     enforceLocksAfterXPChange();
     showSavedMessage(lost > 0
-        ? `✓ "${name}" applied (−${lost} XP clawed back)`
-        : `✓ "${name}" applied`);
+        ? `✓ "${name}" applied to today onward (−${lost} XP clawed back)`
+        : `✓ "${name}" applied to today onward`);
 }
 
 function deletePreset(name) {
@@ -4858,9 +4979,8 @@ function getSession() {
 /** True when signed in with local offline account (not Google/Supabase). */
 function isLocalProfile() {
     const s = getSession();
-    if (s && (s.cloud === false || s.localFile || !s.cloud)) {
-        if (s.username) return true;
-    }
+    // Only explicit local sessions — not "cloud missing" (would mis-detect Google users)
+    if (s && s.username && (s.cloud === false || s.localFile === true)) return true;
     // Supabase user ids are UUIDs; local usernames are short
     if (currentUser && typeof currentUser === "string" && !/^[0-9a-f-]{36}$/i.test(currentUser) && currentUser.length <= 24) {
         return true;
@@ -5344,6 +5464,8 @@ let _localPlaying = false;
 
 let _npSource = null;
 
+let _npLoop = false;
+
 let _npTimer = null;
 
 let _archivePlaying = false;
@@ -5409,7 +5531,35 @@ function updateNowPlayingVisibility() {
     if (_npWantVisible && musicOpen) bar.classList.remove("hidden");
 }
 
+
+function applyMusicLoopState() {
+    ["stream-audio", "local-audio"].forEach(id => {
+        const a = document.getElementById(id);
+        if (a) a.loop = !!_npLoop;
+    });
+    try {
+        if (_ytPlayer && _ytPlayerReady && typeof _ytPlayer.setLoop === "function") {
+            _ytPlayer.setLoop(!!_npLoop);
+        }
+    } catch (e) {}
+    const btn = document.getElementById("np-loop-btn");
+    if (btn) {
+        btn.classList.toggle("active", !!_npLoop);
+        btn.title = _npLoop ? "Repeat on (forever)" : "Repeat off";
+        btn.setAttribute("aria-pressed", _npLoop ? "true" : "false");
+    }
+}
+
+function toggleMusicLoop() {
+    _npLoop = !_npLoop;
+    applyMusicLoopState();
+    try { showToast(_npLoop ? "🔁 Repeat on" : "Repeat off", "info"); } catch (e) {}
+}
+window.toggleMusicLoop = toggleMusicLoop;
+window.applyMusicLoopState = applyMusicLoopState;
+
 function showNowPlaying(title, artist, source) {
+    applyMusicLoopState();
     const bar = document.getElementById("now-playing-bar");
     if (!bar) return;
     _npWantVisible = true;
@@ -5480,6 +5630,16 @@ function updateNpTimes() {
 
 const MUSIC_API = () => localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787";
 
+function escapeHtml(str) {
+    return String(str == null ? "" : str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+
 const PIPED_INSTANCES = [
     "https://pipedapi.kavin.rocks",
     "https://pipedapi.syncpundit.io",
@@ -5527,7 +5687,6 @@ function rankYoutubeItem(it) {
 }
 
 async function searchViaPiped(q) {
-
     const queries = [
         `/search?q=${encodeURIComponent(q + " official audio")}&filter=music_songs`,
         `/search?q=${encodeURIComponent(q)}&filter=music_songs`,
@@ -5543,7 +5702,7 @@ async function searchViaPiped(q) {
                 items = items.concat(batch);
                 if (items.length >= 15) break;
             }
-        } catch (e) {  }
+        } catch (e) { /* try next */ }
     }
     const seen = new Set();
     const mapped = [];
@@ -5567,6 +5726,7 @@ async function searchViaPiped(q) {
     mapped.sort((a, b) => (b._rank || 0) - (a._rank || 0));
     return mapped.slice(0, 25);
 }
+
 
 function ensureYTPlayer() {
     if (window.location.protocol === "file:") {
@@ -5646,6 +5806,13 @@ function ensureYTPlayer() {
 function onYTPlayerStateChange(e) {
     if (!window.YT) return;
     if (e.data === YT.PlayerState.ENDED) {
+        if (_npLoop && _ytPlayer && _ytPlayerReady) {
+            try {
+                _ytPlayer.seekTo(0, true);
+                _ytPlayer.playVideo();
+                return;
+            } catch (err) {}
+        }
         _streamPlaying = false;
         _archivePlaying = false;
         updateNpPlayBtn();
@@ -5653,6 +5820,7 @@ function onYTPlayerStateChange(e) {
         _streamPlaying = true;
         _archivePlaying = true;
         updateNpPlayBtn();
+        applyMusicLoopState();
     } else if (e.data === YT.PlayerState.PAUSED) {
         _streamPlaying = false;
         _archivePlaying = false;
@@ -5820,27 +5988,25 @@ async function searchFreeMusic() {
 
 function renderMusicResults(listEl) {
     listEl.innerHTML = "";
-    console.log("[DEBUG RENDER] Rendering", _musicResults.length, "music results");
     _musicResults.forEach((track, index) => {
-        console.log(`[DEBUG RENDER] Rendering track ${index}: id=${track.id}, title=${track.title}`);
         const li = document.createElement("li");
         li.className = "music-search-result-item";
+        li.dataset.trackId = String(track.id);
 
         const details = document.createElement("div");
         details.className = "music-track-details";
-        details.innerHTML = `
-            <strong>${escapeHtml(track.title)}</strong>
-            <span>${escapeHtml(track.artist)}</span>
-        `;
+        const artist = track.artist || track.uploader || "Unknown";
+        details.innerHTML =
+            "<strong>" + escapeHtml(track.title || "Untitled") + "</strong>" +
+            "<span>" + escapeHtml(artist) + "</span>";
 
         const playBtn = document.createElement("button");
         playBtn.type = "button";
         playBtn.className = "btn-primary";
         playBtn.textContent = "Play";
-
-        // Use event listener instead of inline onclick to avoid template literal issues in Electron
-        playBtn.addEventListener("click", () => {
-            console.log(`[DEBUG CLICK] Button clicked for track ${index}, id=${track.id}`);
+        playBtn.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
             playTrackById(track.id);
         });
 
@@ -5850,60 +6016,17 @@ function renderMusicResults(listEl) {
     });
 }
 
+
 async function playTrackById(trackId) {
-  console.log("[DEBUG MUSIC] playTrackById called with:", trackId, "type:", typeof trackId);
-  console.log("[DEBUG MUSIC] _musicResults:", _musicResults);
-
-  // Convert trackId to string for comparison, since it comes from HTML onclick attribute
   const trackIdStr = String(trackId);
-
-  // Debug: check each track
-  _musicResults.forEach((t, idx) => {
-    const tIdStr = String(t.id);
-    const matches = tIdStr === trackIdStr;
-    console.log(`[DEBUG MUSIC] Track ${idx}: id="${tIdStr}" vs target="${trackIdStr}" | Match: ${matches}`);
-  });
-
   const index = _musicResults.findIndex(t => String(t.id) === trackIdStr);
-
-  console.log("[DEBUG MUSIC] Found index:", index);
-
   if (index === -1) {
-    showToast("Track not found", "warn");
+    showToast("Track not found in results", "warn");
     return;
   }
-
   await playMusicResult(index);
 }
 
-function escapeHtml(str) {
-    return (str || "").replace(/[&<>'"]/g, 
-        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-    );
-}
-
-function tryPlayAudioUrl(audio, url, timeoutMs = 7000) {
-    return new Promise((resolve, reject) => {
-        let settled = false;
-        const done = (ok, err) => {
-            if (settled) return;
-            settled = true;
-            audio.removeEventListener("canplay", onCanPlay);
-            audio.removeEventListener("error", onError);
-            clearTimeout(timer);
-            ok ? resolve() : reject(err || new Error("playback failed"));
-        };
-        const onCanPlay = () => done(true);
-        const onError = () => done(false, audio.error);
-        const timer = setTimeout(() => done(false, new Error("timeout")), timeoutMs);
-        audio.addEventListener("canplay", onCanPlay);
-        audio.addEventListener("error", onError);
-        audio.src = url;
-        audio.volume = _musicVolume;
-        audio.load();
-        audio.play().catch(() => {});
-    });
-}
 
 async function playMusicResult(i, _triedIds) {
     const t = _musicResults[i];
@@ -5923,11 +6046,15 @@ async function playMusicResult(i, _triedIds) {
             const audio = document.getElementById("stream-audio");
             if (audio) { audio.pause(); audio.removeAttribute("src"); }
             await playYouTubeVideo(t.id);
+            applyMusicLoopState();
             _streamPlaying = true;
             _archivePlaying = true;
             _npSource = "youtube";
             showNowPlaying(t.title, t.artist || "YouTube", "youtube");
-            if (status) status.textContent = "Playing";
+            if (status) status.textContent = "Playing · " + (t.title || "");
+            document.querySelectorAll(".music-search-result-item").forEach(el => {
+                el.classList.toggle("is-playing", el.dataset.trackId === String(t.id));
+            });
             updateNpPlayBtn();
             return;
         }
@@ -5960,7 +6087,6 @@ async function playMusicResult(i, _triedIds) {
                 const json = await res.json();
                 const alt = (json.data || []).find(x => x && x.id);
                 if (alt) {
-                    // Play alternative without mutating the results array
                     const altTrack = {
                         source: "audius",
                         id: alt.id,
@@ -5978,7 +6104,6 @@ async function playMusicResult(i, _triedIds) {
                 console.warn("Alternative source failed", e2);
             }
         }
-        const detail = (e && e.message) ? e.message : "unknown";
         showToast("Unable to play this track", "warn");
         if (status) status.textContent = "Unable to play";
         _streamPlaying = false;
@@ -6445,28 +6570,35 @@ function toggleFocusTimer() {
     if (_focusIsRunning) {
         clearInterval(_focusTimerInterval);
         _focusIsRunning = false;
-    } else {
-        _focusIsRunning = true;
-        _focusTimerInterval = setInterval(() => {
-            if (_focusSecondsLeft <= 0) {
-                clearInterval(_focusTimerInterval);
-                _focusIsRunning = false;
-                playChime();
-                if (_focusIsBreak) {
-                    _focusIsBreak = false;
-                    _focusSecondsLeft = 25 * 60;
-                } else {
-                    awardFocusSessionBonus();
-                    _focusIsBreak = true;
-                    _focusSecondsLeft = 5 * 60;
-                }
-                updateFocusTimerDisplay();
-                return;
-            }
-            _focusSecondsLeft--;
-            updateFocusTimerDisplay();
-        }, 1000);
+        updateFocusTimerDisplay();
+        return;
     }
+    _focusIsRunning = true;
+    if (_focusTimerInterval) clearInterval(_focusTimerInterval);
+    _focusTimerInterval = setInterval(() => {
+        if (_focusSecondsLeft <= 0) {
+            // Switch phase and keep running until user pauses
+            if (_focusIsBreak) {
+                _focusIsBreak = false;
+                _focusSecondsLeft = 25 * 60;
+                showToast("Focus time — back to work", "info");
+            } else {
+                awardFocusSessionBonus();
+                _focusIsBreak = true;
+                _focusSecondsLeft = 5 * 60;
+                showToast("Break time — 5 minutes", "info");
+            }
+            // Phase-change sound
+            try {
+                if (typeof playRewardSound === "function") playRewardSound("complete");
+                else if (typeof playChime === "function") playChime();
+            } catch (e) {}
+            updateFocusTimerDisplay();
+            return; // next tick continues countdown
+        }
+        _focusSecondsLeft--;
+        updateFocusTimerDisplay();
+    }, 1000);
     updateFocusTimerDisplay();
 }
 
@@ -6518,16 +6650,26 @@ function resetFocusTimer() {
 }
 
 function skipFocusPhase() {
-    clearInterval(_focusTimerInterval);
-    _focusIsRunning = false;
+    const wasRunning = _focusIsRunning;
     if (_focusIsBreak) {
         _focusIsBreak = false;
         _focusSecondsLeft = 25 * 60;
+        showToast("Skipped to focus", "info");
     } else {
         _focusIsBreak = true;
         _focusSecondsLeft = 5 * 60;
+        showToast("Skipped to break", "info");
     }
+    try {
+        if (typeof playRewardSound === "function") playRewardSound("complete");
+        else if (typeof playChime === "function") playChime();
+    } catch (e) {}
     updateFocusTimerDisplay();
+    // Keep looping if timer was already running
+    if (wasRunning) {
+        _focusIsRunning = false; // toggle will restart interval
+        toggleFocusTimer();
+    }
 }
 
 function completeFocusTask() {
@@ -6616,6 +6758,11 @@ function addTodo() {
     if (!text) return;
     const dueEl = document.getElementById("todo-due-input");
     const due = dueEl && dueEl.value ? dueEl.value : null;
+    if (!due) {
+        showToast("Pick a due date for this to-do", "warn");
+        if (dueEl) dueEl.focus();
+        return;
+    }
     data.todos = data.todos || [];
     data.todos.push({
         id: Date.now() + Math.random().toString(36).slice(2,7),
@@ -6709,22 +6856,21 @@ function toggleTodo(id) {
             showLevelUp(infoAfter.rank);
             playRewardSound("levelup");
         }
-    } else {
-        const loss = typeof t.xpAwarded === "number" && t.xpAwarded > 0 ? t.xpAwarded : getTodoXPValue(t.text);
-        const infoBefore = getLevelInfo(data.xp || 0);
-        data.xp = Math.max(0, (data.xp || 0) - loss);
-        data.totalTasksCompleted = Math.max(0, (data.totalTasksCompleted || 0) - 1);
-        t.completed = false;
-        t.xpAwarded = 0;
-        const infoAfter = getLevelInfo(data.xp || 0);
-        updateXPDisplay();
-        if (infoAfter.levelIndex < infoBefore.levelIndex) {
-            showLevelDown(infoBefore.rank, infoAfter.rank);
-            enforceLocksAfterXPChange();
+        // Key chance once, then remove to-do (no uncheck farm)
+        if (!t.keyGenerated) {
+            t.keyGenerated = true;
+            try { tryGrantCrateKey(0.10, "to-do"); } catch (e) {}
         }
+        data.todos = (data.todos || []).filter(x => x.id !== id);
+        saveData();
+        renderTodos();
+        showToast("✓ To-do done & cleared", "info");
+        return;
+    } else {
+        // Completed to-dos are deleted — no unchecking
+        showToast("To-dos are removed when completed", "info");
+        return;
     }
-    saveData();
-    renderTodos();
 }
 
 function removeTodo(id) {
@@ -6737,10 +6883,30 @@ function renderTodos() {
     const list = document.getElementById("todo-list");
     const todos = data.todos || [];
     const incomplete = todos.filter(t => !t.completed).length;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const dueTodayCount = todos.filter(t => !t.completed && t.dueDate === todayStr).length;
     const badge = document.getElementById("todo-count-badge");
     if (badge) {
         badge.textContent = incomplete;
         badge.style.display = incomplete > 0 ? "inline-flex" : "none";
+    }
+    // ! on the To-Dos quick-action button when something is due today
+    const todoBtn = document.querySelector('.quick-action-btn[onclick*="toggleTodoDrawer"]');
+    if (todoBtn) {
+        let bang = todoBtn.querySelector(".todo-btn-bang");
+        if (dueTodayCount > 0) {
+            if (!bang) {
+                bang = document.createElement("span");
+                bang.className = "todo-btn-bang";
+                bang.textContent = "!";
+                bang.title = "To-do due today";
+                todoBtn.appendChild(bang);
+            }
+            const hoursLeft = 24 - new Date().getHours() - (new Date().getMinutes() / 60);
+            bang.classList.toggle("todo-btn-bang-critical", hoursLeft <= 3);
+        } else if (bang) {
+            bang.remove();
+        }
     }
     if (!list) return;
     if (todos.length === 0) {
@@ -6749,22 +6915,38 @@ function renderTodos() {
     }
     const sorted = [...todos].sort((a,b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1));
     const today = new Date(); today.setHours(0,0,0,0);
+    const now = new Date();
+    const hoursLeftToday = 24 - now.getHours() - (now.getMinutes() / 60);
     list.innerHTML = sorted.map(t => {
         let dueHtml = "";
+        let urgentMark = "";
+        let itemCls = t.completed ? "done" : "";
         if (t.dueDate && !t.completed) {
             const due = new Date(t.dueDate + "T00:00:00");
             const diff = Math.floor((due - today) / 86400000);
             let cls = "todo-due";
             let label = "Due " + t.dueDate;
             if (diff < 0) { cls += " overdue"; label = Math.abs(diff) + "d overdue"; }
-            else if (diff === 0) { cls += " due-soon"; label = "Due today"; }
+            else if (diff === 0) {
+                cls += " due-today";
+                label = "Due today";
+                // ! + shake when due today; stronger shake when few hours left in the day
+                if (hoursLeftToday <= 3) {
+                    itemCls += " todo-urgent-critical";
+                    urgentMark = `<span class="todo-bang todo-bang-critical" title="Due today — day almost over">!</span>`;
+                } else {
+                    itemCls += " todo-urgent";
+                    urgentMark = `<span class="todo-bang" title="Due today">!</span>`;
+                }
+            }
             else if (diff === 1) { cls += " due-soon"; label = "Due tomorrow"; }
             dueHtml = `<span class="${cls}">${label}</span>`;
         } else if (t.dueDate && t.completed) {
             dueHtml = `<span class="todo-due">was ${t.dueDate}</span>`;
         }
         return `
-        <li class="todo-item ${t.completed ? "done" : ""}">
+        <li class="todo-item ${itemCls.trim()}">
+            ${urgentMark}
             <input type="checkbox" ${t.completed ? "checked" : ""} onchange="toggleTodo('${t.id}')">
             <span class="todo-text">${t.text}</span>
             ${dueHtml}
@@ -7010,7 +7192,7 @@ function runAnalysis() {
     let html = "<div class='analyser-results-grid'>";
 
     DAYS.forEach(day => {
-        const tasks = (data.schedules[day] || []).filter(t => t.task);
+        const tasks = (data.schedules[day] || []).filter(t => t.task && !t.isSleep);
         if (tasks.length === 0) return;
 
         const sleepTask = tasks.find(t => /sleep|zzz|bed/i.test(t.task) || t.isSleep);
@@ -7153,6 +7335,17 @@ function calChangeYear(delta) {
     renderCalendarYear();
 }
 
+
+function calEventMatchesDay(ev, isoDate) {
+    if (!ev || !isoDate) return false;
+    if (ev.date === isoDate) return true;
+    if (ev.yearly && ev.date && ev.date.length >= 10) {
+        // same month-day any year
+        return ev.date.slice(5, 10) === isoDate.slice(5, 10);
+    }
+    return false;
+}
+
 function renderCalendarYear() {
     const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const label = document.getElementById("cal-year-label");
@@ -7160,7 +7353,17 @@ function renderCalendarYear() {
     const grid = document.getElementById("cal-year-grid");
     if (!grid) return;
     data.calendarEvents = data.calendarEvents || [];
-    const eventDays = new Set((data.calendarEvents || []).map(e => e.date));
+    const eventDays = new Set();
+    (data.calendarEvents || []).forEach(e => {
+        if (!e.date) return;
+        if (e.yearly) {
+            // mark this month's occurrence in the viewed year
+            const md = e.date.slice(5, 10);
+            eventDays.add(`${_calYear}-${md}`);
+        } else {
+            eventDays.add(e.date);
+        }
+    });
     const todayStr = new Date().toISOString().slice(0, 10);
 
     const first = new Date(_calYear, _calMonth, 1);
@@ -7200,7 +7403,7 @@ function renderCalDayPanel() {
     }
     const d = new Date(_calSelected + "T12:00:00");
     label.textContent = d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-    const events = (data.calendarEvents || []).filter(e => e.date === _calSelected)
+    const events = (data.calendarEvents || []).filter(e => calEventMatchesDay(e, _calSelected))
         .sort((a,b) => (a.start || "").localeCompare(b.start || ""));
 
     const START_H = 6, END_H = 22;
@@ -7208,16 +7411,44 @@ function renderCalDayPanel() {
     for (let h = START_H; h < END_H; h++) hours.push(h);
     const rangeM = (END_H - START_H) * 60;
 
+    const yearlyEv = events.filter(e => e.yearly || e.allDay || (!e.start && !e.end));
+    const timedEv = events.filter(e => !(e.yearly || e.allDay) && e.start && e.end);
+
     if (!events.length) {
-        tl.innerHTML = `<div class="cal-gantt-empty">No events this day — click + Add Event to schedule something</div>`;
+        tl.innerHTML = `<div class="cal-gantt-empty">No events this day — + Add Event or 🔁 Yearly</div>`;
         return;
     }
 
-    let html = `<div class="cal-gantt-inner">`;
+    let html = "";
+    if (yearlyEv.length) {
+        html += `<div class="cal-yearly-list">`;
+        yearlyEv.forEach(ev => {
+            const safeTitle = String(ev.title || "Yearly").replace(/</g, "&lt;");
+            html += `<div class="cal-yearly-chip" onclick="calOpenEditYearly('${ev.id}')">
+                <span>🔁 ${safeTitle}</span>
+                <span class="cal-yearly-actions">
+                    <button type="button" onclick="event.stopPropagation();calOpenEditYearly('${ev.id}')">Edit</button>
+                    <button type="button" onclick="event.stopPropagation();calRemoveEvent('${ev.id}')">✕</button>
+                </span>
+            </div>`;
+        });
+        html += `</div>`;
+    }
+
+    if (!timedEv.length) {
+        if (!yearlyEv.length) {
+            tl.innerHTML = `<div class="cal-gantt-empty">No timed events — + Add Event</div>`;
+        } else {
+            tl.innerHTML = html;
+        }
+        return;
+    }
+
+    html += `<div class="cal-gantt-inner">`;
     html += `<div class="cal-gantt-hours"><span>Timeline</span>`;
     hours.forEach(h => { html += `<span>${String(h).padStart(2,"0")}</span>`; });
     html += `</div>`;
-    events.forEach(ev => {
+    timedEv.forEach(ev => {
         const sParts = (ev.start || "09:00").split(":").map(Number);
         const eParts = (ev.end || "10:00").split(":").map(Number);
         let sM = sParts[0]*60 + (sParts[1]||0) - START_H*60;
@@ -7229,7 +7460,7 @@ function renderCalDayPanel() {
         const safeTitle = String(ev.title || "Event").replace(/</g, "&lt;").replace(/"/g, "&quot;");
         html += `<div class="cal-gantt-row cal-gantt-clickable" onclick="calOpenEditEvent('${ev.id}')">
             <div class="cal-gantt-label" title="${safeTitle}">
-                <strong>${safeTitle}</strong>
+                <strong>${safeTitle}${ev.yearly ? " 🔁" : ""}</strong>
                 <small>${ev.start || "?"} – ${ev.end || "?"}</small>
                 <div class="row-actions">
                     <button type="button" onclick="event.stopPropagation();calOpenEditEvent('${ev.id}')">Reschedule</button>
@@ -7307,16 +7538,17 @@ function calSaveEvent() {
     document.getElementById("cal-event-start").value = start;
     document.getElementById("cal-event-end").value = end;
 
+    const yearly = !!(document.getElementById("cal-event-yearly") && document.getElementById("cal-event-yearly").checked);
     data.calendarEvents = data.calendarEvents || [];
     if (_calEditId) {
         const ev = data.calendarEvents.find(e => e.id === _calEditId);
         if (ev) {
-            ev.title = title; ev.date = date; ev.start = start; ev.end = end; ev.notes = notes;
+            ev.title = title; ev.date = date; ev.start = start; ev.end = end; ev.notes = notes; ev.yearly = yearly;
         }
     } else {
         data.calendarEvents.push({
             id: Date.now() + Math.random().toString(36).slice(2,7),
-            title, date, start, end, notes
+            title, date, start, end, notes, yearly
         });
     }
     _calSelected = date;
@@ -7399,7 +7631,15 @@ function openAppCustomiser() {
     const conf = document.getElementById("opt-confetti");
     if (sfx) sfx.checked = data.sfxEnabled !== false;
     if (lus) lus.checked = data.levelUpSoundEnabled !== false;
-    if (conf) conf.checked = data.confettiEnabled !== false;
+    const confUnlocked = typeof hasReward === "function" && hasReward("confetti");
+    if (conf) {
+        conf.disabled = !confUnlocked;
+        conf.checked = confUnlocked && data.confettiEnabled !== false;
+    }
+    const confLabel = document.getElementById("opt-confetti-label");
+    if (confLabel) confLabel.textContent = confUnlocked ? "Confetti on big XP" : "Confetti on big XP (locked)";
+    const confRow = document.getElementById("opt-confetti-row");
+    if (confRow) confRow.classList.toggle("toggle-locked", !confUnlocked);
     renderCosmeticsList();
 }
 
@@ -7419,9 +7659,16 @@ function toggleLevelUpSound() {
     saveData();
 }
 function toggleConfettiOption() {
+    if (typeof hasReward === "function" && !hasReward("confetti")) {
+        showToast("🔒 Unlock Confetti Celebration first", "warn");
+        const el = document.getElementById("opt-confetti");
+        if (el) el.checked = false;
+        return;
+    }
     const el = document.getElementById("opt-confetti");
-    data.confettiEnabled = el ? el.checked : true;
+    data.confettiEnabled = el ? !!el.checked : true;
     saveData();
+    showToast(data.confettiEnabled ? "Confetti on" : "Confetti off", "info");
 }
 
 const COSMETIC_CATALOG = [
@@ -7507,6 +7754,86 @@ function toggleCosmetic(id) {
 /* ---- Calendar urgency badge + missed-event prompt ---- */
 let _calUrgencyTimer = null;
 
+
+
+let _calYearlyEditId = null;
+
+function calOpenAddYearly() {
+    _calYearlyEditId = null;
+    const titleEl = document.getElementById("cal-yearly-modal-title");
+    if (titleEl) titleEl.textContent = "Yearly Event";
+    const t = document.getElementById("cal-yearly-title");
+    const d = document.getElementById("cal-yearly-date");
+    const n = document.getElementById("cal-yearly-notes");
+    if (t) t.value = "";
+    if (d) d.value = (typeof _calSelected !== "undefined" && _calSelected) ? _calSelected : new Date().toISOString().slice(0, 10);
+    if (n) n.value = "";
+    const m = document.getElementById("cal-yearly-modal");
+    if (m) m.classList.remove("hidden");
+}
+
+function calOpenEditYearly(id) {
+    const ev = (data.calendarEvents || []).find(e => e.id === id);
+    if (!ev) return;
+    _calYearlyEditId = id;
+    const titleEl = document.getElementById("cal-yearly-modal-title");
+    if (titleEl) titleEl.textContent = "Edit Yearly Event";
+    const t = document.getElementById("cal-yearly-title");
+    const d = document.getElementById("cal-yearly-date");
+    const n = document.getElementById("cal-yearly-notes");
+    if (t) t.value = ev.title || "";
+    if (d) d.value = ev.date || "";
+    if (n) n.value = ev.notes || "";
+    const m = document.getElementById("cal-yearly-modal");
+    if (m) m.classList.remove("hidden");
+}
+
+function closeCalYearlyModal() {
+    const m = document.getElementById("cal-yearly-modal");
+    if (m) m.classList.add("hidden");
+    _calYearlyEditId = null;
+}
+
+function calSaveYearly() {
+    const title = ((document.getElementById("cal-yearly-title") || {}).value || "").trim();
+    const date = (document.getElementById("cal-yearly-date") || {}).value || "";
+    const notes = ((document.getElementById("cal-yearly-notes") || {}).value || "").trim();
+    if (!title || !date) {
+        showToast("Title and date are required", "warn");
+        return;
+    }
+    data.calendarEvents = data.calendarEvents || [];
+    if (_calYearlyEditId) {
+        const ev = data.calendarEvents.find(e => e.id === _calYearlyEditId);
+        if (ev) {
+            ev.title = title;
+            ev.date = date;
+            ev.notes = notes;
+            ev.yearly = true;
+            ev.allDay = true;
+            ev.start = null;
+            ev.end = null;
+        }
+    } else {
+        data.calendarEvents.push({
+            id: Date.now() + Math.random().toString(36).slice(2, 7),
+            title,
+            date,
+            notes,
+            yearly: true,
+            allDay: true,
+            start: null,
+            end: null
+        });
+    }
+    if (typeof _calSelected !== "undefined") _calSelected = date;
+    saveData();
+    closeCalYearlyModal();
+    if (typeof renderCalendarYear === "function") renderCalendarYear();
+    if (typeof renderCalDayPanel === "function") renderCalDayPanel();
+    showToast("🔁 Yearly event saved", "info");
+}
+
 function updateCalendarUrgency() {
     const btn = document.getElementById("calendar-btn");
     if (!btn) return;
@@ -7518,7 +7845,7 @@ function updateCalendarUrgency() {
     let anyImminent = false; // 1-2 hours
 
     data.calendarEvents.forEach(ev => {
-        if (ev.date !== iso) return;
+        if (!calEventMatchesDay(ev, iso)) return;
         const s = timeToMinutes(ev.start || "00:00");
         const e = timeToMinutes(ev.end || ev.start || "00:00");
         // nearing: same day, starts within 3h, not ended more than 1h ago
@@ -7531,30 +7858,51 @@ function updateCalendarUrgency() {
     btn.classList.toggle("has-urgent", anyNear);
     btn.classList.toggle("shiver", anyImminent);
 
-    // Missed: end time passed by > 1 hour, not yet prompted
+    // Missed: only TODAY's timed events, ended >1h ago (never spam past days)
+    data.dismissedMissedEvents = data.dismissedMissedEvents || [];
     data.calendarEvents.forEach(ev => {
-        if (ev.missedPrompted) return;
-        if (ev.date > iso) return;
-        const eM = timeToMinutes(ev.end || "00:00");
-        let endedAgo = null;
-        if (ev.date < iso) {
-            // previous day — treat as long past
-            endedAgo = 999;
-        } else {
-            endedAgo = nowM - eM;
+        if (!ev || !ev.id) return;
+        if (ev.yearly || ev.allDay) return;
+        if (!ev.start || !ev.end) return;
+        // Silently mark past days so they never pop
+        if (ev.date && ev.date < iso) {
+            if (!ev.missedPrompted) {
+                ev.missedPrompted = true;
+                if (!data.dismissedMissedEvents.includes(ev.id)) {
+                    data.dismissedMissedEvents.push(ev.id);
+                }
+            }
+            return;
         }
+        if (ev.missedPrompted || data.dismissedMissedEvents.includes(ev.id)) return;
+        if (!calEventMatchesDay(ev, iso)) return;
+        const eM = timeToMinutes(ev.end);
+        const endedAgo = nowM - eM;
         if (endedAgo > 60) {
             showMissedCalendarEventPopup(ev);
         }
     });
 }
 
+function markMissedEventDismissed(evId) {
+    if (!evId) return;
+    data.dismissedMissedEvents = data.dismissedMissedEvents || [];
+    if (!data.dismissedMissedEvents.includes(evId)) data.dismissedMissedEvents.push(evId);
+    const ev = (data.calendarEvents || []).find(e => e.id === evId);
+    if (ev) ev.missedPrompted = true;
+    try { saveData(); } catch (e) {}
+}
+
 function showMissedCalendarEventPopup(ev) {
+    if (!ev || !ev.id) return;
     if (document.getElementById("missed-event-popup")) return; // one at a time
-    ev.missedPrompted = true;
-    saveData();
+    if ((data.dismissedMissedEvents || []).includes(ev.id) || ev.missedPrompted) return;
+
+    // Mark immediately so the 60s watcher cannot re-open this event
+    markMissedEventDismissed(ev.id);
 
     const name = typeof getDisplayFirstName === "function" ? getDisplayFirstName() : "there";
+    const safeTitle = String(ev.title || "your event").replace(/</g, "&lt;");
     const popup = document.createElement("div");
     popup.id = "missed-event-popup";
     popup.className = "missed-event-popup";
@@ -7563,7 +7911,7 @@ function showMissedCalendarEventPopup(ev) {
             <div class="xp-popup-emoji">⏰</div>
             <div class="xp-popup-title">Scheduled task ended</div>
             <div class="xp-popup-task" style="margin:10px 0;font-size:1rem;">
-                Hey ${name}, it looks like <strong>${ev.title || "your event"}</strong>
+                Hey ${name}, it looks like <strong>${safeTitle}</strong>
                 (${ev.start || "?"}–${ev.end || "?"} on ${ev.date}) has already ended.
                 Were you able to complete it?
             </div>
@@ -7576,24 +7924,31 @@ function showMissedCalendarEventPopup(ev) {
     document.body.appendChild(popup);
 
     popup.addEventListener("click", (e) => {
-        const act = e.target.closest("[data-act]")?.dataset.act;
-        if (!act) return;
+        const btn = e.target.closest("[data-act]");
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const act = btn.dataset.act;
+        const eventId = ev.id;
+
         if (act === "yes" || act === "del") {
-            data.calendarEvents = (data.calendarEvents || []).filter(x => x.id !== ev.id);
+            // ONLY remove this calendar event — never touch day schedule checkboxes
+            data.calendarEvents = (data.calendarEvents || []).filter(x => x && x.id !== eventId);
+            markMissedEventDismissed(eventId);
             saveData();
             if (typeof renderCalendarYear === "function") renderCalendarYear();
             if (typeof renderCalDayPanel === "function") renderCalDayPanel();
-            updateCalendarUrgency();
+            try { updateCalendarUrgency(); } catch (err) {}
             showToast(act === "yes" ? "Nice — event cleared" : "Event deleted", "info");
             popup.remove();
         } else if (act === "resched") {
+            markMissedEventDismissed(eventId);
             popup.remove();
-            // Open calendar + edit modal for this event
             if (typeof openCalendarPage === "function") openCalendarPage();
             _calSelected = ev.date;
             if (typeof renderCalendarYear === "function") renderCalendarYear();
             if (typeof renderCalDayPanel === "function") renderCalDayPanel();
-            if (typeof calOpenEditEvent === "function") calOpenEditEvent(ev.id);
+            if (typeof calOpenEditEvent === "function") calOpenEditEvent(eventId);
             showToast("Pick a new date/time and save", "info");
         }
     });
@@ -7627,3 +7982,973 @@ setTimeout(() => {
         }
     } catch (e) {}
 }, 1500);
+
+
+/* ============================================================
+   UI Widget layout customiser
+   ============================================================ */
+
+const WIDGET_SCENES = {
+    main: {
+        label: "Main page",
+        // Only top-level shells — never drag chips inside the status bar (breaks flex layout)
+        widgets: [
+            { id: "status-bar", name: "Top status bar (profile · calendar · XP)" },
+            { id: "main-card", name: "Main schedule card" },
+            { id: "ai-chat", name: "AI chat button" },
+            { id: "sidebar-toggle", name: "Tools sidebar button" },
+            { id: "now-playing", name: "Now playing bar" }
+        ]
+    },
+    sidebar: {
+        label: "Tools sidebar",
+        widgets: [
+            { id: "tools-sidebar", name: "Tools sidebar panel" },
+            { id: "sidebar-toggle", name: "Tools toggle button" }
+        ]
+    },
+    calendar: {
+        label: "Calendar",
+        widgets: [
+            { id: "status-bar", name: "Top status bar" },
+            { id: "calendar-left", name: "Month picker" },
+            { id: "calendar-right", name: "Day timeline panel" }
+        ]
+    },
+    music: {
+        label: "Focus & Music",
+        widgets: [
+            { id: "status-bar", name: "Top status bar" },
+            { id: "music-search", name: "Search music panel" },
+            { id: "music-library", name: "Library panel" },
+            { id: "music-focus", name: "Focus timer panel" },
+            { id: "now-playing", name: "Now playing bar" }
+        ]
+    },
+    timeline: {
+        label: "Timeline",
+        widgets: [
+            { id: "status-bar", name: "Top status bar" },
+            { id: "timeline-viz", name: "Timeline visualizer" },
+            { id: "timeline-side", name: "Blocks side list" }
+        ]
+    }
+};
+
+let _widgetScene = "main";
+let _widgetDragMode = false;
+let _widgetDrag = null;
+
+function clearWidgetInlineStyles(el) {
+    if (!el) return;
+    el.classList.remove("widget-repositioned", "widget-dragging");
+    el.style.position = "";
+    el.style.left = "";
+    el.style.top = "";
+    el.style.right = "";
+    el.style.bottom = "";
+    el.style.margin = "";
+    el.style.width = "";
+    el.style.height = "";
+    el.style.zIndex = "";
+    el.style.transform = "";
+}
+
+function openWidgetCustomiser() {
+    try { closeAppCustomiser(); } catch (e) {}
+    stopWidgetDragMode(true); // quiet stop if somehow active
+    const panel = document.getElementById("widget-customiser-panel");
+    if (!panel) return;
+    panel.classList.remove("hidden");
+    setWidgetScene(_widgetScene || "main");
+}
+
+function closeWidgetCustomiser() {
+    stopWidgetDragMode(true);
+    const panel = document.getElementById("widget-customiser-panel");
+    if (panel) panel.classList.add("hidden");
+}
+
+function setWidgetScene(scene) {
+    _widgetScene = "main";
+    document.querySelectorAll(".widget-scene-tab").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.scene === _widgetScene);
+    });
+    const hint = document.getElementById("widget-list-hint");
+    if (hint) {
+        const list = WIDGET_SCENES[_widgetScene].widgets;
+        hint.innerHTML = list.map(w => `<li>⠿ <strong>${w.name}</strong></li>`).join("");
+    }
+}
+
+function getWidgetEl(id) {
+    return document.querySelector(`[data-widget="${id}"]`);
+}
+
+function ensureWidgetFab() {
+    let fab = document.getElementById("widget-drag-fab");
+    if (fab) fab.remove();
+    fab = document.createElement("div");
+    fab.id = "widget-drag-fab";
+    fab.innerHTML =
+        `<span style="align-self:center;font-size:0.85rem;color:var(--text-color);font-weight:700;">Arranging: ${WIDGET_SCENES[_widgetScene]?.label || _widgetScene}</span>` +
+        `<button type="button" class="btn-save-final" id="widget-fab-save">✓ Save layout</button>` +
+        `<button type="button" class="btn-danger btn-sm" id="widget-fab-reset">Reset scene</button>`;
+    fab.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;gap:10px;padding:12px 16px;background:var(--card-bg,#1a1528);border:2px solid var(--accent-color,#6c5ce7);border-radius:14px;box-shadow:0 10px 36px rgba(0,0,0,0.55);align-items:center;pointer-events:auto;";
+    document.body.appendChild(fab);
+    document.getElementById("widget-fab-save").onclick = () => stopWidgetDragMode(false);
+    document.getElementById("widget-fab-reset").onclick = () => resetWidgetLayout();
+}
+
+function startWidgetDragMode() {
+    _widgetDragMode = true;
+    document.body.classList.add("widget-drag-mode");
+    const st = document.getElementById("widget-drag-status");
+    if (st) st.textContent = "Drag mode ON — use Save layout when done.";
+
+    const panel = document.getElementById("widget-customiser-panel");
+    if (panel) panel.classList.add("hidden");
+
+    if (_widgetScene === "calendar" && typeof openCalendarPage === "function") openCalendarPage();
+    else if (_widgetScene === "music" && typeof openMusicPage === "function") {
+        try { openMusicPage(); } catch (e) {
+            const mp = document.getElementById("music-page");
+            if (mp) mp.classList.remove("hidden");
+        }
+    } else if (_widgetScene === "timeline" && typeof openTimelinePage === "function") openTimelinePage();
+    else if (_widgetScene === "sidebar") {
+        const sb = document.getElementById("preset-sidebar");
+        if (sb) sb.classList.add("open");
+    } else if (_widgetScene === "main") {
+        try { if (typeof closeCalendarPage === "function") closeCalendarPage(); } catch(e){}
+        try { if (typeof closeTimelinePage === "function") closeTimelinePage(); } catch(e){}
+        const mp = document.getElementById("music-page");
+        if (mp) mp.classList.add("hidden");
+    }
+
+    const scene = WIDGET_SCENES[_widgetScene];
+    (scene.widgets || []).forEach(w => {
+        const el = getWidgetEl(w.id);
+        if (!el) return;
+        el.addEventListener("pointerdown", onWidgetPointerDown);
+    });
+
+    ensureWidgetFab();
+}
+
+function stopWidgetDragMode(quiet) {
+    _widgetDragMode = false;
+    document.body.classList.remove("widget-drag-mode");
+    const st = document.getElementById("widget-drag-status");
+    if (st) st.textContent = quiet ? "Drag mode off" : "Drag mode off — layout saved";
+    document.querySelectorAll("[data-widget]").forEach(el => {
+        el.removeEventListener("pointerdown", onWidgetPointerDown);
+        el.classList.remove("widget-dragging");
+    });
+    const fab = document.getElementById("widget-drag-fab");
+    if (fab) fab.remove();
+    _widgetDrag = null;
+
+    if (!quiet) {
+        try { saveData(); } catch (e) {}
+        try {
+            if (_widgetScene === "calendar" && typeof closeCalendarPage === "function") closeCalendarPage();
+            if (_widgetScene === "timeline" && typeof closeTimelinePage === "function") closeTimelinePage();
+            if (_widgetScene === "music") {
+                const mp = document.getElementById("music-page");
+                if (mp) mp.classList.add("hidden");
+            }
+            if (_widgetScene === "sidebar") {
+                const sb = document.getElementById("preset-sidebar");
+                if (sb) sb.classList.remove("open");
+            }
+        } catch (e) {}
+        const panel = document.getElementById("widget-customiser-panel");
+        if (panel) {
+            panel.classList.remove("hidden");
+            panel.style.pointerEvents = "";
+        }
+        showToast("Layout saved", "info");
+    }
+}
+
+function onWidgetPointerDown(e) {
+    if (!_widgetDragMode) return;
+    if (e.button !== 0) return;
+    const el = e.currentTarget;
+    if (!el || !el.dataset.widget) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    const rect = el.getBoundingClientRect();
+    el.classList.add("widget-repositioned", "widget-dragging");
+    el.style.position = "fixed";
+    el.style.left = rect.left + "px";
+    el.style.top = rect.top + "px";
+    el.style.width = rect.width + "px";
+    el.style.right = "auto";
+    el.style.bottom = "auto";
+    el.style.margin = "0";
+    el.style.zIndex = "2147483000";
+
+    _widgetDrag = {
+        el,
+        id: el.dataset.widget,
+        ox: e.clientX - rect.left,
+        oy: e.clientY - rect.top
+    };
+
+    window.addEventListener("pointermove", onWidgetPointerMove);
+    window.addEventListener("pointerup", onWidgetPointerUp, { once: true });
+}
+
+function onWidgetPointerMove(e) {
+    if (!_widgetDrag) return;
+    const { el, ox, oy } = _widgetDrag;
+    let x = e.clientX - ox;
+    let y = e.clientY - oy;
+    x = Math.max(0, Math.min(window.innerWidth - 48, x));
+    y = Math.max(0, Math.min(window.innerHeight - 48, y));
+    el.style.left = x + "px";
+    el.style.top = y + "px";
+}
+
+function onWidgetPointerUp() {
+    window.removeEventListener("pointermove", onWidgetPointerMove);
+    if (!_widgetDrag) return;
+    const { el, id } = _widgetDrag;
+    el.classList.remove("widget-dragging");
+    data.widgetLayout = data.widgetLayout || {};
+    data.widgetLayout[_widgetScene] = data.widgetLayout[_widgetScene] || {};
+    data.widgetLayout[_widgetScene][id] = {
+        left: parseFloat(el.style.left) || 0,
+        top: parseFloat(el.style.top) || 0,
+        width: el.style.width || null
+    };
+    try { saveData(); } catch (e) {}
+    _widgetDrag = null;
+}
+
+function applyWidgetLayout() {
+    data.widgetLayout = data.widgetLayout || {};
+    // Strip legacy per-chip positions that break the top bar
+    let dirty = false;
+    Object.keys(data.widgetLayout).forEach(scene => {
+        const map = data.widgetLayout[scene];
+        if (!map) return;
+        ["profile-chip", "calendar-btn", "xp-pill"].forEach(bad => {
+            if (map[bad]) { delete map[bad]; dirty = true; }
+        });
+    });
+    if (dirty) { try { saveData(); } catch (e) {} }
+    ["profile-chip", "calendar-btn", "xp-pill"].forEach(id => clearWidgetInlineStyles(getWidgetEl(id)));
+
+    document.querySelectorAll("[data-widget].widget-repositioned").forEach(el => {
+        const id = el.dataset.widget;
+        let kept = false;
+        Object.keys(data.widgetLayout).forEach(scene => {
+            if (data.widgetLayout[scene] && data.widgetLayout[scene][id]) kept = true;
+        });
+        if (!kept) clearWidgetInlineStyles(el);
+    });
+    Object.keys(data.widgetLayout).forEach(scene => {
+        const map = data.widgetLayout[scene] || {};
+        Object.keys(map).forEach(id => {
+            // Skip individual chips that shouldn't be independent
+            if (["profile-chip", "calendar-btn", "xp-pill"].includes(id)) return;
+            const el = getWidgetEl(id);
+            const pos = map[id];
+            if (!el || !pos) return;
+            el.classList.add("widget-repositioned");
+            el.style.position = "fixed";
+            el.style.left = (pos.left || 0) + "px";
+            el.style.top = (pos.top || 0) + "px";
+            el.style.right = "auto";
+            el.style.bottom = "auto";
+            el.style.margin = "0";
+            if (pos.width) el.style.width = pos.width;
+        });
+    });
+}
+
+function resetWidgetLayout() {
+    data.widgetLayout = data.widgetLayout || {};
+    const map = data.widgetLayout[_widgetScene] || {};
+    Object.keys(map).forEach(id => clearWidgetInlineStyles(getWidgetEl(id)));
+    // Also clear legacy chip positions if any
+    ["profile-chip", "calendar-btn", "xp-pill", "status-bar", "main-card", "ai-chat", "sidebar-toggle", "now-playing"]
+        .forEach(id => clearWidgetInlineStyles(getWidgetEl(id)));
+    data.widgetLayout[_widgetScene] = {};
+    try { saveData(); } catch (e) {}
+    showToast("Scene layout reset", "info");
+}
+
+function resetAllWidgetLayouts() {
+    data.widgetLayout = {};
+    document.querySelectorAll("[data-widget]").forEach(clearWidgetInlineStyles);
+    try { saveData(); } catch (e) {}
+    showToast("All UI layouts reset", "info");
+}
+
+// Apply layout after auth / load
+(function patchFinishAuthWidgets() {
+    const prev = window.finishAuth;
+    if (typeof prev !== "function") return;
+    window.finishAuth = function() {
+        prev.apply(this, arguments);
+        setTimeout(() => { try { applyWidgetLayout(); } catch (e) { console.error(e); } }, 500);
+    };
+})();
+
+setTimeout(() => {
+    try {
+        if (currentUser || document.getElementById("auth-screen")?.classList.contains("hidden")) {
+            applyWidgetLayout();
+        }
+    } catch (e) {}
+}, 1200);
+
+
+/* ---- Offline detection + cloud offline file sync ---- */
+let _wasOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
+let _offlineBannerShown = false;
+
+function isCloudProfile() {
+    return !!(currentUser && typeof isLocalProfile === "function" && !isLocalProfile());
+}
+
+async function writeOfflineSyncFile() {
+    if (!isCloudProfile()) return;
+    try {
+        const base = MUSIC_API().replace(/\/$/, "");
+        await fetch(base + "/api/offline-sync", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                userId: currentUser,
+                email: null,
+                data: data
+            }),
+            signal: AbortSignal.timeout(4000)
+        });
+        console.log("[offline] queued to Offline-Sync.json");
+    } catch (e) {
+        console.warn("[offline] could not write Offline-Sync.json", e);
+        try {
+            localStorage.setItem("momento_offline_queue_" + currentUser, JSON.stringify({
+                updatedAt: Date.now(),
+                data
+            }));
+        } catch (e2) {}
+    }
+}
+
+async function flushOfflineSyncToCloud() {
+    if (!isCloudProfile() || !supabaseClient || !navigator.onLine) return;
+    let queued = null;
+    try {
+        const base = MUSIC_API().replace(/\/$/, "");
+        const res = await fetch(base + "/api/offline-sync", { signal: AbortSignal.timeout(4000) });
+        if (res.ok) queued = await res.json();
+    } catch (e) {
+        try {
+            const raw = localStorage.getItem("momento_offline_queue_" + currentUser);
+            if (raw) queued = JSON.parse(raw);
+        } catch (e2) {}
+    }
+    if (!queued || !queued.data) return;
+    // Only apply if same user
+    if (queued.userId && queued.userId !== currentUser) return;
+    try {
+        data = Object.assign(data, queued.data);
+        const { error } = await supabaseClient
+            .from("profiles")
+            .update({ app_data: data })
+            .eq("id", currentUser);
+        if (error) throw error;
+        try {
+            const base = MUSIC_API().replace(/\/$/, "");
+            await fetch(base + "/api/offline-sync", { method: "DELETE" });
+        } catch (e) {}
+        try { localStorage.removeItem("momento_offline_queue_" + currentUser); } catch (e) {}
+        showToast("Cloud sync restored from offline changes", "info");
+        if (typeof renderAll === "function") renderAll();
+        else if (typeof updateXPDisplay === "function") updateXPDisplay();
+    } catch (e) {
+        console.warn("[offline] flush failed", e);
+    }
+}
+
+function showOfflineLoginHint() {
+    if (_offlineBannerShown) return;
+    _offlineBannerShown = true;
+    const auth = document.getElementById("auth-screen");
+    if (auth && !auth.classList.contains("hidden")) {
+        showToast("Offline — use a local account instead", "warn");
+        // Expand local account UI if toggle exists
+        try {
+            const toggle = document.getElementById("local-auth-toggle");
+            if (toggle && typeof toggle.click === "function") {
+                const form = document.getElementById("auth-form");
+                if (form && form.classList.contains("hidden")) toggle.click();
+            }
+        } catch (e) {}
+    }
+}
+
+function onConnectivityChange() {
+    const online = navigator.onLine;
+    if (!online && _wasOnline) {
+        showToast("You're offline", "warn");
+        if (isCloudProfile()) {
+            showToast("Changes will save to Offline-Sync until you're back online", "info");
+            writeOfflineSyncFile();
+        } else {
+            const auth = document.getElementById("auth-screen");
+            if (auth && !auth.classList.contains("hidden")) showOfflineLoginHint();
+        }
+    }
+    if (online && !_wasOnline) {
+        showToast("Back online", "info");
+        if (isCloudProfile()) flushOfflineSyncToCloud();
+    }
+    _wasOnline = online;
+}
+
+function initOfflineGuards() {
+    window.addEventListener("online", onConnectivityChange);
+    window.addEventListener("offline", onConnectivityChange);
+    if (!navigator.onLine) {
+        setTimeout(() => {
+            const auth = document.getElementById("auth-screen");
+            if (auth && !auth.classList.contains("hidden")) showOfflineLoginHint();
+        }, 600);
+    } else if (isCloudProfile()) {
+        setTimeout(() => flushOfflineSyncToCloud(), 1500);
+    }
+}
+
+// Hook saveData: when cloud user is offline, write Offline-Sync.json
+(function patchSaveDataOffline() {
+    const orig = saveData;
+    window.saveData = async function() {
+        const result = await orig.apply(this, arguments);
+        if (isCloudProfile() && !navigator.onLine) {
+            await writeOfflineSyncFile();
+        }
+        return result;
+    };
+})();
+
+setTimeout(initOfflineGuards, 400);
+setTimeout(() => { try { applyMusicLoopState(); } catch (e) {} }, 800);
+
+
+/* ============================================================
+   CRATES · KEYS · BOOSTERS · MYTHICAL UNLOCKS
+   ============================================================ */
+
+const CRATE_RARITY_WEIGHTS = {
+    common: 700,
+    uncommon: 180,
+    rare: 70,
+    legendary: 28,
+    mythical: 8
+};
+
+const CRATE_LOOT = {
+    common: [
+        { type: "xp", amount: 15, label: "+15 XP" },
+        { type: "xp", amount: 25, label: "+25 XP" },
+        { type: "xp", amount: 40, label: "+40 XP" }
+    ],
+    uncommon: [
+        { type: "xp", amount: 60, label: "+60 XP" },
+        { type: "xp", amount: 90, label: "+90 XP" },
+        { type: "xp", amount: 120, label: "+120 XP" },
+        { type: "keys", amount: 1, label: "+1 Crate Key" },
+        { type: "cosmetic", id: "theme_crate_softcyan", label: "Soft Cyan Theme" },
+        { type: "cosmetic", id: "theme_crate_softrose", label: "Soft Rose Theme" }
+    ],
+    rare: [
+        { type: "booster", mult: 1.1, hours: 36, label: "1.1× XP Booster (36h)" },
+        { type: "booster", mult: 1.25, hours: 24, label: "1.25× XP Booster (24h)" },
+        { type: "booster", mult: 1.5, hours: 18, label: "1.5× XP Booster (18h)" },
+        { type: "cosmetic", id: "theme_crate_softteal", label: "Soft Teal Theme" },
+        { type: "cosmetic", id: "theme_crate_softsand", label: "Soft Sand Theme" }
+    ],
+    legendary: [
+        { type: "booster", mult: 2, hours: 12, label: "2× XP Booster (12h)" },
+        { type: "keys", amount: 1, label: "+1 Crate Key" },
+        { type: "keys", amount: 2, label: "+2 Crate Keys" },
+        { type: "keys", amount: 3, label: "+3 Crate Keys" }
+    ],
+    mythical: [
+        { type: "cosmetic", id: "theme_crate_void", label: "Void Pulse Theme" },
+        { type: "cosmetic", id: "theme_crate_solar", label: "Solar Flare Theme" },
+        { type: "cosmetic", id: "theme_crate_nebula", label: "Nebula Drift Theme" },
+        { type: "cosmetic", id: "chime_crate_prism", label: "Prism Chime" },
+        { type: "cosmetic", id: "chime_crate_thunder", label: "Thunder Chime" },
+        { type: "cosmetic", id: "cosmetic_crate_trail", label: "Stardust Trail" }
+    ]
+};
+
+const CRATE_ONLY_THEMES = [
+    { id: "theme_crate_void", name: "Void Pulse", color: "#7c3aed", gradient: "linear-gradient(135deg,#0f0c29,#302b63,#24243e)", crateOnly: true },
+    { id: "theme_crate_solar", name: "Solar Flare", color: "#f97316", gradient: "linear-gradient(135deg,#f97316,#ef4444,#fbbf24)", crateOnly: true },
+    { id: "theme_crate_nebula", name: "Nebula Drift", color: "#ec4899", gradient: "linear-gradient(135deg,#4c1d95,#db2777,#6366f1)", crateOnly: true },
+    // Simple solid colour themes (uncommon / rare)
+    { id: "theme_crate_softcyan", name: "Soft Cyan", color: "#22d3ee", crateOnly: true },
+    { id: "theme_crate_softrose", name: "Soft Rose", color: "#fb7185", crateOnly: true },
+    { id: "theme_crate_softteal", name: "Soft Teal", color: "#2dd4bf", crateOnly: true },
+    { id: "theme_crate_softsand", name: "Soft Sand", color: "#d2b48c", crateOnly: true }
+];
+
+function ensureCrateData() {
+    data.crateKeys = Number(data.crateKeys) || 0;
+    data.cratesOpened = Number(data.cratesOpened) || 0;
+    data.crateHistory = data.crateHistory || [];
+    data.boosterInventory = data.boosterInventory || [];
+    data.crateUnlocks = data.crateUnlocks || [];
+    if (data.activeBooster && data.activeBooster.expiresAt && Date.now() > data.activeBooster.expiresAt) {
+        data.activeBooster = null;
+    }
+    data.boosterInventory = (data.boosterInventory || []).filter(b => !b.expiresAt || b.expiresAt > Date.now() || !b.activated);
+}
+
+function isCrateUnlocked(id) {
+    return (data.crateUnlocks || []).includes(id);
+}
+
+function rollCrateRarity() {
+    const entries = Object.entries(CRATE_RARITY_WEIGHTS);
+    const total = entries.reduce((s, [, w]) => s + w, 0);
+    let r = Math.random() * total;
+    for (const [name, w] of entries) {
+        r -= w;
+        if (r <= 0) return name;
+    }
+    return "common";
+}
+
+function rollCrateLoot(rarity) {
+    const pool = CRATE_LOOT[rarity] || CRATE_LOOT.common;
+    // Prefer unowned crate cosmetics when possible
+    if (rarity === "mythical" || rarity === "rare" || rarity === "uncommon") {
+        const fresh = pool.filter(p => p.type !== "cosmetic" || !isCrateUnlocked(p.id));
+        const use = fresh.length ? fresh : pool;
+        return use[Math.floor(Math.random() * use.length)];
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function tryGrantCrateKey(chance, reason) {
+    if (Math.random() > chance) return false;
+    ensureCrateData();
+    data.crateKeys += 1;
+    saveData();
+    updateCrateKeysBadge();
+    showToast(`🔑 Crate key found! (${reason})`, "info");
+    try { playRewardSound("complete"); } catch (e) {}
+    return true;
+}
+
+function updateCrateKeysBadge() {
+    ensureCrateData();
+    const el = document.getElementById("crate-keys-badge");
+    if (el) el.textContent = data.crateKeys > 0 ? `(${data.crateKeys})` : "";
+    const c = document.getElementById("crate-keys-count");
+    if (c) c.textContent = String(data.crateKeys);
+    const o = document.getElementById("crate-opened-count");
+    if (o) o.textContent = String(data.cratesOpened || 0);
+}
+
+function openCratesPage() {
+    ensureCrateData();
+    const page = document.getElementById("crates-page");
+    if (!page) return;
+    page.classList.remove("hidden");
+    updateCrateKeysBadge();
+    renderCrateHistory();
+    const wrap = document.querySelector(".crate-reel-wrap");
+    if (wrap) wrap.classList.add("hidden");
+    const reel = document.getElementById("crate-reel");
+    if (reel) { reel.innerHTML = ""; reel.style.transform = ""; }
+}
+
+function closeCratesPage() {
+    const page = document.getElementById("crates-page");
+    if (page) page.classList.add("hidden");
+}
+
+function openBoostersPage() {
+    ensureCrateData();
+    pruneBoosters();
+    const page = document.getElementById("boosters-page");
+    if (!page) return;
+    page.classList.remove("hidden");
+    renderBoostersPage();
+}
+
+function closeBoostersPage() {
+    const page = document.getElementById("boosters-page");
+    if (page) page.classList.add("hidden");
+}
+
+function rarityColor(r) {
+    return ({
+        common: "#22c55e",
+        uncommon: "#3b82f6",
+        rare: "#eab308",
+        legendary: "#ea580c",
+        mythical: "#ef4444"
+    })[r] || "#22c55e";
+}
+
+function randomLootPreview() {
+    const r = rollCrateRarity();
+    const loot = rollCrateLoot(r);
+    return { rarity: r, loot };
+}
+
+function crateTileHtml(rarity, loot) {
+    const label = (loot && loot.label) ? loot.label : rarity;
+    const sub = rarity.toUpperCase();
+    return `<div class="crate-tile rarity-${rarity}" style="border-color:${rarityColor(rarity)}">
+        <span class="crate-tile-rarity">${sub}</span>
+        <span class="crate-tile-reward">${label}</span>
+    </div>`;
+}
+
+function openOneCrate() {
+    ensureCrateData();
+    if ((data.crateKeys || 0) < 1) {
+        showToast("No crate keys — complete tasks & to-dos", "warn");
+        return;
+    }
+    const btn = document.getElementById("crate-open-btn");
+    if (btn) btn.disabled = true;
+
+    data.crateKeys = Math.max(0, (Number(data.crateKeys) || 0) - 1);
+    data.cratesOpened = (data.cratesOpened || 0) + 1;
+    // Persist keys immediately (sync)
+    saveData();
+    updateCrateKeysBadge();
+
+    const rarity = rollCrateRarity();
+    const loot = rollCrateLoot(rarity);
+
+    spinCrateReel(rarity, loot, () => {
+        grantCrateLoot(rarity, loot);
+        showCrateResult(rarity, loot);
+        renderCrateHistory();
+        if (btn) btn.disabled = false;
+        saveData(); // keys, history, unlocks, xp, boosters
+        updateCrateKeysBadge();
+        // Hide reel again after open
+        setTimeout(() => {
+            const wrap = document.querySelector(".crate-reel-wrap");
+            if (wrap) wrap.classList.add("hidden");
+        }, 800);
+    });
+}
+
+function spinCrateReel(targetRarity, targetLoot, done) {
+    const wrap = document.querySelector(".crate-reel-wrap");
+    if (wrap) wrap.classList.remove("hidden");
+    const reel = document.getElementById("crate-reel");
+    if (!reel) { done && done(); return; }
+
+    const tiles = [];
+    for (let i = 0; i < 42; i++) {
+        const p = randomLootPreview();
+        tiles.push(p);
+    }
+    tiles.push({ rarity: targetRarity, loot: targetLoot });
+    for (let i = 0; i < 6; i++) tiles.push(randomLootPreview());
+
+    reel.innerHTML = tiles.map(t => crateTileHtml(t.rarity, t.loot)).join("");
+    reel.style.transition = "none";
+    reel.style.transform = "translateX(0)";
+    void reel.offsetWidth;
+    const tileW = 150; // 140 tile + 10 gap
+    const targetIndex = 42;
+    const parentW = (reel.parentElement && reel.parentElement.clientWidth) || 400;
+    const offset = targetIndex * tileW - (parentW / 2) + tileW / 2;
+    reel.style.transition = "transform 4.2s cubic-bezier(0.12, 0.75, 0.05, 1)";
+    reel.style.transform = `translateX(${-offset}px)`;
+    setTimeout(() => { done && done(); }, 4300);
+}
+
+function grantCrateLoot(rarity, loot) {
+    ensureCrateData();
+    if (loot.type === "xp") {
+        data.xp = (data.xp || 0) + loot.amount;
+        updateXPDisplay();
+    } else if (loot.type === "keys") {
+        data.crateKeys += loot.amount;
+        updateCrateKeysBadge();
+    } else if (loot.type === "booster") {
+        data.boosterInventory.push({
+            id: "b_" + Date.now() + Math.random().toString(36).slice(2, 6),
+            mult: loot.mult,
+            durationMs: (loot.hours || 24) * 3600 * 1000,
+            label: loot.label,
+            obtainedAt: Date.now()
+        });
+    } else if (loot.type === "cosmetic") {
+        if (!data.crateUnlocks.includes(loot.id)) data.crateUnlocks.push(loot.id);
+        // auto-register theme/chime access
+        if (String(loot.id).startsWith("theme_")) {
+            // unlocked via crateUnlocks check in theme gate
+        }
+        if (String(loot.id).startsWith("cosmetic_")) {
+            data.activeCosmetics = data.activeCosmetics || [];
+        }
+    }
+    data.crateHistory = data.crateHistory || [];
+    data.crateHistory.unshift({
+        at: Date.now(),
+        rarity,
+        label: loot.label,
+        type: loot.type
+    });
+    data.crateHistory = data.crateHistory.slice(0, 30);
+    try {
+        if (rarity === "mythical" || rarity === "legendary") playRewardSound("levelup");
+        else playRewardSound("complete");
+    } catch (e) {}
+}
+
+function showCrateResult(rarity, loot) {
+    const modal = document.getElementById("crate-result-modal");
+    if (!modal) return;
+    const color = rarityColor(rarity);
+    let actions = "";
+    if (loot.type === "booster") {
+        actions = `<button type="button" class="btn-save-final" onclick="closeCrateResult();openBoostersPage()">Use in Boosters</button>`;
+    } else if (loot.type === "cosmetic" && String(loot.id).startsWith("theme_")) {
+        actions = `<button type="button" class="btn-save-final" onclick="applyCrateTheme('${loot.id}');closeCrateResult()">Apply theme</button>`;
+    } else if (loot.type === "cosmetic" && String(loot.id).startsWith("chime_")) {
+        actions = `<button type="button" class="btn-save-final" onclick="applyCrateChime('${loot.id}');closeCrateResult()">Use chime</button>`;
+    } else if (loot.type === "cosmetic") {
+        actions = `<button type="button" class="btn-save-final" onclick="activateCrateCosmetic('${loot.id}');closeCrateResult()">Equip</button>`;
+    } else {
+        actions = `<button type="button" class="btn-save-final" onclick="closeCrateResult()">Nice!</button>`;
+    }
+    modal.innerHTML = `
+        <div class="crate-result-card" style="border-color:${color}">
+            <div class="crate-result-rarity" style="color:${color}">${rarity.toUpperCase()}</div>
+            <div class="crate-result-label">${loot.label}</div>
+            <div class="crate-result-actions">${actions}
+                <button type="button" class="btn-cancel" onclick="closeCrateResult()">Close</button>
+            </div>
+        </div>`;
+    modal.classList.remove("hidden");
+}
+
+function closeCrateResult() {
+    const modal = document.getElementById("crate-result-modal");
+    if (modal) modal.classList.add("hidden");
+}
+
+function renderCrateHistory() {
+    const ul = document.getElementById("crate-history");
+    if (!ul) return;
+    const hist = data.crateHistory || [];
+    if (!hist.length) {
+        ul.innerHTML = `<li class="theme-hint">No opens yet — earn keys by finishing tasks.</li>`;
+        return;
+    }
+    ul.innerHTML = hist.slice(0, 12).map(h =>
+        `<li><span class="crate-hist-rarity" style="color:${rarityColor(h.rarity)}">${h.rarity}</span> ${h.label}</li>`
+    ).join("");
+}
+
+function pruneBoosters() {
+    ensureCrateData();
+    if (data.activeBooster && data.activeBooster.expiresAt && Date.now() > data.activeBooster.expiresAt) {
+        showToast("Your XP booster expired", "warn");
+        data.activeBooster = null;
+        saveData();
+    }
+}
+
+function getActiveXpMultiplier() {
+    pruneBoosters();
+    if (data.activeBooster && data.activeBooster.expiresAt > Date.now()) {
+        return Number(data.activeBooster.mult) || 1;
+    }
+    return 1;
+}
+
+function renderBoostersPage() {
+    pruneBoosters();
+    const active = document.getElementById("booster-active");
+    const inv = document.getElementById("booster-inventory");
+    if (active) {
+        if (data.activeBooster && data.activeBooster.expiresAt > Date.now()) {
+            const left = data.activeBooster.expiresAt - Date.now();
+            const hrs = Math.ceil(left / 3600000);
+            active.innerHTML = `<strong>${data.activeBooster.mult}× active</strong> · ~${hrs}h left (real time)`;
+            active.classList.add("on");
+        } else {
+            active.textContent = "No booster active";
+            active.classList.remove("on");
+        }
+    }
+    if (!inv) return;
+    const list = data.boosterInventory || [];
+    if (!list.length) {
+        inv.innerHTML = `<li class="theme-hint">No boosters — open crates for Rare / Legendary drops.</li>`;
+        return;
+    }
+    inv.innerHTML = list.map(b => {
+        const hrs = Math.round((b.durationMs || 0) / 3600000);
+        return `<li class="booster-item">
+            <div><strong>${b.mult}×</strong> · ${hrs}h duration<br><span class="theme-hint">${b.label || ""}</span></div>
+            <button type="button" class="btn-primary btn-sm" onclick="activateBooster('${b.id}')">Use</button>
+        </li>`;
+    }).join("");
+}
+
+function activateBooster(id) {
+    ensureCrateData();
+    const idx = (data.boosterInventory || []).findIndex(b => b.id === id);
+    if (idx < 0) return;
+    const b = data.boosterInventory[idx];
+    data.boosterInventory.splice(idx, 1);
+    data.activeBooster = {
+        mult: b.mult,
+        label: b.label,
+        expiresAt: Date.now() + (b.durationMs || 24 * 3600 * 1000)
+    };
+    saveData();
+    renderBoostersPage();
+    showToast(`${b.mult}× booster on for real-time duration`, "info");
+}
+
+function applyCrateTheme(id) {
+    if (!isCrateUnlocked(id)) return;
+    const t = CRATE_ONLY_THEMES.find(x => x.id === id);
+    if (t && typeof applyTheme === "function") {
+        // temporarily inject into catalog sense
+        data.accentColor = t.color;
+        document.documentElement.style.setProperty("--accent-color", t.color);
+        if (t.gradient) document.body.style.background = t.gradient;
+        data.themeId = id;
+        saveData();
+        showToast("Theme applied", "info");
+    }
+}
+
+function applyCrateChime(id) {
+    if (!isCrateUnlocked(id)) return;
+    data.preferredChime = id;
+    saveData();
+    showToast("Chime equipped", "info");
+    try { playRewardSound("complete", true); } catch (e) {}
+}
+
+function activateCrateCosmetic(id) {
+    if (!isCrateUnlocked(id)) return;
+    data.activeCosmetics = data.activeCosmetics || [];
+    if (!data.activeCosmetics.includes(id)) data.activeCosmetics.push(id);
+    saveData();
+    showToast("Cosmetic equipped", "info");
+}
+
+function renderCrateHistory() {
+    const ul = document.getElementById("crate-history");
+    if (!ul) return;
+    const hist = data.crateHistory || [];
+    if (!hist.length) {
+        ul.innerHTML = `<li class="theme-hint">No opens yet.</li>`;
+        return;
+    }
+    ul.innerHTML = hist.slice(0, 15).map(h =>
+        `<li><span style="color:${rarityColor(h.rarity)};font-weight:700">${h.rarity}</span> — ${h.label}</li>`
+    ).join("");
+}
+
+// Hook XP awards for key drops + booster mult
+(function patchCrateHooks() {
+    const origAward = typeof awardXPForTask === "function" ? awardXPForTask : null;
+    if (origAward) {
+        window.awardXPForTask = function(task) {
+            if (task && task.xpAwarded) return origAward.apply(this, arguments);
+            // Apply booster by scaling calc path: pre-boost via temporary monkeypatch of calcTaskXP
+            const mult = getActiveXpMultiplier();
+            const origCalc = typeof calcTaskXP === "function" ? calcTaskXP : null;
+            if (origCalc && mult > 1) {
+                window.calcTaskXP = function(t) {
+                    return Math.round(origCalc(t) * mult);
+                };
+            }
+            const result = origAward.apply(this, arguments);
+            if (origCalc) window.calcTaskXP = origCalc;
+            return result;
+        };
+    }
+    })();
+
+// Theme unlock: crate-only
+(function patchThemeCrateGate() {
+    const orig = typeof isThemeUnlocked === "function" ? isThemeUnlocked : null;
+    if (!orig) return;
+    window.isThemeUnlocked = function(theme) {
+        if (theme && theme.crateOnly) return isCrateUnlocked(theme.id || theme.rewardId);
+        if (theme && String(theme.id || "").startsWith("theme_crate_")) return isCrateUnlocked(theme.id);
+        return orig.apply(this, arguments);
+    };
+})();
+
+// Inject crate themes into swatches with locked message
+(function patchThemeSwatchesCrate() {
+    const orig = typeof renderThemeSwatches === "function" ? renderThemeSwatches : null;
+    if (!orig) return;
+    window.renderThemeSwatches = function() {
+        // Ensure catalog has crate themes
+        if (typeof THEME_CATALOG !== "undefined") {
+            CRATE_ONLY_THEMES.forEach(t => {
+                if (!THEME_CATALOG.find(x => x.id === t.id)) {
+                    THEME_CATALOG.push({
+                        id: t.id,
+                        name: t.name,
+                        color: t.color,
+                        gradient: t.gradient,
+                        crateOnly: true,
+                        rewardId: t.id
+                    });
+                }
+            });
+        }
+        orig.apply(this, arguments);
+        // Annotate locked crate tiles
+        setTimeout(() => {
+            document.querySelectorAll(".theme-swatch").forEach(el => {
+                const id = el.dataset.themeId || el.getAttribute("data-id");
+                if (id && String(id).startsWith("theme_crate_") && !isCrateUnlocked(id)) {
+                    el.classList.add("crate-locked");
+                    el.title = "Locked — only unlockable from crates";
+                }
+            });
+        }, 50);
+    };
+})();
+
+setTimeout(() => {
+    try { updateCrateKeysBadge(); pruneBoosters(); } catch (e) {}
+}, 1500);
+
+window.openCratesPage = openCratesPage;
+window.closeCratesPage = closeCratesPage;
+window.openBoostersPage = openBoostersPage;
+window.closeBoostersPage = closeBoostersPage;
+window.openOneCrate = openOneCrate;
+window.activateBooster = activateBooster;
+window.closeCrateResult = closeCrateResult;
+window.applyCrateTheme = applyCrateTheme;
+window.applyCrateChime = applyCrateChime;
+window.activateCrateCosmetic = activateCrateCosmetic;
