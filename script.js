@@ -2668,7 +2668,7 @@ function createTaskRow(task, index) {
                 // Key roll only once ever for this block (keyGenerated never cleared)
                 if (!task.keyGenerated) {
                     task.keyGenerated = true;
-                    try { tryGrantCrateKey(0.05, "daily block"); } catch (e) {}
+                    try { tryGrantCrateKey(0.20, "daily block"); } catch (e) {}
                 }
             }
         } else if (!checkbox.checked && wasCompleted) {
@@ -6859,7 +6859,7 @@ function toggleTodo(id) {
         // Key chance once, then remove to-do (no uncheck farm)
         if (!t.keyGenerated) {
             t.keyGenerated = true;
-            try { tryGrantCrateKey(0.10, "to-do"); } catch (e) {}
+            try { tryGrantCrateKey(0.25, "to-do"); } catch (e) {}
         }
         data.todos = (data.todos || []).filter(x => x.id !== id);
         saveData();
