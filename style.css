@@ -4907,3 +4907,38 @@ body.cos-glow .task-row.active-now {
 .crate-reel-window {
     padding: 4px;
 }
+
+
+/* Overdue penalty modal — always show Got it */
+.overdue-penalty-box {
+    max-width: 420px;
+    width: min(420px, 92vw);
+    max-height: min(85vh, 640px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#overdue-penalty-body {
+    overflow-y: auto;
+    flex: 1 1 auto;
+    max-height: min(55vh, 420px);
+    padding-right: 4px;
+}
+#overdue-penalty-body .penalty-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 10px 0;
+}
+.overdue-penalty-footer {
+    flex-shrink: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+    position: sticky;
+    bottom: 0;
+    background: var(--card-bg);
+}
+.overdue-penalty-footer .btn-save-final {
+    width: 100%;
+    z-index: 2;
+}

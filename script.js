@@ -7575,14 +7575,13 @@ function checkOverdueTodosOnLogin() {
     const stepCost = info.needed || info.stepCost || 100;
     const penalized = [];
     let totalLoss = 0;
+    const removeIds = [];
 
     data.todos.forEach(t => {
         if (t.completed || !t.dueDate || t.penaltyApplied) return;
         const due = new Date(t.dueDate + "T00:00:00");
         const daysLate = Math.floor((today - due) / 86400000);
         if (daysLate <= 1) return; // 0 or 1 day: handled at completion time
-        // >1 day late: apply scaled penalty once
-        // Scale: ~8% of current rank step per extra day, capped, grows with level
         const extra = daysLate - 1;
         const penalty = Math.min(
             Math.round(stepCost * 0.35),
@@ -7593,31 +7592,43 @@ function checkOverdueTodosOnLogin() {
         t.penaltyDaysLate = daysLate;
         data.xp = Math.max(0, (data.xp || 0) - penalty);
         totalLoss += penalty;
-        penalized.push({ text: t.text, daysLate, penalty });
+        penalized.push({ id: t.id, text: t.text, daysLate, penalty });
+        if (t.id) removeIds.push(t.id);
     });
 
-    if (penalized.length) {
-        saveData();
-        updateXPDisplay();
-        enforceLocksAfterXPChange();
-        const body = document.getElementById("overdue-penalty-body");
-        const modal = document.getElementById("overdue-penalty-modal");
-        if (body && modal) {
-            body.innerHTML = `<p>You failed to complete ${penalized.length} to-do(s) on time.</p>
-                <p><strong>−${totalLoss} XP</strong> removed as a scaled penalty (grows with your rank).</p>
-                ${penalized.map(p => `<div class="penalty-item"><strong>${p.text}</strong><br>${p.daysLate} days late · −${p.penalty} XP</div>`).join("")}
-                <p style="margin-top:10px;font-size:0.85rem;color:var(--muted-color)">Complete remaining to-dos for reduced XP. Stay on schedule!</p>`;
-            modal.classList.remove("hidden");
-        } else {
-            showToast(`⚠️ ${penalized.length} overdue to-do(s) — −${totalLoss} XP`, "warn");
-        }
+    if (!penalized.length) return;
+
+    // Remove failed to-dos immediately so refresh cannot re-penalize them
+    data.todos = data.todos.filter(t => !removeIds.includes(t.id));
+    saveData();
+    updateXPDisplay();
+    try { if (typeof renderTodos === "function") renderTodos(); } catch (e) {}
+    try { enforceLocksAfterXPChange(); } catch (e) {}
+
+    const body = document.getElementById("overdue-penalty-body");
+    const modal = document.getElementById("overdue-penalty-modal");
+    if (body && modal) {
+        body.innerHTML = `<p>You failed to complete ${penalized.length} to-do(s) on time.</p>
+            <p><strong>−${totalLoss} XP</strong> removed as a scaled penalty (grows with your rank).</p>
+            <div class="penalty-list">
+                ${penalized.map(p => `<div class="penalty-item"><strong>${String(p.text||"").replace(/</g,"&lt;")}</strong><br>${p.daysLate} days late · −${p.penalty} XP</div>`).join("")}
+            </div>
+            <p style="margin-top:10px;font-size:0.85rem;color:var(--muted-color)">Those to-dos were removed. Stay on schedule!</p>`;
+        modal.classList.remove("hidden");
+    } else {
+        showToast(`⚠️ ${penalized.length} overdue to-do(s) removed — −${totalLoss} XP`, "warn");
     }
 }
 
 function closeOverdueModal() {
     const modal = document.getElementById("overdue-penalty-modal");
     if (modal) modal.classList.add("hidden");
+    // Ensure list is clean (already deleted on check, but sync UI)
+    try { if (typeof renderTodos === "function") renderTodos(); } catch (e) {}
+    try { saveData(); } catch (e) {}
 }
+window.closeOverdueModal = closeOverdueModal;
+
 
 /* ---- App Customiser ---- */
 function openAppCustomiser() {
