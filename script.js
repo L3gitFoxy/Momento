@@ -8568,7 +8568,6 @@ const CRATE_RARITY_WEIGHTS = {
 };
 
 const CRATE_LOOT = {
-    // XP ranges resolved at roll time via rollXpInRange()
     common: [
         { type: "xp_range", min: 50, max: 100 }
     ],
@@ -8603,7 +8602,6 @@ const CRATE_LOOT = {
         { type: "cosmetic", id: "chime_crate_prism", label: "Prism Chime" },
         { type: "cosmetic", id: "chime_crate_thunder", label: "Thunder Chime" },
         { type: "cosmetic", id: "cosmetic_crate_trail", label: "Stardust Trail" },
-        // Occasional big key haul
         { type: "keys", amount: 15, label: "+15 Crate Keys", weight: 1 },
         { type: "keys", amount: 18, label: "+18 Crate Keys", weight: 1 },
         { type: "keys", amount: 20, label: "+20 Crate Keys", weight: 1 }
@@ -8995,7 +8993,7 @@ function renderCrateHistory() {
     if (!ul) return;
     const hist = data.crateHistory || [];
     if (!hist.length) {
-        ul.innerHTML = `<li class="theme-hint">No opens yet — earn keys by finishing tasks.</li>`;
+        ul.innerHTML = `<li class="theme-hint">No opens yet, earn keys by finishing tasks.</li>`;
         return;
     }
     ul.innerHTML = hist.slice(0, 15).map(h =>
