@@ -4747,7 +4747,7 @@ body.cos-glow .task-row.active-now {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.65);
-    z-index: 7000;
+    z-index: 13000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4941,4 +4941,329 @@ body.cos-glow .task-row.active-now {
 .overdue-penalty-footer .btn-save-final {
     width: 100%;
     z-index: 2;
+}
+
+/* ===== Multi-tier crates ===== */
+.crates-tier-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 2fr));
+    gap: 12px;
+    margin: 16px 0 20px;
+}
+.crate-tier-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 2px solid var(--tier-accent, var(--accent-color));
+    background: linear-gradient(145deg, rgba(255,255,255,0.04), rgba(0,0,0,0.15));
+    color: var(--text-color);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s;
+    text-align: left;
+    box-shadow: 0 0 0 0 transparent;
+}
+.crate-tier-card:hover:not(:disabled):not(.disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--tier-accent) 45%, transparent);
+}
+.crate-tier-card:disabled,
+.crate-tier-card.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.crate-tier-name {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--tier-accent);
+}
+.crate-tier-cost {
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+.crate-tier-desc {
+    font-size: 0.8rem;
+    opacity: 0.75;
+    line-height: 1.3;
+}
+
+/* Tile horns for legendary / mythical */
+.crate-tile {
+    position: relative;
+    overflow: visible;
+}
+.crate-tile-horns {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    width: 0;
+    height: 0;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+.crate-tile.rarity-legendary .crate-tile-horns::before,
+.crate-tile.rarity-legendary .crate-tile-horns::after,
+.crate-tile.rarity-mythical .crate-tile-horns::before,
+.crate-tile.rarity-mythical .crate-tile-horns::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+}
+.crate-tile.rarity-legendary .crate-tile-horns::before {
+    left: -22px;
+    border-width: 0 8px 14px 8px;
+    border-color: transparent transparent #ea580c transparent;
+    filter: drop-shadow(0 0 4px rgba(234,88,12,0.8));
+}
+.crate-tile.rarity-legendary .crate-tile-horns::after {
+    left: 6px;
+    border-width: 0 8px 14px 8px;
+    border-color: transparent transparent #ea580c transparent;
+    filter: drop-shadow(0 0 4px rgba(234,88,12,0.8));
+}
+.crate-tile.rarity-mythical .crate-tile-horns::before {
+    left: -22px;
+    border-width: 0 8px 14px 8px;
+    border-color: transparent transparent #ef4444 transparent;
+    filter: drop-shadow(0 0 6px rgba(239,68,68,0.9));
+}
+.crate-tile.rarity-mythical .crate-tile-horns::after {
+    left: 6px;
+    border-width: 0 8px 14px 8px;
+    border-color: transparent transparent #ef4444 transparent;
+    filter: drop-shadow(0 0 6px rgba(239,68,68,0.9));
+}
+
+/* Glow: all rarities except rare */
+.crate-tile.rarity-common {
+    box-shadow: 0 0 10px rgba(34,197,94,0.45), 0 0 18px rgba(34,197,94,0.2);
+}
+.crate-tile.rarity-uncommon {
+    box-shadow: 0 0 12px rgba(59,130,246,0.5), 0 0 22px rgba(59,130,246,0.25);
+}
+.crate-tile.rarity-rare {
+    box-shadow: none;
+    border-width: 3px;
+}
+.crate-tile.rarity-legendary {
+    border-width: 4px;
+    box-shadow: 0 0 18px rgba(234,88,12,0.7), 0 0 36px rgba(234,88,12,0.35);
+}
+.crate-tile.rarity-mythical {
+    border-width: 4px;
+    box-shadow: 0 0 22px rgba(239,68,68,0.8), 0 0 44px rgba(239,68,68,0.4), inset 0 0 12px rgba(239,68,68,0.2);
+}
+
+/* Result card horns hint */
+.crate-result-card.has-horns {
+    position: relative;
+}
+.crate-result-card.rarity-legendary.has-horns::before,
+.crate-result-card.rarity-mythical.has-horns::before {
+    content: "▲  ▲";
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    letter-spacing: 0.35em;
+    opacity: 0.9;
+}
+.crate-result-card.rarity-legendary.has-horns::before { color: #ea580c; }
+.crate-result-card.rarity-mythical.has-horns::before { color: #ef4444; }
+
+/* Copy day modal grid */
+.copy-day-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+}
+.copy-day-btn {
+    width: 100%;
+}
+
+/* Slightly taller reel for horns */
+.crate-reel-window {
+    height: 110px;
+    padding-top: 12px;
+}
+
+/* Stardust Trail (crate cosmetic) — sparkles on completed tasks */
+body.cos-stardust .task-row.completed,
+body.cos-stardust .task-item.completed {
+    position: relative;
+}
+body.cos-stardust .task-row.completed::after,
+body.cos-stardust .task-item.completed::after {
+    content: "✦";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.85rem;
+    color: #fbbf24;
+    text-shadow: 0 0 8px #f59e0b, 0 0 14px #fbbf24;
+    animation: stardustTwinkle 1.8s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes stardustTwinkle {
+    0%, 100% { opacity: 0.55; transform: translateY(-50%) scale(0.9); }
+    50% { opacity: 1; transform: translateY(-50%) scale(1.15); }
+}
+
+
+/* ===== Crate spin full-screen overlay ===== */
+.crate-spin-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 12000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: all;
+}
+.crate-spin-overlay.hidden { display: none !important; }
+.crate-spin-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(4, 2, 12, 0.82);
+    backdrop-filter: blur(8px);
+}
+.crate-spin-panel {
+    position: relative;
+    z-index: 1;
+    width: min(920px, 96vw);
+    padding: 28px 20px 24px;
+    border-radius: 20px;
+    border: 2px solid var(--accent-color);
+    background: linear-gradient(160deg, rgba(20,16,32,0.98), rgba(10,8,18,0.98));
+    box-shadow: 0 0 40px rgba(0,0,0,0.55), 0 0 28px color-mix(in srgb, var(--accent-color) 25%, transparent);
+}
+.crate-spin-title {
+    text-align: center;
+    font-weight: 800;
+    font-size: 1.25rem;
+    margin-bottom: 18px;
+    color: var(--text-color);
+    letter-spacing: 0.02em;
+}
+.crate-spin-hint {
+    text-align: center;
+    margin: 14px 0 0;
+    font-size: 0.85rem;
+    opacity: 0.65;
+}
+.crate-reel-wrap--overlay { margin: 0; }
+.crate-reel-window--big {
+    height: 148px;
+    border-radius: 16px;
+    border-width: 3px;
+    padding-top: 16px;
+}
+.crate-reel-window--big .crate-reel {
+    gap: 12px;
+}
+.crate-reel-window--big .crate-tile {
+    width: 156px;
+    min-width: 156px;
+    height: calc(100% - 8px);
+    border-radius: 14px;
+    padding: 10px 8px;
+}
+
+/* ===== Legendary / Mythical tile decorations (replace ugly horns) ===== */
+.crate-tile-deco {
+    position: absolute;
+    top: 6px;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    pointer-events: none;
+    z-index: 2;
+}
+.crate-tile-deco--legendary .deco-gem {
+    width: 8px;
+    height: 8px;
+    background: linear-gradient(135deg, #fdba74, #ea580c);
+    transform: rotate(45deg);
+    box-shadow: 0 0 8px rgba(234,88,12,0.85), 0 0 2px #fff3;
+    border-radius: 1px;
+}
+.crate-tile-deco--legendary .deco-gem:nth-child(2) {
+    width: 10px;
+    height: 10px;
+    background: linear-gradient(135deg, #ffedd5, #f97316);
+    box-shadow: 0 0 12px rgba(249,115,22,0.95);
+}
+.crate-tile-deco--mythical .deco-star {
+    font-size: 0.7rem;
+    line-height: 1;
+    color: #fca5a5;
+    text-shadow: 0 0 8px #ef4444, 0 0 14px rgba(239,68,68,0.7);
+    animation: mythStarPulse 1.6s ease-in-out infinite;
+}
+.crate-tile-deco--mythical .deco-star:last-child {
+    animation-delay: 0.35s;
+}
+.crate-tile-deco--mythical .deco-ring {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #f87171;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(239,68,68,0.75), inset 0 0 6px rgba(239,68,68,0.35);
+}
+@keyframes mythStarPulse {
+    0%, 100% { opacity: 0.7; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* Stronger card frames for high tiers */
+.crate-tile.rarity-legendary {
+    background: linear-gradient(160deg, rgba(234,88,12,0.12), rgba(0,0,0,0.2));
+    border-width: 3px;
+    box-shadow: 0 0 18px rgba(234,88,12,0.55), 0 0 32px rgba(234,88,12,0.25), inset 0 0 20px rgba(234,88,12,0.08);
+}
+.crate-tile.rarity-mythical {
+    background: linear-gradient(160deg, rgba(239,68,68,0.14), rgba(88,0,40,0.25));
+    border-width: 3px;
+    box-shadow: 0 0 22px rgba(239,68,68,0.65), 0 0 40px rgba(239,68,68,0.3), inset 0 0 22px rgba(239,68,68,0.12);
+}
+
+/* Result card decorations */
+.crate-result-card.deco-legendary,
+.crate-result-card.deco-mythical {
+    position: relative;
+    overflow: visible;
+}
+.crate-result-card .crate-result-deco {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 64px;
+    height: 16px;
+}
+.crate-result-card.deco-legendary .crate-result-deco {
+    background:
+        linear-gradient(135deg, #fdba74, #ea580c) center/10px 10px no-repeat,
+        linear-gradient(135deg, #ffedd5, #f97316) center 0/14px 14px no-repeat;
+    filter: drop-shadow(0 0 8px rgba(249,115,22,0.8));
+}
+.crate-result-card.deco-mythical .crate-result-deco::before {
+    content: "✦  ◆  ✦";
+    display: block;
+    text-align: center;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    color: #fca5a5;
+    text-shadow: 0 0 10px #ef4444;
 }

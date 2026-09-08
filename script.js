@@ -1975,17 +1975,38 @@ function goToToday() {
 
 function copyCurrentDayTo() {
     const sourceDay = DAYS[data.currentDay];
-    const targetName = prompt(`Copy schedule from ${sourceDay} to which day?\n\nType: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, or Sunday`);
-    if (!targetName) return;
+    const label = document.getElementById("copy-day-source-label");
+    if (label) label.textContent = `Copy schedule from ${sourceDay} to:`;
+    const grid = document.getElementById("copy-day-grid");
+    if (grid) {
+        grid.innerHTML = DAYS.map(d => {
+            if (d === sourceDay) {
+                return `<button type="button" class="btn-secondary btn-sm copy-day-btn" disabled title="Same day">${d} (current)</button>`;
+            }
+            return `<button type="button" class="btn-primary btn-sm copy-day-btn" onclick="confirmCopyDayTo('${d}')">${d}</button>`;
+        }).join("");
+    }
+    const modal = document.getElementById("copy-day-modal");
+    if (modal) modal.classList.remove("hidden");
+}
 
-    const matchedDay = DAYS.find(d => d.toLowerCase() === targetName.trim().toLowerCase());
-    if (!matchedDay || matchedDay === sourceDay) return alert("Invalid or same target day.");
+function closeCopyDayModal() {
+    const modal = document.getElementById("copy-day-modal");
+    if (modal) modal.classList.add("hidden");
+}
 
-    data.schedules[matchedDay] = deepClone(data.schedules[sourceDay]);
+function confirmCopyDayTo(targetDay) {
+    const sourceDay = DAYS[data.currentDay];
+    if (!targetDay || targetDay === sourceDay) return;
+    if (!DAYS.includes(targetDay)) return;
+    data.schedules[targetDay] = deepClone(data.schedules[sourceDay]);
     saveData();
-    showSavedMessage(`✓ Copied ${sourceDay} schedule to ${matchedDay}!`);
+    closeCopyDayModal();
+    showSavedMessage(`✓ Copied ${sourceDay} schedule to ${targetDay}!`);
     renderWeeklyAnalytics();
 }
+window.closeCopyDayModal = closeCopyDayModal;
+window.confirmCopyDayTo = confirmCopyDayTo;
 
 function checkAutoWeeklyReset() {
     const currentWeek = getWeekIdentifier();
@@ -2396,6 +2417,9 @@ function renderThemeSwatches() {
 
 function isChimeUnlocked(chime) {
     if (!chime || chime.id === "default") return true;
+    if (chime.crateOnly || String(chime.id || "").startsWith("chime_crate_")) {
+        return typeof isCrateUnlocked === "function" && isCrateUnlocked(chime.id);
+    }
     const feature = chime.unlockFeature;
     if (feature && FEATURE_UNLOCKS[feature] !== undefined) {
         const info = getLevelInfo(data.xp || 0);
@@ -2421,11 +2445,11 @@ function renderChimeSwatches() {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "chime-chip" + (active === ch.id ? " chime-chip-active" : "") + (!unlocked ? " chime-chip-locked" : "");
-        btn.title = unlocked ? ch.name : `🔒 ${ch.name} — level up to unlock`;
+        btn.title = unlocked ? ch.name : (ch.crateOnly ? `🔒 ${ch.name} — unlock from crates` : `🔒 ${ch.name} — level up to unlock`);
         btn.innerHTML = `<span class="chime-chip-icon">${unlocked ? "🔔" : "🔒"}</span><span class="chime-chip-label">${ch.name}</span>`;
         btn.onclick = () => {
             if (!unlocked) {
-                showToast(`🔒 ${ch.name} is locked — rank up to unlock`, "warn");
+                showToast(ch.crateOnly ? `🔒 ${ch.name} is locked — open crates to unlock` : `🔒 ${ch.name} is locked — rank up to unlock`, "warn");
                 return;
             }
             data.preferredChime = ch.id;
@@ -3725,6 +3749,9 @@ const CHIME_CATALOG = [
     { id: "crystal",  name: "Crystal",   rewardId: "sound_crystal", unlockFeature: "sound_crystal" },
     { id: "drum",     name: "Drum",      rewardId: "sound_drum",    unlockFeature: "sound_drum" },
     { id: "sparkle",  name: "Sparkle",   rewardId: "sound_sparkle", unlockFeature: "sound_sparkle" },
+    // Crate-only mythical chimes
+    { id: "chime_crate_prism",   name: "Prism",   crateOnly: true },
+    { id: "chime_crate_thunder", name: "Thunder", crateOnly: true },
 ];
 
 const FEATURE_UNLOCKS = {
@@ -3857,6 +3884,11 @@ function awardXPForTask(task) {
     let xpGain = calcTaskXP(task);
     const streakBonus = Math.min(30, Math.max(0, (data.streak || 0)));
     xpGain += streakBonus;
+    // Apply active crate XP booster (real-time duration)
+    try {
+        const mult = (typeof getActiveXpMultiplier === "function") ? getActiveXpMultiplier() : 1;
+        if (mult > 1) xpGain = Math.round(xpGain * mult);
+    } catch (e) {}
 
     data.xp = (data.xp || 0) + xpGain;
     data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
@@ -4303,6 +4335,17 @@ function playRewardSound(kind, forcePreview) {
             playTone(1500, 0.07, 0.06, "sine", 0.12);
             playTone(1800, 0.14, 0.06, "sine", 0.1);
             playTone(2100, 0.21, 0.15, "triangle", 0.1);
+        } else if (tone === "chime_crate_prism" || tone === "prism") {
+            playTone(880, 0, 0.08, "sine", 0.18);
+            playTone(1108, 0.08, 0.08, "triangle", 0.16);
+            playTone(1318, 0.16, 0.1, "sine", 0.16);
+            playTone(1760, 0.26, 0.18, "triangle", 0.14);
+            playTone(2217, 0.38, 0.22, "sine", 0.12);
+        } else if (tone === "chime_crate_thunder" || tone === "thunder") {
+            playTone(90, 0, 0.12, "sawtooth", 0.28);
+            playTone(60, 0.08, 0.18, "square", 0.2);
+            playTone(120, 0.2, 0.15, "sawtooth", 0.15);
+            playTone(200, 0.3, 0.2, "triangle", 0.1);
         } else {
             playChime();
         }
@@ -7686,9 +7729,14 @@ const COSMETIC_CATALOG = [
     { id: "cosmetic_particles", name: "XP Particles", desc: "Floating particles on XP gain", rewardId: "cosmetic_particles" },
     { id: "cosmetic_glow", name: "Block Glow", desc: "Pulse glow on active blocks", rewardId: "cosmetic_glow" },
     { id: "cosmetic_streakfire", name: "Streak Fire", desc: "Fire animation on long streaks", rewardId: "cosmetic_streakfire" },
+    { id: "cosmetic_crate_trail", name: "Stardust Trail", desc: "Sparkly trail on completed blocks (crate only)", crateOnly: true },
 ];
 
 function isCosmeticUnlocked(c) {
+    if (!c) return false;
+    if (c.crateOnly || String(c.id || "").startsWith("cosmetic_crate_")) {
+        return typeof isCrateUnlocked === "function" && isCrateUnlocked(c.id);
+    }
     const r = REWARD_CATALOG.find(x => x.id === c.rewardId);
     if (!r) return true;
     const info = getLevelInfo(data.xp || 0);
@@ -7702,6 +7750,7 @@ function renderCosmeticsList() {
     box.innerHTML = COSMETIC_CATALOG.map(c => {
         const unlocked = isCosmeticUnlocked(c);
         const active = data.activeCosmetics.includes(c.id);
+        const lockLabel = c.crateOnly ? "Crate" : "Locked";
         return `<div class="cosmetic-row ${unlocked ? "" : "locked"}">
             <div>
                 <div class="cos-name">${unlocked ? "" : "🔒 "}${c.name}</div>
@@ -7709,7 +7758,7 @@ function renderCosmeticsList() {
             </div>
             ${unlocked
                 ? `<button type="button" class="btn-info btn-sm" onclick="toggleCosmetic('${c.id}')">${active ? "On ✓" : "Off"}</button>`
-                : `<span class="cos-badge">Locked</span>`}
+                : `<span class="cos-badge">${lockLabel}</span>`}
         </div>`;
     }).join("");
 }
@@ -7724,6 +7773,7 @@ function toggleCosmetic(id) {
     document.body.classList.toggle("cos-particles", data.activeCosmetics.includes("cosmetic_particles"));
     document.body.classList.toggle("cos-glow", data.activeCosmetics.includes("cosmetic_glow"));
     document.body.classList.toggle("cos-streakfire", data.activeCosmetics.includes("cosmetic_streakfire"));
+    document.body.classList.toggle("cos-stardust", data.activeCosmetics.includes("cosmetic_crate_trail"));
 }
 
 /* Enhance updateXPDisplay with rank divisions (hook) */
@@ -7757,6 +7807,7 @@ function toggleCosmetic(id) {
             document.body.classList.toggle("cos-particles", data.activeCosmetics.includes("cosmetic_particles"));
             document.body.classList.toggle("cos-glow", data.activeCosmetics.includes("cosmetic_glow"));
             document.body.classList.toggle("cos-streakfire", data.activeCosmetics.includes("cosmetic_streakfire"));
+            document.body.classList.toggle("cos-stardust", data.activeCosmetics.includes("cosmetic_crate_trail"));
         }, 600);
     };
 })();
@@ -8460,6 +8511,54 @@ setTimeout(() => { try { applyMusicLoopState(); } catch (e) {} }, 800);
    CRATES · KEYS · BOOSTERS · MYTHICAL UNLOCKS
    ============================================================ */
 
+const CRATE_TIERS = [
+    {
+        id: "standard",
+        name: "Standard Crate",
+        keys: 1,
+        desc: "Classic odds — common through mythical",
+        minRarity: null,
+        weights: { common: 700, uncommon: 180, rare: 70, legendary: 28, mythical: 8 },
+        accent: "#22c55e"
+    },
+    {
+        id: "vip",
+        name: "VIP Crate",
+        keys: 3,
+        desc: "Better odds on higher tiers",
+        minRarity: null,
+        weights: { common: 400, uncommon: 280, rare: 160, legendary: 100, mythical: 40 },
+        accent: "#3b82f6"
+    },
+    {
+        id: "deluxe",
+        name: "Deluxe Crate",
+        keys: 7,
+        desc: "Uncommon or above only",
+        minRarity: "uncommon",
+        weights: { uncommon: 380, rare: 320, legendary: 220, mythical: 80 },
+        accent: "#a855f7"
+    },
+    {
+        id: "elite",
+        name: "Elite Crate",
+        keys: 10,
+        desc: "Rare or above only",
+        minRarity: "rare",
+        weights: { rare: 580, legendary: 380, mythical: 200 },
+        accent: "#eab308"
+    },
+    {
+        id: "mythic_vault",
+        name: "Mythic Vault",
+        keys: 15,
+        desc: "Guaranteed Legendary+",
+        minRarity: "legendary",
+        weights: { legendary: 620, mythical: 380 },
+        accent: "#ef4444"
+    }
+];
+
 const CRATE_RARITY_WEIGHTS = {
     common: 700,
     uncommon: 180,
@@ -8469,20 +8568,18 @@ const CRATE_RARITY_WEIGHTS = {
 };
 
 const CRATE_LOOT = {
+    // XP ranges resolved at roll time via rollXpInRange()
     common: [
-        { type: "xp", amount: 15, label: "+15 XP" },
-        { type: "xp", amount: 25, label: "+25 XP" },
-        { type: "xp", amount: 40, label: "+40 XP" }
+        { type: "xp_range", min: 50, max: 100 }
     ],
     uncommon: [
-        { type: "xp", amount: 60, label: "+60 XP" },
-        { type: "xp", amount: 90, label: "+90 XP" },
-        { type: "xp", amount: 120, label: "+120 XP" },
+        { type: "xp_range", min: 100, max: 300 },
         { type: "keys", amount: 1, label: "+1 Crate Key" },
         { type: "cosmetic", id: "theme_crate_softcyan", label: "Soft Cyan Theme" },
         { type: "cosmetic", id: "theme_crate_softrose", label: "Soft Rose Theme" }
     ],
     rare: [
+        { type: "xp_range", min: 400, max: 800 },
         { type: "booster", mult: 1.1, hours: 36, label: "1.1× XP Booster (36h)" },
         { type: "booster", mult: 1.25, hours: 24, label: "1.25× XP Booster (24h)" },
         { type: "booster", mult: 1.5, hours: 18, label: "1.5× XP Booster (18h)" },
@@ -8490,26 +8587,40 @@ const CRATE_LOOT = {
         { type: "cosmetic", id: "theme_crate_softsand", label: "Soft Sand Theme" }
     ],
     legendary: [
+        { type: "xp_range", min: 1000, max: 2000 },
         { type: "booster", mult: 2, hours: 12, label: "2× XP Booster (12h)" },
-        { type: "keys", amount: 1, label: "+1 Crate Key" },
-        { type: "keys", amount: 2, label: "+2 Crate Keys" },
-        { type: "keys", amount: 3, label: "+3 Crate Keys" }
+        { type: "booster", mult: 2.5, hours: 8, label: "2.5× XP Booster (8h)" },
+        // Occasional big key haul
+        { type: "keys", amount: 15, label: "+15 Crate Keys", weight: 1 },
+        { type: "keys", amount: 18, label: "+18 Crate Keys", weight: 1 },
+        { type: "keys", amount: 20, label: "+20 Crate Keys", weight: 1 }
     ],
     mythical: [
+        { type: "xp_range", min: 2000, max: 4000 },
         { type: "cosmetic", id: "theme_crate_void", label: "Void Pulse Theme" },
         { type: "cosmetic", id: "theme_crate_solar", label: "Solar Flare Theme" },
         { type: "cosmetic", id: "theme_crate_nebula", label: "Nebula Drift Theme" },
         { type: "cosmetic", id: "chime_crate_prism", label: "Prism Chime" },
         { type: "cosmetic", id: "chime_crate_thunder", label: "Thunder Chime" },
-        { type: "cosmetic", id: "cosmetic_crate_trail", label: "Stardust Trail" }
+        { type: "cosmetic", id: "cosmetic_crate_trail", label: "Stardust Trail" },
+        // Occasional big key haul
+        { type: "keys", amount: 15, label: "+15 Crate Keys", weight: 1 },
+        { type: "keys", amount: 18, label: "+18 Crate Keys", weight: 1 },
+        { type: "keys", amount: 20, label: "+20 Crate Keys", weight: 1 }
     ]
 };
+
+function rollXpInRange(min, max) {
+    const lo = Math.min(min, max);
+    const hi = Math.max(min, max);
+    const amount = Math.floor(lo + Math.random() * (hi - lo + 1));
+    return { type: "xp", amount, label: `+${amount} XP` };
+}
 
 const CRATE_ONLY_THEMES = [
     { id: "theme_crate_void", name: "Void Pulse", color: "#7c3aed", gradient: "linear-gradient(135deg,#0f0c29,#302b63,#24243e)", crateOnly: true },
     { id: "theme_crate_solar", name: "Solar Flare", color: "#f97316", gradient: "linear-gradient(135deg,#f97316,#ef4444,#fbbf24)", crateOnly: true },
     { id: "theme_crate_nebula", name: "Nebula Drift", color: "#ec4899", gradient: "linear-gradient(135deg,#4c1d95,#db2777,#6366f1)", crateOnly: true },
-    // Simple solid colour themes (uncommon / rare)
     { id: "theme_crate_softcyan", name: "Soft Cyan", color: "#22d3ee", crateOnly: true },
     { id: "theme_crate_softrose", name: "Soft Rose", color: "#fb7185", crateOnly: true },
     { id: "theme_crate_softteal", name: "Soft Teal", color: "#2dd4bf", crateOnly: true },
@@ -8532,26 +8643,51 @@ function isCrateUnlocked(id) {
     return (data.crateUnlocks || []).includes(id);
 }
 
-function rollCrateRarity() {
-    const entries = Object.entries(CRATE_RARITY_WEIGHTS);
-    const total = entries.reduce((s, [, w]) => s + w, 0);
+function rollCrateRarity(weights) {
+    const w = weights || CRATE_RARITY_WEIGHTS;
+    const entries = Object.entries(w);
+    const total = entries.reduce((s, [, weight]) => s + weight, 0);
     let r = Math.random() * total;
-    for (const [name, w] of entries) {
-        r -= w;
+    for (const [name, weight] of entries) {
+        r -= weight;
         if (r <= 0) return name;
     }
-    return "common";
+    return entries[entries.length - 1][0];
 }
 
 function rollCrateLoot(rarity) {
     const pool = CRATE_LOOT[rarity] || CRATE_LOOT.common;
-    // Prefer unowned crate cosmetics when possible
-    if (rarity === "mythical" || rarity === "rare" || rarity === "uncommon") {
-        const fresh = pool.filter(p => p.type !== "cosmetic" || !isCrateUnlocked(p.id));
-        const use = fresh.length ? fresh : pool;
-        return use[Math.floor(Math.random() * use.length)];
+    // Never drop already-unlocked themes / chimes / cosmetics
+    const available = pool.filter(p => {
+        if (p.type === "cosmetic" && p.id && isCrateUnlocked(p.id)) return false;
+        return true;
+    });
+    // Prefer non-key filler when everything unique is owned; always keep xp/booster/keys
+    let use = available.length ? available : pool.filter(p => p.type !== "cosmetic");
+    if (!use.length) {
+        // Absolute fallback: XP for this rarity band
+        const bands = {
+            common: [50, 100], uncommon: [100, 300], rare: [400, 800],
+            legendary: [1000, 2000], mythical: [2000, 4000]
+        };
+        const [a, b] = bands[rarity] || [50, 100];
+        return rollXpInRange(a, b);
     }
-    return pool[Math.floor(Math.random() * pool.length)];
+    // Weighted pick: key jackpots are rarer (default weight 3 for normal entries, 1 for jackpot keys)
+    const weights = use.map(p => {
+        if (p.type === "keys" && (p.amount || 0) >= 15) return p.weight || 1;
+        if (p.type === "xp_range") return 4;
+        return p.weight || 3;
+    });
+    const total = weights.reduce((s, w) => s + w, 0);
+    let r = Math.random() * total;
+    let pick = use[0];
+    for (let i = 0; i < use.length; i++) {
+        r -= weights[i];
+        if (r <= 0) { pick = use[i]; break; }
+    }
+    if (pick.type === "xp_range") return rollXpInRange(pick.min, pick.max);
+    return pick;
 }
 
 function tryGrantCrateKey(chance, reason) {
@@ -8573,7 +8709,27 @@ function updateCrateKeysBadge() {
     if (c) c.textContent = String(data.crateKeys);
     const o = document.getElementById("crate-opened-count");
     if (o) o.textContent = String(data.cratesOpened || 0);
+    renderCrateTierCards();
 }
+
+function renderCrateTierCards() {
+    const grid = document.getElementById("crates-tier-grid");
+    if (!grid) return;
+    ensureCrateData();
+    const keys = data.crateKeys || 0;
+    grid.innerHTML = CRATE_TIERS.map(t => {
+        const can = keys >= t.keys;
+        return `<button type="button" class="crate-tier-card ${can ? "" : "disabled"}" style="--tier-accent:${t.accent}"
+            ${can ? `onclick="openCrateTier('${t.id}')"` : "disabled"}
+            title="${t.desc}">
+            <div class="crate-tier-name">${t.name}</div>
+            <div class="crate-tier-cost">🔑 ${t.keys} keys</div>
+            <div class="crate-tier-desc">${t.desc}</div>
+        </button>`;
+    }).join("");
+}
+
+let crateSpinning = false;
 
 function openCratesPage() {
     ensureCrateData();
@@ -8582,10 +8738,8 @@ function openCratesPage() {
     page.classList.remove("hidden");
     updateCrateKeysBadge();
     renderCrateHistory();
-    const wrap = document.querySelector(".crate-reel-wrap");
-    if (wrap) wrap.classList.add("hidden");
-    const reel = document.getElementById("crate-reel");
-    if (reel) { reel.innerHTML = ""; reel.style.transform = ""; }
+    const overlay = document.getElementById("crate-spin-overlay");
+    if (overlay && !crateSpinning) overlay.classList.add("hidden");
 }
 
 function closeCratesPage() {
@@ -8617,8 +8771,8 @@ function rarityColor(r) {
     })[r] || "#22c55e";
 }
 
-function randomLootPreview() {
-    const r = rollCrateRarity();
+function randomLootPreview(weights) {
+    const r = rollCrateRarity(weights);
     const loot = rollCrateLoot(r);
     return { rarity: r, loot };
 }
@@ -8626,79 +8780,146 @@ function randomLootPreview() {
 function crateTileHtml(rarity, loot) {
     const label = (loot && loot.label) ? loot.label : rarity;
     const sub = rarity.toUpperCase();
+    let deco = "";
+    if (rarity === "legendary") {
+        deco = `<span class="crate-tile-deco crate-tile-deco--legendary" aria-hidden="true">
+            <span class="deco-gem"></span><span class="deco-gem"></span><span class="deco-gem"></span>
+        </span>`;
+    } else if (rarity === "mythical") {
+        deco = `<span class="crate-tile-deco crate-tile-deco--mythical" aria-hidden="true">
+            <span class="deco-star">✦</span><span class="deco-ring"></span><span class="deco-star">✦</span>
+        </span>`;
+    }
     return `<div class="crate-tile rarity-${rarity}" style="border-color:${rarityColor(rarity)}">
+        ${deco}
         <span class="crate-tile-rarity">${sub}</span>
         <span class="crate-tile-reward">${label}</span>
     </div>`;
 }
 
-function openOneCrate() {
-    ensureCrateData();
-    if ((data.crateKeys || 0) < 1) {
-        showToast("No crate keys — complete tasks & to-dos", "warn");
+function openCrateTier(tierId) {
+    if (crateSpinning) {
+        showToast("Wait for the current spin to finish", "warn");
         return;
     }
-    const btn = document.getElementById("crate-open-btn");
-    if (btn) btn.disabled = true;
-
-    data.crateKeys = Math.max(0, (Number(data.crateKeys) || 0) - 1);
+    const tier = CRATE_TIERS.find(t => t.id === tierId);
+    if (!tier) return;
+    ensureCrateData();
+    if ((data.crateKeys || 0) < tier.keys) {
+        showToast(`Need ${tier.keys} keys for ${tier.name}`, "warn");
+        return;
+    }
+    crateSpinning = true;
+    document.querySelectorAll(".crate-tier-card").forEach(b => { b.disabled = true; });
+    data.crateKeys = Math.max(0, (Number(data.crateKeys) || 0) - tier.keys);
     data.cratesOpened = (data.cratesOpened || 0) + 1;
-    // Persist keys immediately (sync)
     saveData();
     updateCrateKeysBadge();
 
-    const rarity = rollCrateRarity();
+    const rarity = rollCrateRarity(tier.weights);
     const loot = rollCrateLoot(rarity);
 
-    spinCrateReel(rarity, loot, () => {
+    const titleEl = document.getElementById("crate-spin-title");
+    if (titleEl) titleEl.textContent = `Opening ${tier.name}…`;
+
+    spinCrateReel(rarity, loot, tier.weights, () => {
         grantCrateLoot(rarity, loot);
         showCrateResult(rarity, loot);
         renderCrateHistory();
-        if (btn) btn.disabled = false;
-        saveData(); // keys, history, unlocks, xp, boosters
+        crateSpinning = false;
+        document.querySelectorAll(".crate-tier-card").forEach(b => { b.disabled = false; });
+        saveData();
         updateCrateKeysBadge();
-        // Hide reel again after open
-        setTimeout(() => {
-            const wrap = document.querySelector(".crate-reel-wrap");
-            if (wrap) wrap.classList.add("hidden");
-        }, 800);
+        const overlay = document.getElementById("crate-spin-overlay");
+        if (overlay) overlay.classList.add("hidden");
     });
 }
+window.openCrateTier = openCrateTier;
 
-function spinCrateReel(targetRarity, targetLoot, done) {
-    const wrap = document.querySelector(".crate-reel-wrap");
-    if (wrap) wrap.classList.remove("hidden");
+function spinCrateReel(targetRarity, targetLoot, weights, done) {
+    const overlay = document.getElementById("crate-spin-overlay");
+    if (overlay) {
+        overlay.classList.remove("hidden");
+        overlay.setAttribute("aria-hidden", "false");
+    }
     const reel = document.getElementById("crate-reel");
-    if (!reel) { done && done(); return; }
+    if (!reel) {
+        if (overlay) overlay.classList.add("hidden");
+        done && done();
+        return;
+    }
 
+    // Clear any in-flight transition so re-opens never "skip"
+    reel.style.transition = "none";
+    reel.style.transform = "translateX(0)";
+    void reel.offsetWidth;
+
+    const TILE_COUNT_BEFORE = 52;
+    const TILE_W = 168; // matches CSS big tiles
     const tiles = [];
-    for (let i = 0; i < 42; i++) {
-        const p = randomLootPreview();
-        tiles.push(p);
+    for (let i = 0; i < TILE_COUNT_BEFORE; i++) {
+        tiles.push(randomLootPreview(weights));
     }
     tiles.push({ rarity: targetRarity, loot: targetLoot });
-    for (let i = 0; i < 6; i++) tiles.push(randomLootPreview());
+    for (let i = 0; i < 10; i++) tiles.push(randomLootPreview(weights));
 
     reel.innerHTML = tiles.map(t => crateTileHtml(t.rarity, t.loot)).join("");
     reel.style.transition = "none";
     reel.style.transform = "translateX(0)";
     void reel.offsetWidth;
-    const tileW = 150; // 140 tile + 10 gap
-    const targetIndex = 42;
-    const parentW = (reel.parentElement && reel.parentElement.clientWidth) || 400;
-    const offset = targetIndex * tileW - (parentW / 2) + tileW / 2;
-    reel.style.transition = "transform 4.2s cubic-bezier(0.12, 0.75, 0.05, 1)";
-    reel.style.transform = `translateX(${-offset}px)`;
-    setTimeout(() => { done && done(); }, 4300);
+
+    const targetIndex = TILE_COUNT_BEFORE;
+    const windowEl = reel.parentElement;
+    const parentW = (windowEl && windowEl.clientWidth) || 560;
+    const finalOffset = targetIndex * TILE_W - (parentW / 2) + TILE_W / 2;
+
+    // Brief hold so the overlay reads, then spring, then whoosh
+    const HOLD_MS = 1250;
+    const PULL_MS = 720; // ~0.3s longer than before
+    const SPIN_MS = 6200;
+
+    setTimeout(() => {
+        // 1) Strong spring pull-back (right)
+        const pull = 130;
+        reel.style.transition = `transform ${PULL_MS}ms cubic-bezier(0.34, 1.45, 0.64, 1)`;
+        reel.style.transform = `translateX(${pull}px)`;
+
+        // 2) After pull settles, SNAP release very fast then long decelerate
+        setTimeout(() => {
+            reel.style.transition = `transform ${SPIN_MS}ms cubic-bezier(0.05, 0.9, 0.08, 1)`;
+            reel.style.transform = `translateX(${-finalOffset}px)`;
+            setTimeout(() => {
+                done && done();
+            }, SPIN_MS + 150);
+        }, PULL_MS + 40);
+    }, HOLD_MS);
 }
 
 function grantCrateLoot(rarity, loot) {
     ensureCrateData();
+    let leveledUp = false;
+    let newRank = null;
     if (loot.type === "xp") {
-        data.xp = (data.xp || 0) + loot.amount;
-        updateXPDisplay();
+        const beforeXp = Number(data.xp) || 0;
+        const gain = Number(loot.amount) || 0;
+        const infoBefore = (typeof getLevelInfo === "function") ? getLevelInfo(beforeXp) : null;
+        data.xp = beforeXp + gain;
+        const infoAfter = (typeof getLevelInfo === "function") ? getLevelInfo(data.xp) : null;
+        if (typeof updateXPDisplay === "function") updateXPDisplay();
+        if (typeof showXPPopup === "function") {
+            try { showXPPopup(gain, "Crate", infoAfter); } catch (e) {}
+        }
+        if (infoBefore && infoAfter && infoAfter.levelIndex > infoBefore.levelIndex) {
+            leveledUp = true;
+            newRank = infoAfter.rank;
+            try {
+                if (typeof checkAndUnlockRewards === "function") checkAndUnlockRewards(infoAfter.levelIndex);
+            } catch (e) {}
+        }
+        // Persist XP immediately so Close / navigation can't drop it
+        try { saveData(); } catch (e) {}
     } else if (loot.type === "keys") {
-        data.crateKeys += loot.amount;
+        data.crateKeys = (Number(data.crateKeys) || 0) + (Number(loot.amount) || 0);
         updateCrateKeysBadge();
     } else if (loot.type === "booster") {
         data.boosterInventory.push({
@@ -8710,10 +8931,6 @@ function grantCrateLoot(rarity, loot) {
         });
     } else if (loot.type === "cosmetic") {
         if (!data.crateUnlocks.includes(loot.id)) data.crateUnlocks.push(loot.id);
-        // auto-register theme/chime access
-        if (String(loot.id).startsWith("theme_")) {
-            // unlocked via crateUnlocks check in theme gate
-        }
         if (String(loot.id).startsWith("cosmetic_")) {
             data.activeCosmetics = data.activeCosmetics || [];
         }
@@ -8727,8 +8944,15 @@ function grantCrateLoot(rarity, loot) {
     });
     data.crateHistory = data.crateHistory.slice(0, 30);
     try {
-        if (rarity === "mythical" || rarity === "legendary") playRewardSound("levelup");
-        else playRewardSound("complete");
+        if (leveledUp) {
+            // Level-up takes priority over rarity fanfare
+            if (typeof showLevelUp === "function") showLevelUp(newRank);
+            playRewardSound("levelup");
+        } else if (rarity === "mythical" || rarity === "legendary") {
+            playRewardSound("levelup");
+        } else {
+            playRewardSound("complete");
+        }
     } catch (e) {}
 }
 
@@ -8748,8 +8972,10 @@ function showCrateResult(rarity, loot) {
     } else {
         actions = `<button type="button" class="btn-save-final" onclick="closeCrateResult()">Nice!</button>`;
     }
+    const decoClass = (rarity === "legendary" || rarity === "mythical") ? ` deco-${rarity}` : "";
     modal.innerHTML = `
-        <div class="crate-result-card" style="border-color:${color}">
+        <div class="crate-result-card rarity-${rarity}${decoClass}" style="border-color:${color}">
+            <div class="crate-result-deco" aria-hidden="true"></div>
             <div class="crate-result-rarity" style="color:${color}">${rarity.toUpperCase()}</div>
             <div class="crate-result-label">${loot.label}</div>
             <div class="crate-result-actions">${actions}
@@ -8772,8 +8998,8 @@ function renderCrateHistory() {
         ul.innerHTML = `<li class="theme-hint">No opens yet — earn keys by finishing tasks.</li>`;
         return;
     }
-    ul.innerHTML = hist.slice(0, 12).map(h =>
-        `<li><span class="crate-hist-rarity" style="color:${rarityColor(h.rarity)}">${h.rarity}</span> ${h.label}</li>`
+    ul.innerHTML = hist.slice(0, 15).map(h =>
+        `<li><span style="color:${rarityColor(h.rarity)};font-weight:700">${h.rarity}</span> — ${h.label}</li>`
     ).join("");
 }
 
@@ -8841,14 +9067,24 @@ function activateBooster(id) {
 }
 
 function applyCrateTheme(id) {
-    if (!isCrateUnlocked(id)) return;
+    if (!isCrateUnlocked(id)) {
+        showToast("Theme not unlocked", "warn");
+        return;
+    }
+    if (typeof setThemeById === "function") {
+        setThemeById(id);
+        showToast("Theme applied", "info");
+        return;
+    }
     const t = CRATE_ONLY_THEMES.find(x => x.id === id);
-    if (t && typeof applyTheme === "function") {
-        // temporarily inject into catalog sense
-        data.accentColor = t.color;
-        document.documentElement.style.setProperty("--accent-color", t.color);
-        if (t.gradient) document.body.style.background = t.gradient;
+    if (t) {
         data.themeId = id;
+        data.theme = { color: t.color, hover: t.color, alpha: "rgba(0,0,0,0.25)" };
+        if (typeof applySavedTheme === "function") applySavedTheme();
+        else {
+            document.documentElement.style.setProperty("--accent-color", t.color);
+            if (t.gradient) document.body.style.background = t.gradient;
+        }
         saveData();
         showToast("Theme applied", "info");
     }
@@ -8858,8 +9094,9 @@ function applyCrateChime(id) {
     if (!isCrateUnlocked(id)) return;
     data.preferredChime = id;
     saveData();
+    if (typeof renderChimeSwatches === "function") renderChimeSwatches();
     showToast("Chime equipped", "info");
-    try { playRewardSound("complete", true); } catch (e) {}
+    try { playRewardSound(id, true); } catch (e) {}
 }
 
 function activateCrateCosmetic(id) {
@@ -8867,42 +9104,13 @@ function activateCrateCosmetic(id) {
     data.activeCosmetics = data.activeCosmetics || [];
     if (!data.activeCosmetics.includes(id)) data.activeCosmetics.push(id);
     saveData();
+    document.body.classList.toggle("cos-stardust", data.activeCosmetics.includes("cosmetic_crate_trail"));
+    document.body.classList.toggle("cos-particles", data.activeCosmetics.includes("cosmetic_particles"));
+    document.body.classList.toggle("cos-glow", data.activeCosmetics.includes("cosmetic_glow"));
+    document.body.classList.toggle("cos-streakfire", data.activeCosmetics.includes("cosmetic_streakfire"));
+    if (typeof renderCosmeticsList === "function") renderCosmeticsList();
     showToast("Cosmetic equipped", "info");
 }
-
-function renderCrateHistory() {
-    const ul = document.getElementById("crate-history");
-    if (!ul) return;
-    const hist = data.crateHistory || [];
-    if (!hist.length) {
-        ul.innerHTML = `<li class="theme-hint">No opens yet.</li>`;
-        return;
-    }
-    ul.innerHTML = hist.slice(0, 15).map(h =>
-        `<li><span style="color:${rarityColor(h.rarity)};font-weight:700">${h.rarity}</span> — ${h.label}</li>`
-    ).join("");
-}
-
-// Hook XP awards for key drops + booster mult
-(function patchCrateHooks() {
-    const origAward = typeof awardXPForTask === "function" ? awardXPForTask : null;
-    if (origAward) {
-        window.awardXPForTask = function(task) {
-            if (task && task.xpAwarded) return origAward.apply(this, arguments);
-            // Apply booster by scaling calc path: pre-boost via temporary monkeypatch of calcTaskXP
-            const mult = getActiveXpMultiplier();
-            const origCalc = typeof calcTaskXP === "function" ? calcTaskXP : null;
-            if (origCalc && mult > 1) {
-                window.calcTaskXP = function(t) {
-                    return Math.round(origCalc(t) * mult);
-                };
-            }
-            const result = origAward.apply(this, arguments);
-            if (origCalc) window.calcTaskXP = origCalc;
-            return result;
-        };
-    }
-    })();
 
 // Theme unlock: crate-only
 (function patchThemeCrateGate() {
@@ -8920,7 +9128,6 @@ function renderCrateHistory() {
     const orig = typeof renderThemeSwatches === "function" ? renderThemeSwatches : null;
     if (!orig) return;
     window.renderThemeSwatches = function() {
-        // Ensure catalog has crate themes
         if (typeof THEME_CATALOG !== "undefined") {
             CRATE_ONLY_THEMES.forEach(t => {
                 if (!THEME_CATALOG.find(x => x.id === t.id)) {
@@ -8936,7 +9143,6 @@ function renderCrateHistory() {
             });
         }
         orig.apply(this, arguments);
-        // Annotate locked crate tiles
         setTimeout(() => {
             document.querySelectorAll(".theme-swatch").forEach(el => {
                 const id = el.dataset.themeId || el.getAttribute("data-id");
@@ -8957,9 +9163,9 @@ window.openCratesPage = openCratesPage;
 window.closeCratesPage = closeCratesPage;
 window.openBoostersPage = openBoostersPage;
 window.closeBoostersPage = closeBoostersPage;
-window.openOneCrate = openOneCrate;
 window.activateBooster = activateBooster;
 window.closeCrateResult = closeCrateResult;
 window.applyCrateTheme = applyCrateTheme;
 window.applyCrateChime = applyCrateChime;
 window.activateCrateCosmetic = activateCrateCosmetic;
+

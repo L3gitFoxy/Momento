@@ -306,6 +306,22 @@
     
 
     
+    <div id="copy-day-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:380px">
+            <div class="modal-header">
+                <h3>📋 Copy Day Schedule</h3>
+                <button type="button" onclick="closeCopyDayModal()" class="close-btn">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <p class="theme-hint" id="copy-day-source-label">Copy from current day to:</p>
+                <div class="copy-day-grid" id="copy-day-grid"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeCopyDayModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div id="progress-panel" class="modal-overlay hidden">
         <div class="modal-box progress-box">
             <div class="modal-header">
@@ -434,7 +450,7 @@
         <div class="crates-page-header">
             <div>
                 <h2>📦 Crates</h2>
-                <p class="crates-sub">Spend keys · spin for XP, boosters, keys &amp; mythical cosmetics</p>
+                <p class="crates-sub">Spend keys · pick a tier · spin for XP, boosters, keys &amp; mythical cosmetics</p>
             </div>
             <button type="button" class="btn-cancel" onclick="closeCratesPage()">Close</button>
         </div>
@@ -443,32 +459,41 @@
                 <div class="crates-stat"><span>Keys</span><strong id="crate-keys-count">0</strong></div>
                 <div class="crates-stat"><span>Opened</span><strong id="crate-opened-count">0</strong></div>
             </div>
+            <div class="crates-tier-grid" id="crates-tier-grid">
+                <!-- filled by JS -->
+            </div>
             <div class="crates-info-card">
                 <h4>How crates work</h4>
                 <ul>
                     <li><strong>Keys:</strong> 5% chance when you complete a daily schedule block · 10% when you complete a to-do</li>
-                    <li><strong>Open:</strong> costs <strong>1 key</strong> · the reel spins sideways across rarities</li>
-                    <li><strong>Rarity odds:</strong> Common (heavily weighted) → Uncommon → Rare → Legendary → Mythical (very rare)</li>
-                    <li><strong>Common / Uncommon:</strong> small–decent XP (green / blue)</li>
-                    <li><strong>Uncommon:</strong> XP, keys, or simple colour themes (Soft Cyan / Soft Rose)</li>
-                    <li><strong>Rare:</strong> timed XP boosters 1.1× / 1.25× / 1.5× or simple themes (Soft Teal / Soft Sand)</li>
-                    <li><strong>Legendary:</strong> 2× boosters or extra keys (deep orange)</li>
-                    <li><strong>Mythical:</strong> crate-only cosmetics &amp; themes (red) — also listed in App Customiser as locked until won</li>
-                    <li><strong>Boosters:</strong> manage in Tools → XP Boosters · one active at a time · expire by clock time, not usage</li>
+                    <li><strong>Tiers:</strong> higher key cost = better minimum rarity and luckier odds</li>
+                    <li><strong>Standard (1):</strong> classic odds — common through mythical</li>
+                    <li><strong>VIP (3):</strong> improved odds of higher tiers</li>
+                    <li><strong>Deluxe (7):</strong> Uncommon or above only</li>
+                    <li><strong>Elite (10):</strong> Rare or above only</li>
+                    <li><strong>Mythic Vault (15):</strong> Guaranteed Legendary or Mythical</li>
+                    <li><strong>Loot:</strong> XP, keys, timed XP boosters, crate-only themes &amp; cosmetics</li>
+                    <li><strong>Boosters:</strong> manage in Tools → XP Boosters · one active at a time · expire by clock time</li>
                 </ul>
-            </div>
-            <div class="crate-reel-wrap hidden">
-                <div class="crate-reel-window">
-                    <div class="crate-reel-pointer"></div>
-                    <div class="crate-reel" id="crate-reel"></div>
-                </div>
-            </div>
-            <div class="crates-actions">
-                <button type="button" class="btn-save-final" id="crate-open-btn" onclick="openOneCrate()">Open crate (1 key)</button>
             </div>
             <div id="crate-result-modal" class="crate-result-modal hidden"></div>
             <h4 class="crates-hist-title">Recent drops</h4>
             <ul id="crate-history" class="crate-history"></ul>
+        </div>
+    </div>
+
+    <!-- Full-screen crate spin overlay (on top of crates page) -->
+    <div id="crate-spin-overlay" class="crate-spin-overlay hidden" aria-hidden="true">
+        <div class="crate-spin-backdrop"></div>
+        <div class="crate-spin-panel">
+            <div class="crate-spin-title" id="crate-spin-title">Opening crate…</div>
+            <div class="crate-reel-wrap crate-reel-wrap--overlay">
+                <div class="crate-reel-window crate-reel-window--big">
+                    <div class="crate-reel-pointer"></div>
+                    <div class="crate-reel" id="crate-reel"></div>
+                </div>
+            </div>
+            <p class="crate-spin-hint">Hold on — no skipping</p>
         </div>
     </div>
 
