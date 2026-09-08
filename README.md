@@ -46,15 +46,22 @@ https://momento-silk.vercel.app
 **Just open it:**
 ```bash
 git clone https://github.com/l3gitfoxy/momento.git
+cd momento
+npm install electron
 npm start
 ```
+
+**Allow Electron to access** public and private networks if asked.
 
 OR
 
 ```bash
 git clone https://github.com/l3gitfoxy/momento.git
+cd momento
 node music-server/server.js
 ```
+Then open **http://localhost:8787** on your browser.
+
 
 
 **Just install the exe file** (needed if your browser blocks local file access for JS modules):
