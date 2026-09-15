@@ -2699,20 +2699,16 @@ function createTaskRow(task, index) {
         }
 
         if (checkbox.checked && !wasCompleted) {
-            if (!canCompleteTaskInOrder(day, task)) {
-                checkbox.checked = false;
-                showToast("⛔ Finish earlier tasks first, no skipping ahead!", "warn");
-                return;
-            }
             const nowM = new Date().getHours() * 60 + new Date().getMinutes();
             const startM = timeToMinutes(task.start);
-            if (startM - nowM > 60) {
+            if (startM - nowM > 120) {
                 checkbox.checked = false;
-                showToast("⛔ Too early, you can only check off tasks within 1 hour of their start.", "warn");
+                showToast("⛔ Too early, you can only check off tasks within 2 hours of their start.", "warn");
                 return;
             }
             task.completed = true;
             if (!task.isSleep) {
+                try { playRewardSound("complete", true); } catch (e) {}
                 // Always award on first completion; force-clear stale flag if amount missing
                 if (task.xpAwarded && !task.xpAmount) task.xpAwarded = false;
                 if (!task.xpAwarded) {
@@ -2742,13 +2738,14 @@ function createTaskRow(task, index) {
         renderProgressTracker();
         updateXPDisplay();
         enforceLocksAfterXPChange();
-        // Re-assert popup after list re-render (first-check race with DOM rebuild)
+        // Re-assert popup + sound after list re-render (first-check race)
         if (checkbox.checked && !wasCompleted && !task.isSleep && task.xpAwarded) {
             const existing = document.getElementById("xp-popup");
             if (!existing) {
                 try {
                     const info = getLevelInfo(data.xp || 0);
                     showXPPopup(task.xpAmount || calcTaskXP(task), task.task || "Task", info);
+                    try { playRewardSound("complete"); } catch (e) {}
                 } catch (e) {}
             }
         }
@@ -3072,15 +3069,10 @@ function saveBlockDetail() {
             document.getElementById("bd-completed").checked = false;
             return;
         }
-        if (typeof canCompleteTaskInOrder === "function" && !canCompleteTaskInOrder(day, task)) {
-            showToast("⛔ Finish earlier tasks first, no skipping ahead!", "warn");
-            document.getElementById("bd-completed").checked = false;
-            return;
-        }
         const nowM = new Date().getHours() * 60 + new Date().getMinutes();
         const startM = timeToMinutes(task.start);
-        if (startM - nowM > 60) {
-            showToast("⛔ Too early, only within 1 hour of start.", "warn");
+        if (startM - nowM > 120) {
+            showToast("⛔ Too early, only within 2 hours of start.", "warn");
             document.getElementById("bd-completed").checked = false;
             return;
         }
@@ -3235,19 +3227,14 @@ function canOpenBlockInFocus(task) {
     if (task.completed) {
         return { ok: false, reason: "This block is already done." };
     }
-    const day = DAYS[data.currentDay];
-    if (typeof canCompleteTaskInOrder === "function" && !canCompleteTaskInOrder(day, task)) {
-        return { ok: false, reason: "Finish earlier tasks first, no skipping ahead!" };
-    }
     const nowM = new Date().getHours() * 60 + new Date().getMinutes();
     const startM = timeToMinutes(task.start);
     const endM = timeToMinutes(task.end);
-    
     const inWindow = (endM > startM)
-        ? (nowM >= startM - 60 && nowM < endM)
-        : (nowM >= startM - 60 || nowM < endM);
+        ? (nowM >= startM - 120 && nowM < endM)
+        : (nowM >= startM - 120 || nowM < endM);
     if (!inWindow) {
-        return { ok: false, reason: "Too early / outside this block's time, only within 1 hour of start until it ends." };
+        return { ok: false, reason: "Too early / outside this block's time, only within 2 hours of start until it ends." };
     }
     return { ok: true };
 }
@@ -3379,20 +3366,7 @@ function renderWeeklyAnalytics() {
 
 function playChime() {
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
-
-        gain.gain.setValueAtTime(0.85, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.35);
+        playRewardSound("complete", true);
     } catch (e) {
         console.error("Audio error:", e);
     }
@@ -3451,12 +3425,14 @@ function applyPreset() {
     const select = document.getElementById("preset-select");
     if (!select || !select.value) return alert("Select a preset first.");
     const name = select.value;
-    if (!confirm(`Apply "${name}" to today and upcoming days only? Past days stay as-is (no XP waste).`)) return;
+    if (!confirm(`Apply "${name}" to today and upcoming days only? Past days stay as-is (no XP taken from them).`)) return;
 
     const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : 0;
     let lost = 0;
+    let daysTouched = 0;
     DAYS.forEach((day, i) => {
-        if (i < todayIdx) return;
+        if (i < todayIdx) return; // past days untouched, XP kept
+        daysTouched++;
         if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true });
         data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
             ...t, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false
@@ -3469,8 +3445,8 @@ function applyPreset() {
     enforceLocksAfterXPChange();
     select.value = "";
     showSavedMessage(lost > 0
-        ? `✓ "${name}" applied to today onward (−${lost} XP taken back)`
-        : `✓ "${name}" applied to today and upcoming days.`);
+        ? `✓ "${name}" applied to ${daysTouched} day(s) from today onward (−${lost} XP taken back from those days only)`
+        : `✓ "${name}" applied to ${daysTouched} day(s) from today onward.`);
 }
 
 function applySingleDayPreset() {
@@ -3959,9 +3935,10 @@ function awardXPForTask(task) {
     const infoBefore = getLevelInfo(Math.max(0, (data.xp || 0) - xpGain));
     const infoAfter = getLevelInfo(data.xp || 0);
     saveData();
+    try { getMomentoAudioCtx(); } catch (e) {}
+    try { playRewardSound("complete"); } catch (e) {}
     showXPPopup(xpGain, task.task || "Task", infoAfter);
     updateXPDisplay();
-    playRewardSound("complete");
     triggerCompletionFx(infoAfter);
     if (infoAfter.levelIndex > infoBefore.levelIndex) {
         checkAndUnlockRewards(infoAfter.levelIndex);
@@ -4308,9 +4285,34 @@ function clearWeekSchedules() {
     return total;
 }
 
+let _momentoAudioCtx = null;
+function playBeepFallback() {
+    try {
+        // Tiny WAV (short sine) as data URI — works even when WebAudio is quirky
+        const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZURE=");
+        audio.volume = 0.35;
+        const p = audio.play();
+        if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+}
+
+function getMomentoAudioCtx() {
+    try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        if (!_momentoAudioCtx || _momentoAudioCtx.state === "closed") {
+            _momentoAudioCtx = new AC();
+        }
+        return _momentoAudioCtx;
+    } catch (e) {
+        return null;
+    }
+}
+
 function playRewardSound(kind, forcePreview) {
     if (!forcePreview && data.sfxEnabled === false && kind !== "down") return;
-    if (!forcePreview && !data.notificationsEnabled && kind !== "down") return;
+    // Complete/levelup always allowed when sfx on (ignore transition-notif toggle)
+    if (!forcePreview && kind !== "down" && kind !== "complete" && kind !== "levelup" && !data.notificationsEnabled) return;
     if (kind === "levelup" && data.levelUpSoundEnabled === false && !forcePreview) return;
     let tone = kind;
     if (kind === "complete") {
@@ -4320,20 +4322,23 @@ function playRewardSound(kind, forcePreview) {
             if (ch && isChimeUnlocked(ch)) tone = pref;
         }
     }
-    try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    const schedule = (ctx) => {
+        if (!ctx) return;
         const now = ctx.currentTime;
-        const playTone = (freq, start, dur, type, vol) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = type || "sine";
-            osc.frequency.setValueAtTime(freq, now + start);
-            gain.gain.setValueAtTime(vol || 0.2, now + start);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + start + dur);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(now + start);
-            osc.stop(now + start + dur);
+        const playTone = (freq, startAt, dur, type, vol) => {
+            try {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type || "sine";
+                osc.frequency.setValueAtTime(freq, now + startAt);
+                gain.gain.setValueAtTime(Math.max(0.0001, vol || 0.2), now + startAt);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + startAt + dur);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now + startAt);
+                osc.stop(now + startAt + dur);
+            } catch (e) {}
         };
         if (tone === "levelup" || tone === "fanfare") {
             playTone(523.25, 0, 0.15, "sine", 0.25);
@@ -4374,10 +4379,30 @@ function playRewardSound(kind, forcePreview) {
             playTone(120, 0.2, 0.15, "sawtooth", 0.15);
             playTone(200, 0.3, 0.2, "triangle", 0.1);
         } else {
-            playChime();
+            // default complete chime via shared ctx (not a new suspended context)
+            playTone(587.33, 0, 0.12, "sine", 0.22);
+            playTone(880, 0.12, 0.22, "sine", 0.18);
         }
-    } catch (e) {  }
+    };
+
+    try {
+        const ctx = getMomentoAudioCtx();
+        if (!ctx) {
+            playBeepFallback();
+            return;
+        }
+        if (ctx.state === "suspended") {
+            // First gesture: resume then play; also fire fallback so first check is never silent
+            playBeepFallback();
+            ctx.resume().then(() => schedule(ctx)).catch(() => { try { schedule(ctx); } catch (e2) {} });
+        } else {
+            schedule(ctx);
+        }
+    } catch (e) {
+        try { playBeepFallback(); } catch (e2) {}
+    }
 }
+
 
 function updateXPDisplay() {
     const info = getLevelInfo(data.xp || 0);
@@ -4822,12 +4847,14 @@ function saveCurrentAsPreset() {
 
 function applyNamedPreset(name) {
     if (!data.presets[name]) return;
-    if (!confirm(`Apply "${name}" to today and upcoming days only? Past days stay as-is.`)) return;
+    if (!confirm(`Apply "${name}" to today and upcoming days only? Past days stay as-is (XP kept).`)) return;
     const infoBefore = getLevelInfo(data.xp || 0);
     const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : 0;
     let lost = 0;
+    let daysTouched = 0;
     DAYS.forEach((day, i) => {
         if (i < todayIdx) return;
+        daysTouched++;
         if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true });
         data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
             ...t, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false
@@ -4843,8 +4870,8 @@ function applyNamedPreset(name) {
     }
     enforceLocksAfterXPChange();
     showSavedMessage(lost > 0
-        ? `✓ "${name}" applied to today onward (−${lost} XP taken back)`
-        : `✓ "${name}" applied to today onward`);
+        ? `✓ "${name}" applied to ${daysTouched} day(s) from today onward (−${lost} XP taken back from those days only)`
+        : `✓ "${name}" applied to ${daysTouched} day(s) from today onward`);
 }
 
 function deletePreset(name) {
@@ -6755,16 +6782,14 @@ function completeFocusTask() {
         showToast("⛔ You can only complete tasks on today's day!", "warn");
         return;
     }
-    if (typeof canCompleteTaskInOrder === "function" && !canCompleteTaskInOrder(dayName, task)) {
-        showToast("⛔ Finish earlier tasks first, no skipping ahead!", "warn");
-        return;
-    }
+    
     const nowM = new Date().getHours() * 60 + new Date().getMinutes();
     const startM = timeToMinutes(task.start);
-    if (startM - nowM > 60) {
-        showToast("⛔ Too early, only within 1 hour of start.", "warn");
+    if (startM - nowM > 120) {
+        showToast("⛔ Too early, only within 2 hours of start.", "warn");
         return;
     }
+
     task.completed = true;
     task.xpAwarded = false;
     task.xpAmount = 0;
@@ -9297,7 +9322,7 @@ const TUTORIAL_STEPS = [
     },
     {
         title: "Play the day",
-        body: "Check off blocks when you finish them. You only complete today's day, in order, and within about an hour of a block's start — that keeps the day honest and game-like.",
+        body: "Check off blocks when you finish them. You only complete today's day, in order, and within about 2 hours of a block's start, that keeps the day honest and game-like.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
   <defs>
     <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
@@ -9773,6 +9798,13 @@ window.renderCrateSinks = renderCrateSinks;
 })();
 
 // Boot onboarding after UI settles
+(function warmAudioOnGesture() {
+    const warm = () => { try { getMomentoAudioCtx(); } catch (e) {} };
+    ["pointerdown", "keydown", "touchstart"].forEach((ev) => {
+        document.addEventListener(ev, warm, { once: true, capture: true });
+    });
+})();
+
 setTimeout(() => {
     try { runDeviceOnboarding(); } catch (e) { console.warn("onboarding", e); }
 }, 900);
