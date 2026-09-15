@@ -134,7 +134,7 @@
     </div>
 
     
-
+    <!-- crates entry injected via JS if needed -->
     <div id="preset-sidebar" class="preset-sidebar" data-widget="tools-sidebar">
         <button type="button" id="sidebar-toggle-btn" class="sidebar-toggle-btn" data-widget="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Presets">
             <span id="sidebar-arrow">&#9664;</span> Tools
@@ -460,12 +460,12 @@
                 <div class="crates-stat"><span>Opened</span><strong id="crate-opened-count">0</strong></div>
             </div>
             <div class="crates-tier-grid" id="crates-tier-grid">
-
+                <!-- filled by JS -->
             </div>
             <div class="crates-info-card">
                 <h4>How crates work</h4>
                 <ul>
-                    <li><strong>Keys:</strong> 15% chance when you complete a daily schedule block · 20% when you complete a to-do</li>
+                    <li><strong>Keys:</strong> 5% chance when you complete a daily schedule block · 10% when you complete a to-do</li>
                     <li><strong>Tiers:</strong> higher key cost = better minimum rarity and luckier odds</li>
                     <li><strong>Standard (1):</strong> classic odds — common through mythical</li>
                     <li><strong>VIP (3):</strong> improved odds of higher tiers</li>
@@ -482,7 +482,7 @@
         </div>
     </div>
 
-
+    <!-- Full-screen crate spin overlay (on top of crates page) -->
     <div id="crate-spin-overlay" class="crate-spin-overlay hidden" aria-hidden="true">
         <div class="crate-spin-backdrop"></div>
         <div class="crate-spin-panel">
@@ -624,6 +624,14 @@
                 <div class="sidebar-group crates-customiser-hint">
                     <button type="button" class="preset-btn" style="width:100%" onclick="closeAppCustomiser();openCratesPage()">📦 Open Crates</button>
                     <button type="button" class="preset-btn" style="width:100%;margin-top:6px" onclick="closeAppCustomiser();openBoostersPage()">⚡ XP Boosters</button>
+
+                <div class="sidebar-group" id="crate-sinks-section" style="margin-top:12px">
+                    <h4 class="sidebar-label">🔑 Spend Keys</h4>
+                    <p class="theme-hint" style="margin:0 0 8px">Sinks keep keys useful. Costs shown on each button.</p>
+                    <div id="crate-sinks-list" class="crate-sinks-list"></div>
+                    <p class="theme-hint" id="crate-sinks-keys-label" style="margin-top:8px"></p>
+                </div>
+
                 </div>
                 <hr class="sidebar-divider">
                 <div class="sidebar-group">
@@ -743,6 +751,56 @@
 
     <script src="./script.js"></script>
     <script src="./ai-chatbot.js"></script>
+
+    <!-- First-run tutorial -->
+    <div id="tutorial-overlay" class="onboard-overlay hidden" aria-hidden="true">
+        <div class="onboard-panel onboard-panel--tutorial">
+            <div class="onboard-kicker">Welcome to Momento</div>
+            <div class="tutorial-visual" id="tutorial-visual" aria-hidden="true"></div>
+            <h2 id="tutorial-title">Plan the day. Play the day.</h2>
+            <p id="tutorial-body" class="onboard-body"></p>
+            <div class="onboard-progress" id="tutorial-progress"></div>
+            <div class="onboard-actions">
+                <button type="button" class="btn-cancel" id="tutorial-skip-btn">Skip</button>
+                <div class="onboard-nav">
+                    <button type="button" class="btn-secondary btn-sm" id="tutorial-prev-btn">Previous</button>
+                    <button type="button" class="btn-save-final" id="tutorial-next-btn">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- One-time changelog -->
+    <div id="changelog-overlay" class="onboard-overlay hidden" aria-hidden="true">
+        <div class="onboard-panel">
+            <div class="onboard-kicker">What&rsquo;s new</div>
+            <h2 id="changelog-title">Momento 6.2.0</h2>
+            <div id="changelog-body" class="onboard-body changelog-body"></div>
+            <div class="onboard-actions" style="justify-content:flex-end">
+                <button type="button" class="btn-save-final" id="changelog-ok-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="sink-input-modal" class="modal-overlay hidden">
+        <div class="modal-box" style="max-width:400px">
+            <div class="modal-header">
+                <h3 id="sink-input-title">Spend keys</h3>
+                <button type="button" class="close-btn" onclick="closeSinkInput(false)">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <p class="theme-hint" id="sink-input-hint"></p>
+                <input type="text" id="sink-input-field" class="cal-input" style="width:100%;margin-top:8px" />
+                <div id="sink-input-extra" style="margin-top:10px"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeSinkInput(false)">Cancel</button>
+                <button type="button" class="btn-save-final" onclick="closeSinkInput(true)">Confirm</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

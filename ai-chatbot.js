@@ -10,6 +10,124 @@ function seededRand() {
 function reseed(s) { _seed = s || Math.floor(Math.random() * 1e9); }
 function pick(arr) { return arr[Math.floor(seededRand() * arr.length)]; }
 
+
+let NLP_CORPUS = null;
+let _nlpLoading = null;
+
+function loadNlpCorpus() {
+    if (NLP_CORPUS) return Promise.resolve(NLP_CORPUS);
+    if (_nlpLoading) return _nlpLoading;
+    _nlpLoading = fetch("./chatbot-nlp.json", { cache: "force-cache" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+            NLP_CORPUS = j;
+            return j;
+        })
+        .catch(() => {
+            NLP_CORPUS = null;
+            return null;
+        });
+    return _nlpLoading;
+}
+try { loadNlpCorpus(); } catch (e) {}
+
+function fillTemplate(tpl, banks) {
+    if (!tpl || !banks) return tpl;
+    return String(tpl).replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => {
+        const bankKey = {
+            greet_opener: "greet_openers",
+            greet_body: "greet_bodies",
+            thanks_reply: "thanks_replies",
+            identity_reply: "identity_replies",
+            motivation: "motivation",
+            weather_pivot: "weather_pivot",
+            joke: "jokes",
+            momento_hook: "momento_hooks",
+            activity: "activities",
+            activity_line: "activities",
+            feeling: "positive_feelings"
+        }[key] || key;
+        let pool = banks[bankKey] || banks[key];
+        if (key === "feeling" && seededRand() < 0.18) {
+            pool = banks.low_feelings || pool;
+        }
+        if (Array.isArray(pool) && pool.length) {
+            let s = pick(pool);
+            if (key === "activity" || key === "activity_line") {
+                s = (key === "activity_line") ? ("Mostly " + s + ".") : s;
+            }
+            return s;
+        }
+        return "";
+    }).replace(/\s+/g, " ").trim();
+}
+
+function matchNlpTopic(lower) {
+    if (!NLP_CORPUS || !NLP_CORPUS.topics) return null;
+    let best = null;
+    let bestScore = 0;
+    for (const [id, topic] of Object.entries(NLP_CORPUS.topics)) {
+        const triggers = topic.triggers || [];
+        let score = 0;
+        for (const tr of triggers) {
+            if (!tr) continue;
+            if (lower === tr) score += 12;
+            else if (lower.includes(tr)) score += Math.min(8, 2 + tr.length / 4);
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            best = { id, topic, score };
+        }
+    }
+    if (best && best.score >= 4) return best;
+    return null;
+}
+
+function generateConversationalReply(input, lower) {
+    if (!NLP_CORPUS) return null;
+    const banks = NLP_CORPUS.banks || {};
+    const hit = matchNlpTopic(lower);
+    if (hit && hit.topic.templates && hit.topic.templates.length) {
+        const tpl = pick(hit.topic.templates);
+        let out = fillTemplate(tpl, banks);
+        if (hit.id === "how_are_you" && NLP_CORPUS.prebuilt && NLP_CORPUS.prebuilt.how_are_you_lines && seededRand() < 0.45) {
+            out = pick(NLP_CORPUS.prebuilt.how_are_you_lines);
+        }
+        if (hit.id === "greeting" && NLP_CORPUS.prebuilt && NLP_CORPUS.prebuilt.greeting_lines && seededRand() < 0.4) {
+            out = pick(NLP_CORPUS.prebuilt.greeting_lines);
+        }
+        return out;
+    }
+
+    // soft keyword chat without hard intent
+    if (/\b(how are you|how's it going|hows it going|hru)\b/.test(lower)) {
+        const lines = (NLP_CORPUS.prebuilt && NLP_CORPUS.prebuilt.how_are_you_lines) || banks.positive_feelings || [];
+        if (lines.length) return pick(lines);
+    }
+    if (/^(hi|hello|hey|yo|sup)\b/.test(lower)) {
+        const lines = (NLP_CORPUS.prebuilt && NLP_CORPUS.prebuilt.greeting_lines) || [];
+        if (lines.length) return pick(lines);
+    }
+
+    // generic small-talk composition
+    if (/\b(i feel|i'm|im |feeling|today was|rough day|good day)\b/.test(lower)) {
+        const hook = banks.momento_hooks && banks.momento_hooks.length ? pick(banks.momento_hooks) : "";
+        if (/\b(bad|rough|hard|tired|sad|awful|terrible)\b/.test(lower)) {
+            return pick([
+                "That sounds heavy. Shrink the plan to one kind block and let the rest wait. " + hook,
+                "Rough days still count if you finish one small thing. " + hook
+            ]);
+        }
+        return pick([
+            "Nice , lock that energy into a block before it drifts. " + hook,
+            "Love that. Want help shaping the rest of the day in Momento? "
+        ]);
+    }
+
+    return null;
+}
+
+
 function parseTimeToMinutes(t) {
     if (!t || typeof t !== "string") return 0;
     t = t.trim();
@@ -329,13 +447,72 @@ const AI_DATABASE = {
 
         {
             id: "greeting",
-            keywords: ["hello","hi","hey","sup","yo","greetings","howdy","hiya"],
-            handler: () => pick([
-                "Hey! Tell me what kind of week you want and I'll build it — study, work, fitness, or chill.",
-                "Hi! I can generate a full week, add/delete tasks, change themes, or apply presets. What do you need?",
-                "Hey there! Ask me to generate a week, add a task, or change your theme.",
-                "Yo! Ready to build your schedule. What's the vibe this week?"
-            ])
+            keywords: ["hello","hi","hey","sup","yo","greetings","howdy","hiya","good morning","good afternoon","good evening","what's up","whats up"],
+            handler: () => {
+                const gen = generateConversationalReply("hello", "hello");
+                if (gen) return gen;
+                return pick([
+                    "Hey! Tell me what kind of week you want and I'll build it , study, work, fitness, or chill.",
+                    "Hi! I can generate a full week, add/delete tasks, change themes, or apply presets. What do you need?",
+                    "Hey there! Ask me to generate a week, add a task, or change your theme.",
+                    "Yo! Ready to build your schedule. What's the vibe this week?"
+                ]);
+            }
+        },
+        {
+            id: "how_are_you",
+            keywords: ["how are you","how's it going","hows it going","how are things","you good","hru","how r u"],
+            patterns: [/how are you/i, /how'?s it going/i, /how are things/i, /hru/i],
+            handler: () => {
+                const gen = generateConversationalReply("how are you", "how are you");
+                if (gen) return gen;
+                return "I'm doing great , helping people plan days and level up in Momento. What are you up to?";
+            }
+        },
+        {
+            id: "what_up",
+            keywords: ["what are you doing","what are you up to","what do you do","busy?"],
+            patterns: [/what are you (doing|up to)/i, /what do you do/i],
+            handler: () => {
+                const gen = generateConversationalReply("what are you up to", "what are you up to");
+                return gen || "Mostly helping with Momento schedules, XP, crates, and themes. Want a week built?";
+            }
+        },
+        {
+            id: "thanks",
+            keywords: ["thanks","thank you","thx","ty","appreciate"],
+            patterns: [/(thanks|thank you|thx|ty)/i],
+            handler: () => {
+                const gen = generateConversationalReply("thanks", "thanks");
+                return gen || "Anytime , that's what I'm here for.";
+            }
+        },
+        {
+            id: "identity",
+            keywords: ["who are you","what are you","are you ai","are you a bot","your name"],
+            patterns: [/who are you/i, /what are you/i, /are you (an? )?ai/i, /are you a bot/i],
+            handler: () => {
+                const gen = generateConversationalReply("who are you", "who are you");
+                return gen || "I'm Momento's helper , schedules, ranks, crates, themes, to-dos, calendar. I can small-talk too.";
+            }
+        },
+        {
+            id: "motivation_chat",
+            keywords: ["motivate me","motivation","i'm stuck","im stuck","procrastinating","encourage me","burnout"],
+            patterns: [/motivate/i, /i'?m stuck/i, /procrastinat/i, /burnout/i],
+            handler: () => {
+                const gen = generateConversationalReply("motivate me", "motivate me");
+                return gen || "Show up for the next block. That's enough. Want me to shape a lighter day in Momento?";
+            }
+        },
+        {
+            id: "joke",
+            keywords: ["joke","make me laugh","funny","tell me a joke"],
+            patterns: [/joke/i, /make me laugh/i],
+            handler: () => {
+                const gen = generateConversationalReply("joke", "joke");
+                return gen || "I tried to procrastinate, but my calendar blocked it. Want a real plan next?";
+            }
         },
 
         {
@@ -379,18 +556,18 @@ const AI_DATABASE = {
                 if (lowerMsg.includes("tool") || lowerMsg.includes("toolbar") || lowerMsg.includes("theme") || lowerMsg.includes("preset") || lowerMsg.includes("colour") || lowerMsg.includes("color") || lowerMsg.includes("analyse") || lowerMsg.includes("sidebar") || lowerMsg.includes("menu")) {
                     return `**◀ Tools sidebar** (right edge of screen)\n` +
                     `• Hover or click the Tools tab to open\n` +
-                    `• 🎨 Accent Theme — pick your colour\n` +
-                    `• 🔔 Sound toggle — enable/disable chimes\n` +
-                    `• 📊 Weekly Category Breakdown — hours per category\n` +
-                    `• Preset Manager — save, apply, or delete presets\n` +
-                    `• ✨ Create Preset From Scratch — build a preset day by day\n` +
-                    `• 📊 Analyse My Week — check your week against a goal`;
+                    `• 🎨 Accent Theme, pick your colour\n` +
+                    `• 🔔 Sound toggle, enable/disable chimes\n` +
+                    `• 📊 Weekly Category Breakdown, hours per category\n` +
+                    `• Preset Manager, save, apply, or delete presets\n` +
+                    `• ✨ Create Preset From Scratch, build a preset day by day\n` +
+                    `• 📊 Analyse My Week, check your week against a goal`;
                 }
 
                 if (lowerMsg.includes("task") || lowerMsg.includes("block") || lowerMsg.includes("reorder") || lowerMsg.includes("drag") || lowerMsg.includes("delete") || lowerMsg.includes("add")) {
                     return `**📋 Task list & Blocks** (main area)\n` +
                     `• Each row = one time block: drag ⣿, checkbox, start, end, task name, 🗑️ delete\n` +
-                    `• Tick the checkbox to mark done — it strikes through\n` +
+                    `• Tick the checkbox to mark done, it strikes through\n` +
                     `• Drag ⣿ to reorder blocks\n` +
                     `• Cyan glow = currently active block\n` +
                     `• Click **+ Add Time Block** to add a blank row`;
@@ -398,7 +575,7 @@ const AI_DATABASE = {
 
                 if (lowerMsg.includes("day") || lowerMsg.includes("copy") || lowerMsg.includes("prev") || lowerMsg.includes("next") || lowerMsg.includes("navigate")) {
                     return `**📅 Days & Navigation**\n` +
-                    `• **Day Tabs (Mon–Sun):** Click any day to jump to it — active day glows\n` +
+                    `• **Day Tabs (Mon,Sun):** Click any day to jump to it, active day glows\n` +
                     `• **◀ Prev / Next ▶:** Navigate days one at a time\n` +
                     `• **Copy To...:** Duplicates the current day's schedule to another day`;
                 }
@@ -430,22 +607,22 @@ const AI_DATABASE = {
                 return `📍 Here's a full tour of Momento:\n\n` +
                     `**🔝 Top Bar** (very top)\n` +
                     `• App title on the left, today's date next to it\n` +
-                    `• Live clock on the right — updates every second\n\n` +
+                    `• Live clock on the right, updates every second\n\n` +
                     `**⚡ Now / Next chips** (below the top bar)\n` +
                     `• Shows your active block and what's coming up next\n` +
                     `• Plays a chime when a new block starts (if sound is on)\n\n` +
-                    `**📅 Day Tabs** (Mon–Sun strip)\n` +
-                    `• Click any day to jump to it — active day glows in your accent colour\n\n` +
+                    `**📅 Day Tabs** (Mon,Sun strip)\n` +
+                    `• Click any day to jump to it, active day glows in your accent colour\n\n` +
                     `**◀ Prev / Next ▶ + Copy To...**\n` +
                     `• Navigate days one at a time\n` +
                     `• Copy To... duplicates the current day to another day\n\n` +
                     `**📋 Task list** (main area)\n` +
                     `• Each row = one time block: drag ⣿, checkbox, start, end, task name, 🗑️ delete\n` +
-                    `• Tick the checkbox to mark done — it strikes through\n` +
+                    `• Tick the checkbox to mark done, it strikes through\n` +
                     `• Drag ⣿ to reorder blocks\n` +
                     `• Cyan glow = currently active block\n\n` +
                     `**+ Add Time Block**\n` +
-                    `• Adds a blank block — fill in times and name\n\n` +
+                    `• Adds a blank block, fill in times and name\n\n` +
                     `**💾 Save and Sort**\n` +
                     `• Saves and auto-sorts by start time\n` +
                     `• Shortcut: Ctrl/Cmd + S\n\n` +
@@ -453,12 +630,12 @@ const AI_DATABASE = {
                     `• Free-text area for daily notes and focus goals\n\n` +
                     `**◀ Tools sidebar** (right edge of screen)\n` +
                     `• Hover or click the Tools tab to open\n` +
-                    `• 🎨 App Customiser — themes, chimes, cosmetics, sound toggles\n` +
+                    `• 🎨 App Customiser, themes, chimes, cosmetics, sound toggles\n` +
                     `• 🔔 Transition alerts toggle\n` +
-                    `• 📊 Weekly Category Breakdown — hours per category\n` +
-                    `• Preset Manager — save, apply, or delete presets\n` +
-                    `• ✨ Create Preset From Scratch — build a preset day by day\n` +
-                    `• 📊 Analyse My Week — check your week against a goal\n\n` +
+                    `• 📊 Weekly Category Breakdown, hours per category\n` +
+                    `• Preset Manager, save, apply, or delete presets\n` +
+                    `• ✨ Create Preset From Scratch, build a preset day by day\n` +
+                    `• 📊 Analyse My Week, check your week against a goal\n\n` +
                     `**📅 Calendar button** (top bar)\n` +
                     `• Full-year calendar for meetings & deadlines\n` +
                     `• ! badge / shiver when an event is soon\n\n` +
@@ -487,7 +664,7 @@ const AI_DATABASE = {
                 try { saveData(); } catch(e) {}
                 try { renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch(e) {}
                 const blockCount = week[DAYS[0]] ? week[DAYS[0]].length : 0;
-                return `✅ Built a full 7-day **${intent}** schedule — ${blockCount} blocks/day. Previous week's XP has been reset.`;
+                return `✅ Built a full 7-day **${intent}** schedule, ${blockCount} blocks/day. Previous week's XP has been reset.`;
             }
         },
 
@@ -801,7 +978,7 @@ const AI_DATABASE = {
                 const tasks = data.schedules[dayName] || [];
                 if (!tasks.length) return `📭 **${dayName}** is empty. Try: "generate study week"`;
                 return `📅 **${dayName}** (${tasks.length} blocks):\n` +
-                    tasks.map((t, i) => `${i + 1}. ${t.start}–${t.end}: ${t.task || "Untitled"}`).join("\n");
+                    tasks.map((t, i) => `${i + 1}. ${t.start},${t.end}: ${t.task || "Untitled"}`).join("\n");
             }
         },
 
@@ -816,7 +993,7 @@ const AI_DATABASE = {
                 const next = tasks.find(t => parseTimeToMinutes(t.start) > now);
                 const active = tasks.find(t => parseTimeToMinutes(t.start) <= now && parseTimeToMinutes(t.end) > now);
                 let reply = "";
-                if (active) reply += `⚡ **Now:** ${active.task} (${active.start}–${active.end})\n`;
+                if (active) reply += `⚡ **Now:** ${active.task} (${active.start},${active.end})\n`;
                 if (next) {
                     const mins = parseTimeToMinutes(next.start) - now;
                     const dur = typeof formatDuration === "function" ? formatDuration(mins) : mins + "m";
@@ -913,14 +1090,34 @@ const AI_DATABASE = {
                 "🧹 **Clear / Wipe:** \"clear day\" / \"wipe Monday\"\n" +
                 "💾 **Presets:** \"save preset X\" / \"apply X\" / \"list presets\"\n" +
                 "🎨 **Theme:** \"change theme to cyan\" / \"open customiser\" (themes unlock as you rank)\n" +
-                "📋 **To-Dos:** \"open todo list\" — persistent tasks with optional due dates\n" +
-                "📅 **Calendar:** \"open calendar\" — full-year events, meetings, deadlines\n" +
+                "📋 **To-Dos:** \"open todo list\", persistent tasks with optional due dates\n" +
+                "📅 **Calendar:** \"open calendar\", full-year events, meetings, deadlines\n" +
                 "📅 **Timeline:** \"open timeline\" 🔒 Beginner 3+\n" +
                 "📊 **Analyser:** \"open analyser\" 🔒 Amateur 3+\n" +
                 "⭐ **Progress:** \"open progress\" / \"show rewards\"\n" +
-                "✨ **Customiser:** \"open customiser\" — themes, chimes, cosmetics, sound toggles\n" +
+                "✨ **Customiser:** \"open customiser\", themes, chimes, cosmetics, sound toggles\n" +
                 "📅 **Schedule:** \"show my schedule\" / \"what's next\"\n" +
+                "📦 **Crates / Boosters:** \"open crates\" / \"open boosters\"\n" +
+                "💬 **Chat:** how are you, jokes, motivation , I steer back to Momento\n" +
                 "🔔 **Sound:** \"mute\" / \"unmute\""
+        },
+        {
+            id: "open_crates",
+            keywords: ["open crates","crates","crate page"],
+            patterns: [/(?:open|show)\s+crates?/i],
+            handler: () => {
+                try { if (typeof openCratesPage === "function") openCratesPage(); } catch(e){}
+                return "📦 Opened **Crates**. Keys drop from finishing blocks and to-dos.";
+            }
+        },
+        {
+            id: "open_boosters",
+            keywords: ["open boosters","xp boosters","boosters"],
+            patterns: [/(?:open|show)\s+boosters?/i, /xp boosters?/i],
+            handler: () => {
+                try { if (typeof openBoostersPage === "function") openBoostersPage(); } catch(e){}
+                return "⚡ Opened **XP Boosters**.";
+            }
         },
         {
             id: "open_calendar",
@@ -928,7 +1125,7 @@ const AI_DATABASE = {
             patterns: [/(?:open|show|view)?\s*calendar/i, /full[- ]?year calendar/i],
             handler: () => {
                 try { if (typeof openCalendarPage === "function") openCalendarPage(); } catch(e){}
-                return "📅 Opened the **full calendar**. Click a day to add meetings or events — they're saved with your account.";
+                return "📅 Opened the **full calendar**. Click a day to add meetings or events, they're saved with your account.";
             }
         },
         {
@@ -937,7 +1134,7 @@ const AI_DATABASE = {
             patterns: [/(?:open|show)?\s*(?:app\s*)?customi[sz]er/i, /cosmetics/i],
             handler: () => {
                 try { if (typeof openAppCustomiser === "function") openAppCustomiser(); } catch(e){}
-                return "🎨 Opened **App Customiser** — themes, completion chimes, sound toggles, and cosmetics.";
+                return "🎨 Opened **App Customiser**, themes, completion chimes, sound toggles, and cosmetics.";
             }
         }
 
@@ -973,8 +1170,15 @@ function processNLPIntent(rawInput) {
     if (!rawInput || !rawInput.trim()) return;
     const input = rawInput.trim();
     const lower = input.toLowerCase();
-    const result = resolveLocalIntent(input, lower);
-    appendMessage(result, "bot-msg");
+    const run = () => {
+        const result = resolveLocalIntent(input, lower);
+        appendMessage(result, "bot-msg");
+    };
+    if (!NLP_CORPUS) {
+        loadNlpCorpus().then(run).catch(run);
+    } else {
+        run();
+    }
 }
 
 function resolveLocalIntent(input, lower) {
@@ -1024,7 +1228,7 @@ function resolveLocalIntent(input, lower) {
             data.appliedRoutine = `AI: ${input.substring(0, 40)}`;
             try { saveData(); renderCurrentDay(); populatePresetMenus(); updateXPDisplay(); } catch (e) {}
             const n = (week[DAYS[0]] || []).length;
-            return `✅ Generated a week from **"${input}"** — ${n} blocks/day, mixed categories. Previous XP reset.`;
+            return `✅ Generated a week from **"${input}"**, ${n} blocks/day, mixed categories. Previous XP reset.`;
         } catch (e) {}
     }
 
@@ -1034,13 +1238,20 @@ function resolveLocalIntent(input, lower) {
         return `⭐ You're **${info.rank}** with **${data.xp || 0} XP**. Opened progress.`;
     }
 
+    const chatty = generateConversationalReply(input, lower);
+    if (chatty) return chatty;
+
+    if (NLP_CORPUS && NLP_CORPUS.fallback_hooks && NLP_CORPUS.fallback_hooks.length) {
+        return pick(NLP_CORPUS.fallback_hooks) + "\n\nTry **help**, or say \"generate study week\" / \"open crates\" / \"how are you?\".";
+    }
+
     return (
         `🤔 Not sure I caught that. Try:\n` +
         `• "generate study week" / "build a chill week"\n` +
         `• "add Gym from 07:00 to 08:00"\n` +
         `• "delete task 2" / "clear day"\n` +
         `• "open todo" / "open progress" / "open timeline" / "open calendar"\n` +
-        `• "open customiser" / "change theme to cyan"\n` +
+        `• "open crates" / "open customiser" / "change theme to cyan"\n` +
         `• "help" for the full list`
     );
 }

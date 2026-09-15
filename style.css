@@ -2,6 +2,7 @@
 
 :root {
     --accent-color: #6c5ce7;
+    --accent-on: #ffffff;
     --accent-hover: #5b4cc4;
     --accent-light: rgba(108, 92, 231, 0.25);
     --bg-color: #120f1d;
@@ -635,7 +636,7 @@ button:hover {
     color: var(--text-color, #ffffff);
 }
 
-.btn-primary { background: var(--accent-color); color: white; }
+.btn-primary { background: var(--accent-color); color: var(--accent-on, #fff); }
 .btn-warning { background: #e17055; color: white; }
 .btn-info    { background: #0984e3; color: white; }
 .btn-danger  { background: #d63031; color: white; }
@@ -691,7 +692,7 @@ button:hover {
     font-weight: bold;
 }
 
-.btn-save { background: var(--accent-color); color: white; }
+.btn-save { background: var(--accent-color); color: var(--accent-on, #fff); }
 .btn-create-scratch {
     width: 100%;
     background: #20bf6b;
@@ -1138,7 +1139,9 @@ button:hover {
     align-items: center;
     justify-content: center;
     z-index: 30000;
-    animation: xpFadeIn 0.25s ease;
+    opacity: 1;
+    pointer-events: auto;
+    animation: xpFadeIn 0.25s ease forwards;
 }
 
 @keyframes xpFadeIn {
@@ -5266,4 +5269,193 @@ body.cos-stardust .task-item.completed::after {
     letter-spacing: 0.2em;
     color: #fca5a5;
     text-shadow: 0 0 10px #ef4444;
+}
+
+/* Pending to-do dot on calendar days */
+.cal-day {
+    position: relative;
+}
+.cal-day .cal-todo-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.85);
+    pointer-events: none;
+}
+.cal-day.has-todo {
+    font-weight: 700;
+}
+.cal-todo-due-chip {
+    border-color: #f59e0b !important;
+    background: rgba(245, 158, 11, 0.12);
+}
+
+
+/* Text on solid accent fills — themes set --accent-on for contrast */
+.btn-primary,
+.btn-save,
+.btn-save-final,
+.preset-btn.primary,
+button.btn-yes {
+    color: var(--accent-on, #ffffff);
+}
+.btn-save-final {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--accent-on, #ffffff);
+}
+/* Customiser crate buttons often use accent as background via theme */
+#app-customiser-panel .preset-btn {
+    color: var(--text-color);
+}
+#app-customiser-panel .preset-btn[style*="width:100%"] {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--accent-on, #ffffff);
+}
+
+/* Onboarding / changelog overlays */
+.onboard-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(4, 2, 12, 0.82);
+    backdrop-filter: blur(8px);
+    padding: 16px;
+}
+.onboard-overlay.hidden { display: none !important; }
+.onboard-panel {
+    width: min(480px, 96vw);
+    background: var(--card-bg, #1a1528);
+    border: 2px solid var(--accent-color);
+    border-radius: 18px;
+    padding: 24px 22px 18px;
+    color: var(--text-color);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+}
+.onboard-kicker {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-color);
+    margin-bottom: 6px;
+}
+.onboard-panel h2 {
+    margin: 0 0 10px;
+    font-size: 1.35rem;
+}
+.onboard-body {
+    margin: 0 0 16px;
+    line-height: 1.5;
+    color: var(--muted-color, #9a96b0);
+    font-size: 0.95rem;
+}
+.changelog-body ul {
+    margin: 0;
+    padding-left: 1.2em;
+}
+.changelog-body li { margin: 6px 0; }
+.onboard-progress {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+.onboard-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border-color, #333);
+}
+.onboard-dot.on {
+    background: var(--accent-color);
+    box-shadow: 0 0 8px var(--accent-color);
+}
+.onboard-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.onboard-nav { display: flex; gap: 8px; }
+
+/* Key sinks */
+.crate-sinks-list { display: flex; flex-direction: column; gap: 8px; }
+.crate-sink-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: rgba(255,255,255,0.03);
+}
+.crate-sink-name { font-weight: 700; font-size: 0.92rem; }
+.crate-sink-desc { font-size: 0.78rem; color: var(--muted-color); margin-top: 2px; }
+
+
+/* Tutorial illustrations */
+.onboard-panel--tutorial {
+    width: min(520px, 96vw);
+}
+.tutorial-visual {
+    margin: 0 0 14px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border-color, #2d2250);
+    background: #0d0a14;
+    min-height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.tutorial-visual .tutorial-svg,
+.tutorial-visual svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-height: 180px;
+}
+
+
+/* Discord OAuth button */
+.discord-signin-btn {
+    margin-top: 10px;
+    background: #5865F2 !important;
+    border: 1px solid #5865F2 !important;
+    color: #fff !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.discord-signin-btn:hover {
+    background: #4752c4 !important;
+    filter: none;
+}
+.discord-signin-btn .discord-icon {
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+.google-signin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.discord-signin-btn .discord-logo {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    display: block;
 }

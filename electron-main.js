@@ -42,17 +42,23 @@ async function createWindow() {
     `).catch(() => {});
   });
 
-  // Allow Google / Supabase OAuth to stay inside the app window.
-  // Opening them externally breaks the redirect back to localhost:8787.
+  
+  
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     try {
       const u = new URL(url);
+      const host = (u.hostname || "").toLowerCase();
       const isOAuth =
-        u.hostname.includes("accounts.google.com") ||
-        u.hostname.includes("google.com") ||
-        u.hostname.includes("supabase.co") ||
-        u.hostname === "127.0.0.1" ||
-        u.hostname === "localhost";
+        host.includes("accounts.google.com") ||
+        host.includes("google.com") ||
+        host.includes("supabase.co") ||
+        host === "discord.com" ||
+        host.endsWith(".discord.com") ||
+        host === "discordapp.com" ||
+        host.endsWith(".discordapp.com") ||
+        host === "cdn.discordapp.com" ||
+        host === "127.0.0.1" ||
+        host === "localhost";
       if (isOAuth) {
         return { action: "allow" };
       }
@@ -61,22 +67,28 @@ async function createWindow() {
     return { action: "deny" };
   });
 
-  // Do NOT intercept navigation to Google / Supabase – the OAuth flow must
-  // complete inside this window so the final redirect lands on localhost.
+  
+  
   mainWindow.webContents.on("will-navigate", (event, url) => {
     try {
       const u = new URL(url);
+      const host = (u.hostname || "").toLowerCase();
       const isOAuthRelated =
-        u.hostname.includes("accounts.google.com") ||
-        u.hostname.includes("google.com") ||
-        u.hostname.includes("supabase.co") ||
-        u.hostname === "127.0.0.1" ||
-        u.hostname === "localhost";
+        host.includes("accounts.google.com") ||
+        host.includes("google.com") ||
+        host.includes("supabase.co") ||
+        host === "discord.com" ||
+        host.endsWith(".discord.com") ||
+        host === "discordapp.com" ||
+        host.endsWith(".discordapp.com") ||
+        host === "cdn.discordapp.com" ||
+        host === "127.0.0.1" ||
+        host === "localhost";
       if (isOAuthRelated) {
         return; // allow navigation inside the app
       }
     } catch (e) {}
-    // Block navigation away from the app for unrelated sites
+    
     if (!url.startsWith(`http://127.0.0.1:${MUSIC_PORT}`) &&
         !url.startsWith(`http://localhost:${MUSIC_PORT}`)) {
       event.preventDefault();
