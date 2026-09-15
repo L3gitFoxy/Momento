@@ -1,71 +1,79 @@
 ![momento](https://socialify.git.ci/l3gitfoxy/momento/image?custom_language=JavaScript&font=Source+Code+Pro&issues=1&language=1&name=1&pattern=Transparent&pulls=1&stargazers=1&theme=Dark)
 
-Weekly time-block planner + daily check-in, runs entirely in the browser. no backend, no accounts, no tracking just localStorage and vanilla JS.
+# Momento
+
+**A weekly time-block planner that feels like a game.**  
+Plan your day in blocks, check them off for XP, climb ranks, and keep a streak — without another bloated productivity SaaS.
 
 ![Vanilla JS](https://img.shields.io/badge/JS-vanilla-yellow)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
-## Why
+**Try it:** [momento-silk.vercel.app](https://momento-silk.vercel.app) · **Desktop:** [latest release](https://github.com/l3gitfoxy/momento/releases/latest)
 
-most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is just one file (app), opens instantly, and keeps everything on your machine. No sign-in, log-in or anything of the kind!
+---
 
-## What is Momento?
+## Why Momento?
 
-Momento turns your week into something you actually want to open. Time blocks feel like game levels, checking them off drops XP, and ranks climb from Starter to Mythic — that little hit of progress is intentional. Streaks, unlockable themes, a focus mode with ambient sound, and a persistent to-do list keep the loop going without feeling like another boring planner. 
+Most planners either:
+- force an account and a cloud UI for a simple day plan, or
+- feel like a spreadsheet you dread opening
 
-Plan the day, play the day, level up. Built for anyone who gets more done when it feels like a game.
+Momento is for people who stick to a schedule **when progress feels tangible**. Time blocks are the plan. Checking them off drops XP. Ranks go from Starter → Mythic. Streaks, crates, themes, and focus mode keep the loop going.
 
-## Is it secure?
+**Plan the day. Play the day. Level up.**
 
-Yes, Momento only uses Google OAuth via Supabase, solely to authenticate your account and load your personal task data. We do not store, sell, or share your Google profile data with third parties.
+### Who it’s for
+- Students / interns with messy weeks
+- Devs who want structure without Notion theater
+- Anyone who likes RPG-style progress more than guilt-based todo lists
 
-## Files
+### What’s included
+- Weekly time-block schedule + daily check-in
+- XP, ranks, streaks
+- To-dos with due dates + calendar
+- Focus mode, themes, chimes, crates/cosmetics
+- Web app, optional local/Electron desktop
 
-```
-index.html   UI/markup
-script.js    data model, presets, rendering, drag/drop, analytics
-style.css    dark theme, sidebar drawer, badges
-ai-chatbot.js integrated ai bot, helps out do things throughout the app
-electron-main.js main electron app logic
-package.json & package-lock.json useful for packing project in single .exe application
-./node_modules helper modules + electron
-./dist contains one file application
-./assets contains icon
-./music-server/server.js controls music servers and hackend
-./music-server/.env  contains required environmental variables
+### Privacy
+- Works locally (local profile / on-device data)
+- Optional Google sign-in via Supabase only to sync *your* schedule data — not sold or shared for ads
 
-```
+---
 
+## Quick start
 
-## Running it
+**Web (fastest)**  
+Open https://momento-silk.vercel.app
 
-**Just vist the website:**
-https://momento-silk.vercel.app
+**Desktop (Windows installer)**  
+Download the setup `.exe` from [Latest release](https://github.com/l3gitfoxy/momento/releases/latest)
 
-**Just open it:**
+**From source**
 ```bash
 git clone https://github.com/l3gitfoxy/momento.git
 cd momento
-npm install electron
+npm install
 npm start
 ```
 
-**Allow Electron to access** public and private networks if asked.
-
-OR
+## Files
 
 ```bash
-git clone https://github.com/l3gitfoxy/momento.git
-cd momento
-node music-server/server.js
+index.html                         UI/markup
+script.js                          data model, presets, rendering, drag/drop, analytics
+style.css                          dark theme, sidebar drawer, badges
+ai-chatbot.js                      integrated ai bot, helps out do things throughout the app
+electron-main.js                   main electron app logic
+package.json & package-lock.json   useful for packing project in single .exe application
+./node_modules                     helper modules + electron
+./dist                             contains one file application
+./assets                           contains icon
+./music-server/server.js           controls music servers and hackend
+./music-server/.env                contains required environmental variables
+
 ```
-Then open **http://localhost:8787** on your browser.
 
-
-
-**Just install the exe file** (needed if your browser blocks local file access for JS modules):
-- Download the exe setup file from the latest release and watch the magic happen!
 
 ## contributing
 
