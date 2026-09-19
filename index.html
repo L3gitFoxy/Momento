@@ -31,7 +31,9 @@
         <button type="button" id="profile-chip" class="profile-chip hidden" onclick="openProfileMenu()" title="Account" data-widget="profile-chip">?</button>
         <button type="button" id="calendar-btn" class="calendar-btn" onclick="openCalendarPage()" title="Full Calendar" data-widget="calendar-btn">📅</button>
         <button type="button" id="xp-pill" class="xp-pill xp-pill-fixed" onclick="openProgressPanel()" title="Progress & Rewards" data-widget="xp-pill">
+            <span class="xp-pill-keys" id="xp-pill-keys" title="Crate keys"><span class="key-ico">🔑</span><span id="xp-pill-keys-count">0</span></span>
             <span class="xp-pill-rank" id="xp-pill-rank">Starter I</span>
+            <span class="xp-pill-legend" id="xp-pill-legend">LEGEND</span>
             <span class="xp-pill-bar xp-pill-bar-divided"><span class="xp-pill-fill" id="xp-pill-fill" style="width:0%"></span></span>
             <span class="xp-pill-pct" id="xp-pill-pct">0 left</span>
         </button>
@@ -178,7 +180,7 @@
             </div>
             <div class="sidebar-group">
                 <button type="button" class="preset-btn btn-create-scratch" onclick="openCratesPage()" style="width:100%">
-                    📦 Crates <span id="crate-keys-badge" class="crate-keys-badge"></span>
+                    📦 Crates
                 </button>
                 <button type="button" class="preset-btn btn-create-scratch" onclick="openBoostersPage()" style="width:100%;margin-top:8px">
                     ⚡ XP Boosters
@@ -256,19 +258,30 @@
 
     
     <div id="preview-modal" class="modal-overlay hidden">
-        <div class="modal-box analyser-box">
+        <div class="modal-box analyser-box preview-week-box">
             <div class="modal-header">
-                <h3>&#128065;&#65039; Preview Generated Week</h3>
+                <h3>&#128065;&#65039; Build Your Week</h3>
                 <button onclick="closePreview()" class="close-btn">&#10005;</button>
             </div>
-            <div class="modal-body">
-                <p class="analyser-subtitle">Edit task names if you want, then Keep or Reject.</p>
-                <div id="preview-day-tabs" class="builder-tabs"></div>
-                <div id="preview-blocks" class="builder-tasks-list" style="max-height:320px"></div>
+            <div class="modal-body preview-week-body">
+                <div class="preview-week-main">
+                    <p class="analyser-subtitle preview-status-hint" id="preview-status-hint">Collecting fixed commitments…</p>
+                    <div id="preview-day-tabs" class="builder-tabs"></div>
+                    <div id="preview-blocks" class="builder-tasks-list" style="max-height:280px"></div>
+                </div>
+                <div class="preview-week-chat">
+                    <div class="preview-chat-label">Week assistant</div>
+                    <div id="preview-chat-messages" class="preview-chat-messages"></div>
+                    <div class="preview-chat-row">
+                        <input type="text" id="preview-chat-input" placeholder="e.g. school mon-sat 6-1430..." />
+                        <button type="button" class="btn-save-final btn-sm" id="preview-chat-send">Send</button>
+                    </div>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button onclick="closePreview()" class="btn-cancel">&#10005; Reject</button>
-                <button onclick="keepPreview()" class="btn-save-final">&#10003; Keep This Week</button>
+            <div class="modal-footer" id="preview-footer">
+                <button type="button" onclick="closePreview()" class="btn-cancel" id="preview-cancel-btn">Cancel</button>
+                <button type="button" onclick="requestPreviewEdits()" class="btn-secondary" id="preview-edit-btn" style="display:none">Request changes</button>
+                <button type="button" onclick="keepPreview()" class="btn-save-final" id="preview-keep-btn" style="display:none">Accept week</button>
             </div>
         </div>
     </div>
@@ -627,8 +640,7 @@
 
                 <div class="sidebar-group" id="crate-sinks-section" style="margin-top:12px">
                     <h4 class="sidebar-label">🔑 Spend Keys</h4>
-                    <p class="theme-hint" style="margin:0 0 8px">Sinks keep keys useful. Costs shown on each button.</p>
-                    <div id="crate-sinks-list" class="crate-sinks-list"></div>
+                                        <div id="crate-sinks-list" class="crate-sinks-list"></div>
                     <p class="theme-hint" id="crate-sinks-keys-label" style="margin-top:8px"></p>
                 </div>
 
@@ -774,7 +786,7 @@
     <div id="changelog-overlay" class="onboard-overlay hidden" aria-hidden="true">
         <div class="onboard-panel">
             <div class="onboard-kicker">What&rsquo;s new</div>
-            <h2 id="changelog-title">Momento 6.2.0</h2>
+            <h2 id="changelog-title">Momento 7.0.0</h2>
             <div id="changelog-body" class="onboard-body changelog-body"></div>
             <div class="onboard-actions" style="justify-content:flex-end">
                 <button type="button" class="btn-save-final" id="changelog-ok-btn">OK</button>
@@ -782,6 +794,26 @@
         </div>
     </div>
 
+
+
+    <!-- Personalisation quiz (synced in app_data / Supabase) -->
+    <div id="personalize-overlay" class="onboard-overlay hidden" aria-hidden="true">
+        <div class="onboard-panel onboard-panel--personalize">
+            <div class="onboard-kicker">Personalise Momento</div>
+            <h2 id="personalize-title">Help us personalise your experience</h2>
+            <p id="personalize-body" class="onboard-body">It only takes a minute. Your answers stay on your account and help build smarter weeks.</p>
+            <div id="personalize-options" class="personalize-options"></div>
+            <div id="personalize-progress" class="onboard-progress"></div>
+            <div class="onboard-actions personalize-actions">
+                <button type="button" class="btn-cancel" id="personalize-skip-q-btn" style="display:none">Skip this question</button>
+                <div class="onboard-nav">
+                    <button type="button" class="btn-secondary btn-sm" id="personalize-back-btn" style="display:none">Back</button>
+                    <button type="button" class="btn-save-final" id="personalize-primary-btn">Sure, I&rsquo;ll do it!</button>
+                    <button type="button" class="btn-secondary" id="personalize-decline-btn">No, thank you</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="sink-input-modal" class="modal-overlay hidden">
         <div class="modal-box" style="max-width:400px">

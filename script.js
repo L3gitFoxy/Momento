@@ -264,19 +264,18 @@ function getDefaultAppData() {
         levelUpSoundEnabled: true,
         confettiEnabled: true,
         activeCosmetics: [],
-    crateKeys: 0,
-    cratesOpened: 0,
-    crateHistory: [],
-    boosterInventory: [],
-    activeBooster: null,
-    crateUnlocks: [],
         crateKeys: 0,
         cratesOpened: 0,
         crateHistory: [],
         boosterInventory: [],
         activeBooster: null,
         crateUnlocks: [],
-        widgetLayout: {}
+        widgetLayout: {},
+        personalization: {
+            status: "pending",
+            version: 1,
+            answers: {}
+        }
     };
 }
 
@@ -2102,6 +2101,26 @@ function applyAppDataObject(parsed) {
     data.hiddenBuiltInPresets = Array.isArray(parsed.hiddenBuiltInPresets)
         ? parsed.hiddenBuiltInPresets
         : [];
+    if (parsed.personalization && typeof parsed.personalization === "object") {
+        data.personalization = {
+            status: parsed.personalization.status || "pending",
+            version: parsed.personalization.version || 1,
+            answers: (parsed.personalization.answers && typeof parsed.personalization.answers === "object")
+                ? parsed.personalization.answers
+                : {}
+        };
+    } else if (!data.personalization) {
+        data.personalization = { status: "pending", version: 1, answers: {} };
+    }
+    try {
+        const ls = localStorage.getItem("MOMENTO_PERSONALIZATION_STATUS");
+        if ((ls === "completed" || ls === "declined") && data.personalization.status === "pending") {
+            data.personalization.status = ls;
+        }
+        if (data.personalization.status === "completed" || data.personalization.status === "declined") {
+            localStorage.setItem("MOMENTO_PERSONALIZATION_STATUS", data.personalization.status);
+        }
+    } catch (e) {}
 }
 
 function resetToDefaultAppData() {
@@ -2208,6 +2227,7 @@ async function saveData() {
 }
 
 function ensureDays() {
+    try { ensurePersonalizationShape(); } catch (e) {}
     DAYS.forEach(day => {
         if (!Array.isArray(data.schedules[day])) data.schedules[day] = [];
         if (typeof data.notes[day] !== "string") data.notes[day] = "";
@@ -2282,6 +2302,18 @@ const THEME_CATALOG = [
       bg: "#0a1614", card: "#0f221e", border: "#1a3a34", text: "#e0f5f2", muted: "#5a8a82", crateOnly: true },
     { id: "theme_crate_softsand", name: "Soft Sand", color: "#d2b48c", hover: "#c4a574", alpha: "rgba(210,180,140,0.28)",
       bg: "#16140e", card: "#1e1c14", border: "#3a3528", text: "#f5f0e6", muted: "#8a8070", crateOnly: true },
+
+    { id: "theme_crate_aurora", name: "Aurora", color: "#34d399", hover: "#10b981", alpha: "rgba(52,211,153,0.32)",
+      bg: "#071410", card: "#0c1f18", border: "#1a3d30", text: "#ecfdf5", muted: "#6ee7b7", crateOnly: true, gradient: true },
+    { id: "theme_crate_cobalt", name: "Cobalt", color: "#3b82f6", hover: "#2563eb", alpha: "rgba(59,130,246,0.32)",
+      bg: "#070c18", card: "#0c1424", border: "#1e3a5f", text: "#dbeafe", muted: "#60a5fa", crateOnly: true },
+    { id: "theme_crate_orchid", name: "Orchid", color: "#c084fc", hover: "#a855f7", alpha: "rgba(192,132,252,0.32)",
+      bg: "#120818", card: "#1a1024", border: "#3b1f5c", text: "#f3e8ff", muted: "#d8b4fe", crateOnly: true },
+    { id: "theme_crate_emberglass", name: "Emberglass", color: "#fb923c", hover: "#f97316", alpha: "rgba(251,146,60,0.3)",
+      bg: "#140c08", card: "#1f1410", border: "#4a2818", text: "#ffedd5", muted: "#fdba74", crateOnly: true, onAccent: "#1a0c04" },
+    { id: "theme_crate_mintnight", name: "Mint Night", color: "#2dd4bf", hover: "#14b8a6", alpha: "rgba(45,212,191,0.28)",
+      bg: "#061412", card: "#0c1e1c", border: "#1a3d38", text: "#ccfbf1", muted: "#5eead4", crateOnly: true },
+
 ];
 
 function isThemeUnlocked(theme) {
@@ -3750,9 +3782,9 @@ const REWARD_CATALOG = [
     { id: "theme_forest",     atLevel: 34, name: "Forest Theme",          desc: "Unlock the Forest colour theme" },
     { id: "theme_matrix",     atLevel: 35, name: "Matrix Theme",          desc: "Classic green-on-black" },
     { id: "theme_neon",       atLevel: 36, name: "Neon Theme",            desc: "Unlock the Neon colour theme" },
-    { id: "crate_keys_37",    atLevel: 37, name: "2 Crate Keys",          desc: "Earn 2 crate keys", crateKeys: 2 },
+    { id: "crate_keys_37",    atLevel: 37, name: "7 Crate Keys",          desc: "Earn 7 crate keys", crateKeys: 7 },
     { id: "xp_boost_master",  atLevel: 38, name: "+250 Bonus XP",         desc: "One-time +250 XP at Master 4", bonusXP: 250 },
-    { id: "crate_keys_39",    atLevel: 39, name: "2 Crate Keys",          desc: "Earn 2 crate keys", crateKeys: 2 },
+    { id: "crate_keys_39",    atLevel: 39, name: "8 Crate Keys",          desc: "Earn 8 crate keys", crateKeys: 8 },
     { id: "theme_midnight",   atLevel: 40, name: "Midnight Theme",        desc: "Unlock the Midnight colour theme" },
     { id: "crate_keys_41",    atLevel: 41, name: "3 Crate Keys",          desc: "Earn 3 crate keys", crateKeys: 3 },
     { id: "theme_sunset",     atLevel: 42, name: "Sunset Gradient",       desc: "Unlock the Sunset gradient theme" },
@@ -4424,10 +4456,13 @@ function updateXPDisplay() {
         fillEl.style.minWidth = pct > 0 ? "4px" : "0";
     }
     if (pctEl) pctEl.textContent = toNext > 0 ? `${toNext} left` : "MAX";
-    const pill = document.getElementById("xp-pill");
+        const pill = document.getElementById("xp-pill");
     if (pill) {
-        pill.title = `${info.rank}\n${info.currentXP}/${info.needed} XP this rank\n${toNext} XP left to next\nStreak ${data.streak || 0}🔥\nClick for full progress`;
+        pill.title = `${info.rank}\n${info.currentXP}/${info.needed} XP this rank\n${toNext} XP left to next\nStreak ${data.streak || 0}🔥\nKeys ${data.crateKeys || 0}\nClick for full progress`;
+        const hasLegend = typeof hasReward === "function" && hasReward("badge_legend");
+        pill.classList.toggle("has-legend-badge", !!hasLegend);
     }
+    try { updateCrateKeysBadge(); } catch (e) {}
     applyRankCosmetics(info);
 }
 
@@ -4666,11 +4701,143 @@ function applyAnalyserFix() {
     openPreview();
 }
 
-function openPreview() {
+
+function setPreviewFooterMode(mode) {
+    // mode: "draft" | "full"
+    const keep = document.getElementById("preview-keep-btn");
+    const edit = document.getElementById("preview-edit-btn");
+    const cancel = document.getElementById("preview-cancel-btn");
+    const hint = document.getElementById("preview-status-hint");
+    if (cancel) cancel.style.display = "";
+    if (mode === "full") {
+        if (keep) keep.style.display = "";
+        if (edit) edit.style.display = "";
+        if (hint) hint.textContent = "Full week ready — accept, request changes, or cancel.";
+        window._previewReadyToAccept = true;
+    } else {
+        if (keep) keep.style.display = "none";
+        if (edit) edit.style.display = "none";
+        if (hint) hint.textContent = "Collecting fixed commitments — only Cancel for now. Say no when you are done.";
+        window._previewReadyToAccept = false;
+    }
+}
+
+function requestPreviewEdits() {
+    try {
+        if (typeof startWeekEditMode === "function") startWeekEditMode();
+        else if (typeof appendPreviewChat === "function") {
+            appendPreviewChat("What should change? List every issue in one message so we only need one AI call.", "bot");
+        }
+        setPreviewFooterMode("draft");
+        const input = document.getElementById("preview-chat-input");
+        if (input) input.focus();
+    } catch (e) { console.warn(e); }
+}
+
+function showFixedDraftInPreview(fixedWeek) {
+    const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const preview = {};
+    dayNames.forEach((d) => {
+        const blocks = (fixedWeek && fixedWeek[d]) ? fixedWeek[d] : [];
+        preview[d] = (blocks || []).map((b) => ({
+            task: b.task || b.name || "Fixed",
+            start: String(b.start || "09:00").slice(0, 5),
+            end: String(b.end || "10:00").slice(0, 5),
+            isSleep: !!b.isSleep
+        }));
+    });
+    _previewWeek = preview;
+    window._previewWeek = preview;
+    window._previewApplyAllDays = true;
+    if (!_previewDay) _previewDay = dayNames[0];
     renderPreviewTabs();
     renderPreviewDay();
-    document.getElementById("preview-modal").classList.remove("hidden");
+    const modal = document.getElementById("preview-modal");
+    if (modal) modal.classList.remove("hidden");
+    setPreviewFooterMode("draft");
+    try { bindPreviewChat(); } catch (e) {}
 }
+
+function showFullWeekInPreview(week) {
+    const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const preview = {};
+    dayNames.forEach((d) => {
+        preview[d] = ((week && week[d]) || []).map((b) => ({
+            task: b.task || "Block",
+            start: String(b.start || "09:00").slice(0, 5),
+            end: String(b.end || "10:00").slice(0, 5),
+            isSleep: !!b.isSleep
+        }));
+    });
+    _previewWeek = preview;
+    window._previewWeek = preview;
+    window._previewApplyAllDays = true;
+    window._previewRoutineLabel = "Personalised week (fixed + rules)";
+    if (!_previewDay) _previewDay = dayNames[0];
+    renderPreviewTabs();
+    renderPreviewDay();
+    const modal = document.getElementById("preview-modal");
+    if (modal) modal.classList.remove("hidden");
+    setPreviewFooterMode("full");
+    try { bindPreviewChat(); } catch (e) {}
+}
+
+
+function openPreview() {
+    if (window._previewWeek && typeof window._previewWeek === "object") {
+        _previewWeek = window._previewWeek;
+    }
+    if (window._previewDay) _previewDay = window._previewDay;
+    renderPreviewTabs();
+    renderPreviewDay();
+    const modal = document.getElementById("preview-modal");
+    if (modal) modal.classList.remove("hidden");
+    try { bindPreviewChat(); } catch (e) {}
+}
+
+let _previewChatBound = false;
+function bindPreviewChat() {
+    const send = document.getElementById("preview-chat-send");
+    const input = document.getElementById("preview-chat-input");
+    if (!send || !input) return;
+    if (_previewChatBound) return;
+    _previewChatBound = true;
+    const go = () => {
+        const text = (input.value || "").trim();
+        if (!text) return;
+        input.value = "";
+        appendPreviewChat(text, "user");
+        if (typeof processNLPIntent === "function") processNLPIntent(text);
+    };
+    send.onclick = go;
+    input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); go(); } };
+}
+
+function appendPreviewChat(msg, who) {
+    const box = document.getElementById("preview-chat-messages");
+    if (!box) return;
+    const div = document.createElement("div");
+    div.className = "preview-chat-msg " + (who === "user" ? "user" : "bot");
+    div.innerHTML = String(msg)
+        .replace(/\n/g, "<br>")
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+}
+
+function syncPreviewFromPlan(week) {
+    if (!week) return;
+    _previewWeek = week;
+    window._previewWeek = week;
+    window._previewApplyAllDays = true;
+    window._previewRoutineLabel = "Personalised week (fixed + rules)";
+    if (!_previewDay) _previewDay = "Monday";
+    renderPreviewTabs();
+    renderPreviewDay();
+    const modal = document.getElementById("preview-modal");
+    if (modal) modal.classList.remove("hidden");
+}
+
 
 function closePreview() {
     document.getElementById("preview-modal").classList.add("hidden");
@@ -4704,19 +4871,42 @@ function renderPreviewDay() {
 
 function keepPreview() {
     if (!_previewWeek) return;
+    if (window._previewReadyToAccept === false) {
+        if (typeof showToast === "function") showToast("Finish the week first — say no when done collecting fixed times", "info");
+        return;
+    }
+    const applyAll = !!window._previewApplyAllDays;
     const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : 0;
     DAYS.forEach((day, i) => {
-        if (i < todayIdx) return;
+        if (!applyAll && i < todayIdx) return;
+        if (typeof clawbackDayXP === "function") {
+            try { clawbackDayXP(day, { silent: true }); } catch (e) {}
+        }
         data.schedules[day] = JSON.parse(JSON.stringify(_previewWeek[day] || [])).map(t => ({
-            ...t, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false
+            task: t.task,
+            start: t.start,
+            end: t.end,
+            completed: false,
+            xpAwarded: false,
+            xpAmount: 0,
+            keyGenerated: false,
+            isSleep: !!t.isSleep,
+            notes: t.notes || ""
         }));
     });
-    data.appliedRoutine = `AI: ${ANALYSER_INTENTS[_analyserIntent]?.label || "Generated"}`;
+    data.appliedRoutine = window._previewRoutineLabel ||
+        ("AI: " + ((typeof ANALYSER_INTENTS !== "undefined" && ANALYSER_INTENTS[_analyserIntent])
+            ? ANALYSER_INTENTS[_analyserIntent].label
+            : "Generated"));
+    window._previewApplyAllDays = false;
+    window._previewRoutineLabel = null;
     saveData();
     renderCurrentDay();
     populatePresetMenus();
+    if (typeof updateXPDisplay === "function") updateXPDisplay();
     closePreview();
-    showSavedMessage(`✓ Applied: ${ANALYSER_INTENTS[_analyserIntent]?.label}`);
+    if (typeof showToast === "function") showToast("Week applied", "success");
+    else if (typeof showSavedMessage === "function") showSavedMessage("Week applied");
 }
 
 function getHiddenBuiltIns() {
@@ -7799,9 +7989,11 @@ function toggleConfettiOption() {
 
 const COSMETIC_CATALOG = [
     { id: "cosmetic_particles", name: "XP Particles", desc: "Floating particles on XP gain", rewardId: "cosmetic_particles" },
-    { id: "cosmetic_glow", name: "Block Glow", desc: "Pulse glow on active blocks", rewardId: "cosmetic_glow" },
+    { id: "cosmetic_glow", name: "Block Glow", desc: "Always on, soft pulse on the active block", alwaysOn: true },
     { id: "cosmetic_streakfire", name: "Streak Fire", desc: "Fire animation on long streaks", rewardId: "cosmetic_streakfire" },
-    { id: "cosmetic_crate_trail", name: "Stardust Trail", desc: "Sparkly trail on completed blocks (crate only)", crateOnly: true },
+    { id: "cosmetic_crate_trail", name: "Stardust Trail", desc: "Bright star cluster on completed blocks (crate only)", crateOnly: true },
+    { id: "cosmetic_crate_checkmark", name: "Emerald Check", desc: "Glowing check mark on completed blocks (crate only)", crateOnly: true },
+    { id: "cosmetic_crate_orbit", name: "Orbit Mark", desc: "Cyan orbit glyph on completed blocks (crate only)", crateOnly: true },
 ];
 
 function isCosmeticUnlocked(c) {
@@ -7819,33 +8011,49 @@ function renderCosmeticsList() {
     const box = document.getElementById("cosmetics-list");
     if (!box) return;
     data.activeCosmetics = data.activeCosmetics || [];
-    box.innerHTML = COSMETIC_CATALOG.map(c => {
-        const unlocked = isCosmeticUnlocked(c);
-        const active = data.activeCosmetics.includes(c.id);
-        const lockLabel = c.crateOnly ? "Crate" : "Locked";
-        return `<div class="cosmetic-row ${unlocked ? "" : "locked"}">
-            <div>
-                <div class="cos-name">${unlocked ? "" : "🔒 "}${c.name}</div>
-                <div class="cos-desc">${c.desc}</div>
+    box.innerHTML = COSMETIC_CATALOG.map((c) => {
+        const unlocked = c.alwaysOn || isCosmeticUnlocked(c);
+        const active = c.alwaysOn || data.activeCosmetics.includes(c.id);
+        const lockLabel = c.alwaysOn ? "Always on" : (c.crateOnly ? "Crate" : "Rank");
+        const disabled = !unlocked || c.alwaysOn;
+        return `<div class="cosmetic-row ${active ? "active" : ""} ${unlocked ? "" : "locked"}" ${disabled ? "" : `onclick="toggleCosmetic('${c.id}')"`}>
+            <div class="cosmetic-main">
+                <strong>${c.name}</strong>
+                <span class="cosmetic-desc">${c.desc}</span>
             </div>
-            ${unlocked
-                ? `<button type="button" class="btn-info btn-sm" onclick="toggleCosmetic('${c.id}')">${active ? "On ✓" : "Off"}</button>`
-                : `<span class="cos-badge">${lockLabel}</span>`}
+            <span class="cos-badge">${unlocked ? (c.alwaysOn ? "ON" : (active ? "Active" : "Off")) : "🔒 " + lockLabel}</span>
         </div>`;
     }).join("");
 }
 
 function toggleCosmetic(id) {
+    const c = COSMETIC_CATALOG.find(x => x.id === id);
+    if (c && c.alwaysOn) {
+        showToast("Block Glow stays on by default", "info");
+        return;
+    }
+    if (c && !isCosmeticUnlocked(c)) {
+        showToast(c.crateOnly ? "🔒 Unlock this from crates first" : "🔒 Level up to unlock this cosmetic", "warn");
+        return;
+    }
     data.activeCosmetics = data.activeCosmetics || [];
     const i = data.activeCosmetics.indexOf(id);
     if (i >= 0) data.activeCosmetics.splice(i, 1);
     else data.activeCosmetics.push(id);
     saveData();
     renderCosmeticsList();
+    applyActiveCosmetics();
+}
+
+function applyActiveCosmetics() {
+    data.activeCosmetics = data.activeCosmetics || [];
     document.body.classList.toggle("cos-particles", data.activeCosmetics.includes("cosmetic_particles"));
-    document.body.classList.toggle("cos-glow", data.activeCosmetics.includes("cosmetic_glow"));
+    // Block glow is always enabled
+    document.body.classList.add("cos-glow");
     document.body.classList.toggle("cos-streakfire", data.activeCosmetics.includes("cosmetic_streakfire"));
     document.body.classList.toggle("cos-stardust", data.activeCosmetics.includes("cosmetic_crate_trail"));
+    document.body.classList.toggle("cos-checkmark", data.activeCosmetics.includes("cosmetic_crate_checkmark"));
+    document.body.classList.toggle("cos-orbit", data.activeCosmetics.includes("cosmetic_crate_orbit"));
 }
 
 /* Enhance updateXPDisplay with rank divisions (hook) */
@@ -7875,11 +8083,7 @@ function toggleCosmetic(id) {
         orig.apply(this, arguments);
         setTimeout(() => {
             try { checkOverdueTodosOnLogin(); } catch (e) { console.error(e); }
-            data.activeCosmetics = data.activeCosmetics || [];
-            document.body.classList.toggle("cos-particles", data.activeCosmetics.includes("cosmetic_particles"));
-            document.body.classList.toggle("cos-glow", data.activeCosmetics.includes("cosmetic_glow"));
-            document.body.classList.toggle("cos-streakfire", data.activeCosmetics.includes("cosmetic_streakfire"));
-            document.body.classList.toggle("cos-stardust", data.activeCosmetics.includes("cosmetic_crate_trail"));
+            try { applyActiveCosmetics(); } catch (e) {}
         }, 600);
     };
 })();
@@ -8658,11 +8862,18 @@ const CRATE_LOOT = {
     mythical: [
         { type: "xp_range", min: 2000, max: 4000 },
         { type: "cosmetic", id: "theme_crate_void", label: "Void Pulse Theme" },
+        { type: "cosmetic", id: "theme_crate_aurora", label: "Aurora Theme" },
+        { type: "cosmetic", id: "theme_crate_cobalt", label: "Cobalt Theme" },
         { type: "cosmetic", id: "theme_crate_solar", label: "Solar Flare Theme" },
+        { type: "cosmetic", id: "theme_crate_orchid", label: "Orchid Theme" },
+        { type: "cosmetic", id: "theme_crate_emberglass", label: "Emberglass Theme" },
+        { type: "cosmetic", id: "theme_crate_mintnight", label: "Mint Night Theme" },
         { type: "cosmetic", id: "theme_crate_nebula", label: "Nebula Drift Theme" },
         { type: "cosmetic", id: "chime_crate_prism", label: "Prism Chime" },
         { type: "cosmetic", id: "chime_crate_thunder", label: "Thunder Chime" },
         { type: "cosmetic", id: "cosmetic_crate_trail", label: "Stardust Trail" },
+        { type: "cosmetic", id: "cosmetic_crate_checkmark", label: "Emerald Check" },
+        { type: "cosmetic", id: "cosmetic_crate_orbit", label: "Orbit Mark" },
 
         { type: "keys", amount: 15, label: "+15 Crate Keys", weight: 1 },
         { type: "keys", amount: 18, label: "+18 Crate Keys", weight: 1 },
@@ -8768,10 +8979,13 @@ function tryGrantCrateKey(chance, reason) {
 
 function updateCrateKeysBadge() {
     ensureCrateData();
+    const keys = data.crateKeys || 0;
     const el = document.getElementById("crate-keys-badge");
-    if (el) el.textContent = data.crateKeys > 0 ? `(${data.crateKeys})` : "";
+    if (el) el.textContent = "";
+    const pk = document.getElementById("xp-pill-keys-count");
+    if (pk) pk.textContent = String(keys);
     const c = document.getElementById("crate-keys-count");
-    if (c) c.textContent = String(data.crateKeys);
+    if (c) c.textContent = String(keys);
     const o = document.getElementById("crate-opened-count");
     if (o) o.textContent = String(data.cratesOpened || 0);
     renderCrateTierCards();
@@ -9237,13 +9451,14 @@ window.activateCrateCosmetic = activateCrateCosmetic;
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "6.2.0";
+const CHANGELOG_VERSION = "7.0.0";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
     tutorialCompleted: false,
     tutorialStep: 0,
     showedCL6_2: false,
+    showedCL7_0: false,
     changelogVersionShown: null
 };
 
@@ -9295,142 +9510,103 @@ async function saveDeviceConfig(patch) {
 const TUTORIAL_STEPS = [
     {
         title: "Plan the week",
-        body: "Pick a day at the top, then add time blocks for deep work, classes, gym, rest — whatever your week looks like. Drag to rearrange. Your schedule stays on this device (or your account if signed in).",
+        body: "Pick a day at the top, then add time blocks for deep work, classes, gym, rest — whatever your week looks like. Your schedule stays on this device (or your account if signed in).",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
-  <defs>
-    <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1a1528"/><stop offset="100%" stop-color="#0d0a14"/>
-    </linearGradient>
-  </defs>
-  <rect width="360" height="160" rx="16" fill="url(#tg)"/>
-  
-  <rect x="24" y="28" width="70" height="22" rx="8" fill="#6c5ce7" opacity="0.9"/>
-  <text x="59" y="43" text-anchor="middle" fill="#fff" font-size="11" font-family="system-ui">Mon</text>
+  <rect width="360" height="160" rx="16" fill="#0d0a14"/>
+  <g class="tut-anim tut-pulse">
+    <rect x="24" y="28" width="70" height="22" rx="8" fill="#6c5ce7"/>
+    <text x="59" y="43" text-anchor="middle" fill="#fff" font-size="11" font-family="system-ui">Mon</text>
+  </g>
   <rect x="100" y="28" width="70" height="22" rx="8" fill="#2d2250"/>
   <text x="135" y="43" text-anchor="middle" fill="#a78bfa" font-size="11" font-family="system-ui">Tue</text>
   <rect x="176" y="28" width="70" height="22" rx="8" fill="#2d2250"/>
   <text x="211" y="43" text-anchor="middle" fill="#a78bfa" font-size="11" font-family="system-ui">Wed</text>
-  <rect x="24" y="64" width="200" height="28" rx="8" fill="#1a1528" stroke="#6c5ce7" stroke-width="2"/>
-  <text x="36" y="82" fill="#e2def8" font-size="12" font-family="system-ui">09:00  Deep work</text>
-  <rect x="24" y="100" width="200" height="28" rx="8" fill="#1a1528" stroke="#2d2250" stroke-width="2"/>
-  <text x="36" y="118" fill="#9a96b0" font-size="12" font-family="system-ui">11:00  Gym</text>
-  <rect x="240" y="64" width="96" height="64" rx="12" fill="#1a1528" stroke="#2d2250"/>
-  <text x="288" y="92" text-anchor="middle" fill="#a78bfa" font-size="10" font-family="system-ui">Week</text>
-  <text x="288" y="112" text-anchor="middle" fill="#e2def8" font-size="18" font-family="system-ui">✦</text>
-
+  <g class="tut-anim tut-slide">
+    <rect x="24" y="64" width="210" height="28" rx="8" fill="#1a1528" stroke="#6c5ce7" stroke-width="2"/>
+    <text x="36" y="82" fill="#e2def8" font-size="12" font-family="system-ui">09:00  Deep work</text>
+  </g>
+  <g class="tut-anim tut-slide" style="animation-delay:0.4s">
+    <rect x="24" y="100" width="210" height="28" rx="8" fill="#1a1528" stroke="#2d2250" stroke-width="2"/>
+    <text x="36" y="118" fill="#9a96b0" font-size="12" font-family="system-ui">11:00  Gym</text>
+  </g>
+  <text x="300" y="100" text-anchor="middle" fill="#a78bfa" font-size="28" font-family="system-ui" class="tut-anim tut-bounce">✦</text>
 </svg>`
     },
     {
         title: "Play the day",
-        body: "Check off blocks when you finish them. You only complete today's day, in order, and within about 2 hours of a block's start, that keeps the day honest and game-like.",
+        body: "Check off blocks when you finish them. Staying honest with time keeps XP and ranks meaningful.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
-  <defs>
-    <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1a1528"/><stop offset="100%" stop-color="#0d0a14"/>
-    </linearGradient>
-  </defs>
-  <rect width="360" height="160" rx="16" fill="url(#tg)"/>
-  
-  <rect x="40" y="40" width="220" height="36" rx="10" fill="#1a1528" stroke="#22c55e" stroke-width="2"/>
-  <circle cx="58" cy="58" r="10" fill="#22c55e"/>
-  <path d="M53 58 l4 4 l8 -9" stroke="#0a1400" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <text x="78" y="63" fill="#e2def8" font-size="13" font-family="system-ui">Deep work  ✓</text>
-  <rect x="40" y="88" width="220" height="36" rx="10" fill="#1a1528" stroke="#6c5ce7" stroke-width="2"/>
-  <circle cx="58" cy="106" r="10" fill="none" stroke="#6c5ce7" stroke-width="2"/>
-  <text x="78" y="111" fill="#c4b5fd" font-size="13" font-family="system-ui">Gym  (in progress)</text>
-  <text x="290" y="70" fill="#fbbf24" font-size="28" font-family="system-ui">+XP</text>
-  <text x="290" y="100" fill="#fbbf24" font-size="12" font-family="system-ui">+42</text>
-
+  <rect width="360" height="160" rx="16" fill="#0d0a14"/>
+  <rect x="40" y="48" width="240" height="36" rx="10" fill="#1a1528" stroke="#2d2250"/>
+  <rect x="52" y="58" width="18" height="16" rx="4" fill="#2d2250" stroke="#6c5ce7"/>
+  <text x="82" y="71" fill="#e2def8" font-size="13" font-family="system-ui">09:00 Study</text>
+  <g class="tut-anim tut-check">
+    <rect x="40" y="96" width="240" height="36" rx="10" fill="#1a1528" stroke="#00b894"/>
+    <rect x="52" y="106" width="18" height="16" rx="4" fill="#00b894"/>
+    <path d="M56 114 l4 4 l8 -8" stroke="#fff" stroke-width="2" fill="none"/>
+    <text x="82" y="119" fill="#a7f3d0" font-size="13" font-family="system-ui">07:30 Morning — done</text>
+  </g>
+  <text x="300" y="90" font-size="28" class="tut-anim tut-bounce">⭐</text>
 </svg>`
     },
     {
-        title: "XP, ranks & streaks",
-        body: "Finished blocks and to-dos award XP. Climb from Starter toward Mythic. Keep a daily streak for bonus progress. Open Progress for the full rank ladder and rewards.",
+        title: "Generate a smart week",
+        body: "Type generate study week in chat. Momento asks about fixed classes or work, builds a live draft, then fills the gaps using your personalisation.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
-  <defs>
-    <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1a1528"/><stop offset="100%" stop-color="#0d0a14"/>
-    </linearGradient>
-  </defs>
-  <rect width="360" height="160" rx="16" fill="url(#tg)"/>
-  
-  <rect x="30" y="50" width="180" height="60" rx="14" fill="#1a1528" stroke="#6c5ce7" stroke-width="2"/>
-  <text x="48" y="78" fill="#a78bfa" font-size="12" font-family="system-ui">RANK</text>
-  <text x="48" y="98" fill="#e2def8" font-size="18" font-family="system-ui" font-weight="700">Skilled 3</text>
-  <rect x="120" y="88" width="70" height="8" rx="4" fill="#2d2250"/>
-  <rect x="120" y="88" width="44" height="8" rx="4" fill="#6c5ce7"/>
-  <text x="240" y="70" fill="#f97316" font-size="14" font-family="system-ui">🔥 Streak 12</text>
-  <text x="240" y="100" fill="#eab308" font-size="14" font-family="system-ui">⭐ Level up!</text>
-
+  <rect width="360" height="160" rx="16" fill="#0d0a14"/>
+  <rect x="30" y="36" width="220" height="88" rx="12" fill="#1a1528" stroke="#2d2250"/>
+  <text x="44" y="58" fill="#a78bfa" font-size="11" font-family="system-ui">Chat</text>
+  <g class="tut-anim tut-fade">
+    <rect x="44" y="68" width="160" height="18" rx="6" fill="#6c5ce733"/>
+    <text x="52" y="81" fill="#e2def8" font-size="11" font-family="system-ui">generate study week</text>
+  </g>
+  <g class="tut-anim tut-slide" style="animation-delay:0.5s">
+    <rect x="44" y="94" width="180" height="18" rx="6" fill="#00b89433"/>
+    <text x="52" y="107" fill="#a7f3d0" font-size="11" font-family="system-ui">Any fixed classes?</text>
+  </g>
+  <g class="tut-anim tut-bounce">
+    <rect x="270" y="50" width="60" height="60" rx="12" fill="#6c5ce744" stroke="#6c5ce7"/>
+    <text x="300" y="85" text-anchor="middle" fill="#fff" font-size="22">🗓️</text>
+  </g>
 </svg>`
     },
     {
-        title: "To-dos & calendar",
-        body: "Quick to-dos sit beside your schedule. Give them due dates — the calendar shows a dot on days with pending to-dos, and due items appear on that day. Yearly events (birthdays, anniversaries) repeat every year.",
+        title: "Todos & calendar",
+        body: "Park longer goals in Todos (+XP when cleared). Open the calendar for exams, birthdays, and deadlines — they show up when the day arrives.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
-  <defs>
-    <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1a1528"/><stop offset="100%" stop-color="#0d0a14"/>
-    </linearGradient>
-  </defs>
-  <rect width="360" height="160" rx="16" fill="url(#tg)"/>
-  
-  <rect x="28" y="36" width="150" height="100" rx="12" fill="#1a1528" stroke="#2d2250"/>
-  <text x="44" y="58" fill="#e2def8" font-size="12" font-family="system-ui">To-dos</text>
-  <rect x="44" y="70" width="12" height="12" rx="3" fill="none" stroke="#f59e0b" stroke-width="2"/>
-  <text x="64" y="81" fill="#fdba74" font-size="11" font-family="system-ui">Submit report</text>
-  <rect x="44" y="94" width="12" height="12" rx="3" fill="none" stroke="#6c5ce7" stroke-width="2"/>
-  <text x="64" y="105" fill="#c4b5fd" font-size="11" font-family="system-ui">Buy groceries</text>
-  <rect x="200" y="36" width="140" height="100" rx="12" fill="#1a1528" stroke="#2d2250"/>
-  <text x="214" y="58" fill="#e2def8" font-size="11" font-family="system-ui">Calendar</text>
-  <rect x="220" y="72" width="28" height="28" rx="6" fill="#221a10" stroke="#f59e0b"/>
-  <circle cx="240" cy="78" r="3" fill="#f59e0b"/>
-  <text x="234" y="92" fill="#e2def8" font-size="10" font-family="system-ui">12</text>
-  <text x="214" y="120" fill="#9a96b0" font-size="10" font-family="system-ui">dot = due to-do</text>
-
+  <rect width="360" height="160" rx="16" fill="#0d0a14"/>
+  <g class="tut-anim tut-slide">
+    <rect x="28" y="36" width="140" height="90" rx="12" fill="#1a1528" stroke="#2d2250"/>
+    <text x="42" y="58" fill="#a78bfa" font-size="11" font-family="system-ui">To-Dos</text>
+    <rect x="42" y="70" width="12" height="12" rx="3" fill="#6c5ce7"/>
+    <text x="60" y="80" fill="#e2def8" font-size="11" font-family="system-ui">Finish essay</text>
+    <rect x="42" y="94" width="12" height="12" rx="3" fill="#2d2250"/>
+    <text x="60" y="104" fill="#9a96b0" font-size="11" font-family="system-ui">Call dentist</text>
+  </g>
+  <g class="tut-anim tut-pulse" style="animation-delay:0.3s">
+    <rect x="190" y="36" width="140" height="90" rx="12" fill="#1a1528" stroke="#2d2250"/>
+    <text x="204" y="58" fill="#a78bfa" font-size="11" font-family="system-ui">Calendar</text>
+    <circle cx="230" cy="90" r="6" fill="#e84393" class="tut-anim tut-bounce"/>
+    <circle cx="260" cy="90" r="6" fill="#6c5ce7"/>
+    <circle cx="290" cy="90" r="6" fill="#00b894"/>
+  </g>
 </svg>`
     },
     {
-        title: "Crates, keys & cosmetics",
-        body: "Completing work can drop crate keys. Open Crates for Standard through Mythic Vault tiers. Win XP, boosters, themes, and chimes. Spend spare keys in App Customiser under Spend Keys so loot never feels useless.",
+        title: "Themes, crates & ranks",
+        body: "Earn XP, climb ranks, open crates for themes and cosmetics. Make Momento look and sound the way you like.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
-  <defs>
-    <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1a1528"/><stop offset="100%" stop-color="#0d0a14"/>
-    </linearGradient>
-  </defs>
-  <rect width="360" height="160" rx="16" fill="url(#tg)"/>
-  
-  <rect x="40" y="40" width="90" height="90" rx="14" fill="#1a1528" stroke="#eab308" stroke-width="2"/>
-  <text x="85" y="88" text-anchor="middle" fill="#eab308" font-size="28" font-family="system-ui">📦</text>
-  <text x="85" y="115" text-anchor="middle" fill="#fde68a" font-size="11" font-family="system-ui">Elite</text>
-  <rect x="150" y="50" width="160" height="24" rx="8" fill="#1a1528" stroke="#22c55e"/>
-  <text x="160" y="66" fill="#86efac" font-size="11" font-family="system-ui">+120 XP</text>
-  <rect x="150" y="84" width="160" height="24" rx="8" fill="#1a1528" stroke="#a855f7"/>
-  <text x="160" y="100" fill="#d8b4fe" font-size="11" font-family="system-ui">Theme unlock</text>
-  <rect x="150" y="118" width="160" height="24" rx="8" fill="#1a1528" stroke="#f97316"/>
-  <text x="160" y="134" fill="#fdba74" font-size="11" font-family="system-ui">🔑 Keys / boosters</text>
-
-</svg>`
-    },
-    {
-        title: "Make it yours",
-        body: "App Customiser unlocks themes, completion chimes, sound toggles, and cosmetics as you rank up or win crates. Focus mode helps you sit with one block. You're ready — plan something and play the day.",
-        visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
-  <defs>
-    <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1a1528"/><stop offset="100%" stop-color="#0d0a14"/>
-    </linearGradient>
-  </defs>
-  <rect width="360" height="160" rx="16" fill="url(#tg)"/>
-  
-  <circle cx="70" cy="80" r="28" fill="#7cb342"/>
-  <circle cx="130" cy="80" r="28" fill="#6c5ce7"/>
-  <circle cx="190" cy="80" r="28" fill="#e84393"/>
-  <circle cx="250" cy="80" r="28" fill="#0984e3"/>
+  <rect width="360" height="160" rx="16" fill="#0d0a14"/>
+  <g class="tut-anim tut-bounce">
+    <circle cx="90" cy="80" r="28" fill="#6c5ce7"/>
+  </g>
+  <g class="tut-anim tut-bounce" style="animation-delay:0.25s">
+    <circle cx="170" cy="80" r="28" fill="#e84393"/>
+  </g>
+  <g class="tut-anim tut-bounce" style="animation-delay:0.5s">
+    <circle cx="250" cy="80" r="28" fill="#0984e3"/>
+  </g>
   <text x="180" y="130" text-anchor="middle" fill="#c4b5fd" font-size="12" font-family="system-ui">Themes · Chimes · Cosmetics</text>
-  <text x="300" y="70" fill="#e2def8" font-size="22" font-family="system-ui">🎨</text>
-
 </svg>`
     }
 ];
@@ -9439,6 +9615,15 @@ const CHANGELOG_6_2 = [
     "Discord sign-in alongside Google and local accounts",
     "Richer AI chatbot with a large NLP corpus for natural conversation",
     "Chat replies stay helpful and gently steer back to Momento"
+];
+
+const CHANGELOG_7_0 = [
+    "AI week builder: lock fixed classes and sports, then auto-fill the rest",
+    "Live week preview with Accept, Request changes, and Cancel",
+    "Account personalisation quiz (synced) for smarter schedules",
+    "Week edit mode that applies your changes without duplicating blocks",
+    "Animated tutorial steps",
+    "Bug fixes for first-check XP sound, day locks, and theme contrast"
 ];
 
 let _tutorialIndex = 0;
@@ -9483,11 +9668,13 @@ async function closeTutorial(completed) {
         tutorialCompleted: !!completed,
         tutorialStep: completed ? TUTORIAL_STEPS.length : _tutorialIndex
     });
-    // After tutorial, show 6.2.0 changelog once if not yet seen
+    // After tutorial, show changelog once if not yet seen, else personalisation
     try {
         const cfg = _deviceConfig || {};
         if (String(cfg.changelogVersionShown || "") !== String(CHANGELOG_VERSION)) {
             openChangelog();
+        } else {
+            setTimeout(() => { try { maybeShowPersonalization(); } catch (e) {} }, 400);
         }
     } catch (e) {}
 }
@@ -9498,7 +9685,7 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        body.innerHTML = "<ul>" + CHANGELOG_6_2.map(x => `<li>${x}</li>`).join("") + "</ul>";
+        body.innerHTML = "<ul>" + CHANGELOG_7_0.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
         el.classList.remove("hidden");
@@ -9515,10 +9702,427 @@ async function closeChangelog() {
     const patch = {
         showedCL6_2: true,
         showedCL6_2_0: true,
+        showedCL7_0: true,
         changelogVersionShown: CHANGELOG_VERSION
     };
     await saveDeviceConfig(patch);
+    setTimeout(() => { try { maybeShowPersonalization(); } catch (e) {} }, 400);
 }
+
+
+function ensurePersonalizationShape() {
+    if (!data || typeof data !== "object") return;
+    if (!data.personalization || typeof data.personalization !== "object") {
+        // Prefer local completion flag so we never re-prompt after decline/finish
+        let localStatus = null;
+        try { localStatus = localStorage.getItem("MOMENTO_PERSONALIZATION_STATUS"); } catch (e) {}
+        data.personalization = {
+            status: (localStatus === "completed" || localStatus === "declined") ? localStatus : "pending",
+            version: 1,
+            answers: {}
+        };
+    }
+    if (!data.personalization.answers || typeof data.personalization.answers !== "object") {
+        data.personalization.answers = {};
+    }
+    if (!data.personalization.status) {
+        let localStatus = null;
+        try { localStatus = localStorage.getItem("MOMENTO_PERSONALIZATION_STATUS"); } catch (e) {}
+        data.personalization.status = (localStatus === "completed" || localStatus === "declined") ? localStatus : "pending";
+    }
+}
+
+const PERSONALIZE_QUESTIONS = [
+    {
+        id: "role",
+        q: "What best describes you right now?",
+        options: [
+            { v: "student", l: "Student / school or college" },
+            { v: "work", l: "Working / job focused" },
+            { v: "both", l: "Both school and work" },
+            { v: "other", l: "Something else" }
+        ]
+    },
+    {
+        id: "wake",
+        q: "When do you usually wake up on weekdays?",
+        options: [
+            { v: "early", l: "Before 6:30" },
+            { v: "normal", l: "6:30 – 8:00" },
+            { v: "late", l: "After 8:00" }
+        ]
+    },
+    {
+        id: "sleep",
+        q: "When do you usually go to sleep?",
+        options: [
+            { v: "early", l: "Before 10:00 pm" },
+            { v: "normal", l: "10:00 – 11:30 pm" },
+            { v: "late", l: "After 11:30 pm" }
+        ]
+    },
+    {
+        id: "games",
+        q: "Do you like playing video games?",
+        options: [
+            { v: "often", l: "Yes, often" },
+            { v: "sometimes", l: "Sometimes" },
+            { v: "rarely", l: "Rarely / no" }
+        ],
+        text: {
+            id: "favorite_games",
+            label: "Favorite game(s)?",
+            placeholder: "e.g. Minecraft, Valorant, Zelda",
+            showIf: ["often", "sometimes"]
+        }
+    },
+    {
+        id: "naps",
+        q: "Do you take naps during the day?",
+        options: [
+            { v: "yes", l: "Yes, I like naps" },
+            { v: "sometimes", l: "Sometimes" },
+            { v: "no", l: "No" }
+        ]
+    },
+    {
+        id: "exercise",
+        q: "How often do you exercise or play sports?",
+        options: [
+            { v: "often", l: "Several times a week" },
+            { v: "sometimes", l: "Once in a while" },
+            { v: "rarely", l: "Rarely" }
+        ],
+        text: {
+            id: "favorite_sports",
+            label: "Sport or activity?",
+            placeholder: "e.g. Football, gym, running",
+            showIf: ["often", "sometimes"]
+        }
+    },
+    {
+        id: "study_style",
+        q: "How do you prefer to study or work?",
+        options: [
+            { v: "deep", l: "Long deep focus blocks" },
+            { v: "mixed", l: "Mix of focus and short breaks" },
+            { v: "short", l: "Short varied tasks" }
+        ]
+    },
+    {
+        id: "chrono",
+        q: "Are you more of a morning person or a night owl?",
+        options: [
+            { v: "morning", l: "Morning person" },
+            { v: "night", l: "Night owl" },
+            { v: "flexible", l: "Flexible / depends" }
+        ]
+    },
+    {
+        id: "meals",
+        q: "Do you usually cook or prepare your own meals?",
+        options: [
+            { v: "yes", l: "Yes, often" },
+            { v: "sometimes", l: "Sometimes" },
+            { v: "no", l: "Mostly someone else / takeout" }
+        ]
+    },
+    {
+        id: "social",
+        q: "How social are your typical evenings?",
+        options: [
+            { v: "out", l: "Often out with people" },
+            { v: "home", l: "Quiet at home" },
+            { v: "mixed", l: "Mix of both" }
+        ]
+    },
+    {
+        id: "weekends",
+        q: "Should weekends look different from weekdays?",
+        options: [
+            { v: "yes", l: "Yes, much lighter / different" },
+            { v: "similar", l: "Similar structure is fine" },
+            { v: "busier", l: "Weekends are often busier" }
+        ]
+    },
+    {
+        id: "side",
+        q: "Do you work on side projects, coding, or creative hobbies?",
+        options: [
+            { v: "yes", l: "Yes, regularly" },
+            { v: "sometimes", l: "Sometimes" },
+            { v: "no", l: "Not really" }
+        ],
+        text: {
+            id: "side_detail",
+            label: "What kind of project or hobby?",
+            placeholder: "e.g. coding apps, music, art",
+            showIf: ["yes", "sometimes"]
+        }
+    },
+    {
+        id: "commute",
+        q: "Do you have a regular commute?",
+        options: [
+            { v: "long", l: "Yes, 30+ minutes" },
+            { v: "short", l: "Short / under 30 minutes" },
+            { v: "none", l: "No commute / remote" }
+        ]
+    },
+    {
+        id: "focus_music",
+        q: "Do you like music or ambient sound while focusing?",
+        options: [
+            { v: "yes", l: "Yes" },
+            { v: "no", l: "Prefer silence" },
+            { v: "sometimes", l: "Sometimes" }
+        ]
+    },
+    {
+        id: "intensity",
+        q: "How packed should a default day feel?",
+        options: [
+            { v: "light", l: "Light — plenty of free time" },
+            { v: "balanced", l: "Balanced" },
+            { v: "packed", l: "Packed — use the day fully" }
+        ]
+    }
+];
+
+let _personalizeMode = "intro"; // intro | quiz
+let _personalizeIndex = 0;
+let _personalizeDraft = {};
+
+let _personalizeShownThisSession = false;
+
+function needsPersonalizationPrompt() {
+    ensurePersonalizationShape();
+    if (_personalizeShownThisSession) return false;
+    try {
+        const localStatus = localStorage.getItem("MOMENTO_PERSONALIZATION_STATUS");
+        if (localStatus === "completed" || localStatus === "declined") {
+            // Keep app data in sync
+            if (data.personalization.status === "pending") {
+                data.personalization.status = localStatus;
+            }
+            return false;
+        }
+    } catch (e) {}
+    const p = data.personalization;
+    if (!p) return true;
+    if (p.status === "completed" || p.status === "declined") return false;
+    return p.status === "pending";
+}
+
+function openPersonalizeIntro() {
+    try { bindPersonalizeUi(); } catch (e) {}
+    ensurePersonalizationShape();
+    _personalizeMode = "intro";
+    _personalizeIndex = 0;
+    _personalizeDraft = Object.assign({}, data.personalization.answers || {});
+    const el = document.getElementById("personalize-overlay");
+    const title = document.getElementById("personalize-title");
+    const body = document.getElementById("personalize-body");
+    const opts = document.getElementById("personalize-options");
+    const prog = document.getElementById("personalize-progress");
+    const skipQ = document.getElementById("personalize-skip-q-btn");
+    const back = document.getElementById("personalize-back-btn");
+    const primary = document.getElementById("personalize-primary-btn");
+    const decline = document.getElementById("personalize-decline-btn");
+    if (!el) return;
+    if (title) title.textContent = "Help us personalise your experience";
+    if (body) body.textContent = "It only takes a minute. Your answers save to your account and help build smarter weeks.";
+    if (opts) opts.innerHTML = "";
+    if (prog) prog.innerHTML = "";
+    if (skipQ) skipQ.style.display = "none";
+    if (back) back.style.display = "none";
+    if (primary) {
+        primary.style.display = "";
+        primary.textContent = "Sure, I'll do it!";
+    }
+    if (decline) {
+        decline.style.display = "";
+        decline.textContent = "No, thank you";
+    }
+    el.classList.remove("hidden");
+    el.setAttribute("aria-hidden", "false");
+}
+
+function renderPersonalizeQuestion() {
+    const q = PERSONALIZE_QUESTIONS[_personalizeIndex];
+    if (!q) return finishPersonalize(true);
+    const title = document.getElementById("personalize-title");
+    const body = document.getElementById("personalize-body");
+    const opts = document.getElementById("personalize-options");
+    const prog = document.getElementById("personalize-progress");
+    const skipQ = document.getElementById("personalize-skip-q-btn");
+    const back = document.getElementById("personalize-back-btn");
+    const primary = document.getElementById("personalize-primary-btn");
+    const decline = document.getElementById("personalize-decline-btn");
+    if (title) title.textContent = "Question " + (_personalizeIndex + 1) + " of " + PERSONALIZE_QUESTIONS.length;
+    if (body) body.textContent = q.q;
+    if (opts) {
+        const selected = _personalizeDraft[q.id];
+        let html = (q.options || []).map((o) =>
+            '<button type="button" class="personalize-opt' + (selected === o.v ? " selected" : "") + '" data-v="' + o.v + '">' + o.l + "</button>"
+        ).join("");
+        if (q.text) {
+            const showIf = q.text.showIf || [];
+            const show = !showIf.length || showIf.indexOf(selected) >= 0;
+            const tv = _personalizeDraft[q.text.id] || "";
+            html += '<div class="personalize-text-wrap" style="' + (show ? "" : "display:none") + '">' +
+                '<label class="personalize-text-label" for="personalize-text-input">' + (q.text.label || "Optional detail") + "</label>" +
+                '<input type="text" id="personalize-text-input" class="personalize-text-input" placeholder="' +
+                (q.text.placeholder || "") + '" value="' + String(tv).replace(/"/g, "&quot;") + '" />' +
+                "</div>";
+        }
+        opts.innerHTML = html;
+    }
+    if (prog) {
+        prog.innerHTML = PERSONALIZE_QUESTIONS.map((_, i) =>
+            '<span class="onboard-dot ' + (i <= _personalizeIndex ? "on" : "") + '"></span>'
+        ).join("");
+    }
+    if (skipQ) skipQ.style.display = "";
+    if (back) back.style.display = _personalizeIndex > 0 ? "" : "none";
+    if (primary) {
+        primary.style.display = "";
+        primary.textContent = _personalizeIndex >= PERSONALIZE_QUESTIONS.length - 1 ? "Finish" : "Next";
+    }
+    if (decline) decline.style.display = "none";
+}
+
+function startPersonalizeQuiz() {
+    _personalizeMode = "quiz";
+    _personalizeIndex = 0;
+    renderPersonalizeQuestion();
+}
+
+async function finishPersonalize(completed) {
+    ensurePersonalizationShape();
+    const status = completed ? "completed" : "declined";
+    data.personalization.status = status;
+    data.personalization.version = 1;
+    if (completed) {
+        data.personalization.answers = Object.assign({}, _personalizeDraft);
+    } else {
+        data.personalization.answers = {};
+    }
+    _personalizeShownThisSession = true;
+    try {
+        localStorage.setItem("MOMENTO_PERSONALIZATION_STATUS", status);
+    } catch (e) {}
+    try {
+        await saveData();
+    } catch (e) {
+        console.warn("[personalize] saveData failed", e);
+    }
+    const el = document.getElementById("personalize-overlay");
+    if (el) {
+        el.classList.add("hidden");
+        el.setAttribute("aria-hidden", "true");
+    }
+    if (completed) {
+        try { showToast("Personalisation saved to your account", "success"); } catch (e) {}
+    }
+}
+
+try { window.openPersonalizeIntro = openPersonalizeIntro; window.maybeShowPersonalization = maybeShowPersonalization; } catch (e) {}
+
+function maybeShowPersonalization() {
+    try {
+        if (!needsPersonalizationPrompt()) return;
+        // Don't stack on tutorial/changelog
+        const tut = document.getElementById("tutorial-overlay");
+        const cl = document.getElementById("changelog-overlay");
+        if (tut && !tut.classList.contains("hidden")) return;
+        if (cl && !cl.classList.contains("hidden")) return;
+        _personalizeShownThisSession = true; // only auto-prompt once per session
+        openPersonalizeIntro();
+    } catch (e) {
+        console.warn("[personalize]", e);
+    }
+}
+
+let _personalizeBound = false;
+function bindPersonalizeUi() {
+    const root = document.getElementById("personalize-overlay");
+    if (!root) {
+        console.warn("[personalize] overlay missing");
+        return;
+    }
+    if (_personalizeBound) return;
+    _personalizeBound = true;
+
+    function goNext() {
+        const q = PERSONALIZE_QUESTIONS[_personalizeIndex];
+        const input = document.getElementById("personalize-text-input");
+        if (q && q.text && input) {
+            const v = String(input.value || "").trim();
+            if (v) _personalizeDraft[q.text.id] = v;
+            else delete _personalizeDraft[q.text.id];
+        }
+        if (_personalizeIndex >= PERSONALIZE_QUESTIONS.length - 1) finishPersonalize(true);
+        else {
+            _personalizeIndex += 1;
+            renderPersonalizeQuestion();
+        }
+    }
+
+    root.addEventListener("click", (ev) => {
+        const t = ev.target;
+        if (!t) return;
+        const opt = t.closest ? t.closest(".personalize-opt") : null;
+        if (opt && root.contains(opt)) {
+            const q = PERSONALIZE_QUESTIONS[_personalizeIndex];
+            if (!q) return;
+            _personalizeDraft[q.id] = opt.getAttribute("data-v");
+            root.querySelectorAll(".personalize-opt").forEach((b) => b.classList.remove("selected"));
+            opt.classList.add("selected");
+            const wrap = root.querySelector(".personalize-text-wrap");
+            if (wrap && q.text) {
+                const showIf = q.text.showIf || [];
+                const val = _personalizeDraft[q.id];
+                wrap.style.display = (!showIf.length || showIf.indexOf(val) >= 0) ? "" : "none";
+            }
+            return;
+        }
+        if (t.id === "personalize-primary-btn" || (t.closest && t.closest("#personalize-primary-btn"))) {
+            ev.preventDefault();
+            if (_personalizeMode === "intro") startPersonalizeQuiz();
+            else goNext();
+            return;
+        }
+        if (t.id === "personalize-decline-btn" || (t.closest && t.closest("#personalize-decline-btn"))) {
+            ev.preventDefault();
+            finishPersonalize(false);
+            return;
+        }
+        if (t.id === "personalize-skip-q-btn" || (t.closest && t.closest("#personalize-skip-q-btn"))) {
+            ev.preventDefault();
+            const q = PERSONALIZE_QUESTIONS[_personalizeIndex];
+            if (q) {
+                delete _personalizeDraft[q.id];
+                if (q.text) delete _personalizeDraft[q.text.id];
+            }
+            if (_personalizeIndex >= PERSONALIZE_QUESTIONS.length - 1) finishPersonalize(true);
+            else {
+                _personalizeIndex += 1;
+                renderPersonalizeQuestion();
+            }
+            return;
+        }
+        if (t.id === "personalize-back-btn" || (t.closest && t.closest("#personalize-back-btn"))) {
+            ev.preventDefault();
+            if (_personalizeIndex > 0) {
+                _personalizeIndex -= 1;
+                renderPersonalizeQuestion();
+            }
+        }
+    });
+    console.log("[personalize] UI bound");
+}
+
 
 function bindOnboardingUi() {
     const skip = document.getElementById("tutorial-skip-btn");
@@ -9547,6 +10151,7 @@ function bindOnboardingUi() {
 
 async function runDeviceOnboarding() {
     bindOnboardingUi();
+    try { bindPersonalizeUi(); } catch (e) { console.warn("bindPersonalizeUi", e); }
     await loadDeviceConfig();
     const cfg = _deviceConfig || DEFAULT_DEVICE_CONFIG;
     const needTutorial = cfg.openedFirstTime || !cfg.tutorialCompleted;
@@ -9558,7 +10163,9 @@ async function runDeviceOnboarding() {
     }
     if (needCl) {
         openChangelog();
+        return;
     }
+    setTimeout(() => { try { maybeShowPersonalization(); } catch (e) {} }, 500);
 }
 
 
@@ -9806,5 +10413,18 @@ window.renderCrateSinks = renderCrateSinks;
 })();
 
 setTimeout(() => {
+    try { applyActiveCosmetics(); } catch (e) {}
     try { runDeviceOnboarding(); } catch (e) { console.warn("onboarding", e); }
 }, 900);
+
+/* personalize boot check */
+setTimeout(function() {
+    try {
+        if (typeof ensurePersonalizationShape === "function") ensurePersonalizationShape();
+        const auth = document.getElementById("auth-screen");
+        const authHidden = !auth || auth.classList.contains("hidden");
+        if (authHidden && typeof maybeShowPersonalization === "function") {
+            maybeShowPersonalization();
+        }
+    } catch (e) {}
+}, 2500);

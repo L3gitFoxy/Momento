@@ -462,7 +462,7 @@ const AI_DATABASE = {
         {
             id: "how_are_you",
             keywords: ["how are you","how's it going","hows it going","how are things","you good","hru","how r u"],
-            patterns: [/how are you/i, /how'?s it going/i, /how are things/i, /hru/i],
+            patterns: [/how are you/i, /how'?s it going/i, /how are things/i, /\bhru\b/i],
             handler: () => {
                 const gen = generateConversationalReply("how are you", "how are you");
                 if (gen) return gen;
@@ -481,7 +481,7 @@ const AI_DATABASE = {
         {
             id: "thanks",
             keywords: ["thanks","thank you","thx","ty","appreciate"],
-            patterns: [/(thanks|thank you|thx|ty)/i],
+            patterns: [/\b(thanks|thank you|thx|ty)\b/i],
             handler: () => {
                 const gen = generateConversationalReply("thanks", "thanks");
                 return gen || "Anytime , that's what I'm here for.";
@@ -508,7 +508,7 @@ const AI_DATABASE = {
         {
             id: "joke",
             keywords: ["joke","make me laugh","funny","tell me a joke"],
-            patterns: [/joke/i, /make me laugh/i],
+            patterns: [/\bjoke\b/i, /make me laugh/i],
             handler: () => {
                 const gen = generateConversationalReply("joke", "joke");
                 return gen || "I tried to procrastinate, but my calendar blocked it. Want a real plan next?";
@@ -1157,27 +1157,1124 @@ function sendChatMessage() {
 
 function appendMessage(msg, className) {
     const container = document.getElementById("chat-messages");
-    if (!container) return;
-    const div = document.createElement("div");
-    div.className = `chat-msg ${className}`;
-    div.innerHTML = msg.replace(/\n/g, "<br>").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
+    let div = null;
+    if (container) {
+        div = document.createElement("div");
+        div.className = `chat-msg ${className}`;
+        div.innerHTML = String(msg).replace(/\n/g, "<br>").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+    try {
+        if (typeof appendPreviewChat === "function") {
+            const who = /user/.test(String(className)) ? "user" : "bot";
+            if (!/thinking/.test(String(className))) appendPreviewChat(msg, who);
+        }
+    } catch (e) {}
     return div;
 }
+
+
+/* ---- Hybrid AI week planning session ---- */
+let _planSession = null; // { history: [], fixedNotes: string }
+
+function aiApiBase() {
+    try {
+        return (localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787").replace(/\/$/, "");
+    } catch (e) {
+        return "http://127.0.0.1:8787";
+    }
+}
+
+function needsRealAiForSchedule(text) {
+    const t = String(text || "").toLowerCase();
+    if (!t) return false;
+    // Fixed / messy real-life constraints
+    if (/\b(class|classes|college|university|uni|lecture|lectures|lab|seminar|school|timetable|roster|shift|shifts|work from|wfh|office hours|commute|internship|placement)\b/.test(t)) return true;
+    if (/\b(every|each)\s+(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday)/.test(t)) return true;
+    if (/\b(mon|tue|wed|thu|fri|monday|tuesday|wednesday|thursday|friday)\b.*\b(\d{1,2}\s*([:.]|\s)?\d{0,2}\s*(am|pm)?|\d{1,2}\s*(am|pm))\b/.test(t)) return true;
+    if (/\b(\d{1,2}[:.]\d{2})\s*-\s*(\d{1,2}[:.]\d{2})\b/.test(t) && /\b(class|work|lab|lecture|shift|meeting)\b/.test(t)) return true;
+    if (/\b(fixed|always busy|can'?t move|must attend)\b/.test(t)) return true;
+    return false;
+}
+
+function userSaidNoMore(text) {
+    const t = String(text || "").toLowerCase().trim();
+    if (!t) return false;
+    if (/^(no|nope|nah|nothing|none|done|finish|build|go ahead|that'?s all|thats all|all good|i'?m good|im good)\b/.test(t)) return true;
+    if (/\b(nothing else|no more|that'?s it|thats it|all set|ready to build|build (it|the week)|finali[sz]e)\b/.test(t)) return true;
+    if (/^(no[,.]?\s+)?(nothing|nope)(\s+else)?[.!]?$/.test(t)) return true;
+    return false;
+}
+
+function wantsWeekBuild(text) {
+    const t = String(text || "").toLowerCase();
+    return /\b(generate|build|make|create|plan|set up|setup)\b/.test(t) &&
+        /\b(week|schedule|routine|timetable|plan)\b/.test(t);
+}
+
+
+function getPersonalizationAnswers() {
+    try {
+        if (typeof data !== "undefined" && data.personalization && data.personalization.answers) {
+            return data.personalization.answers;
+        }
+    } catch (e) {}
+    return {};
+}
+
+function fillWeekAroundFixed(fixedWeek, notes) {
+    const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const prefs = getPersonalizationAnswers();
+    const notesL = String(notes || "").toLowerCase();
+    const pad = (n) => String(n).padStart(2, "0");
+    const toHM = (h, m) => pad(((h % 24) + 24) % 24) + ":" + pad(((m % 60) + 60) % 60);
+    const toM = (t) => {
+        const p = String(t || "0:0").split(":");
+        return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0);
+    };
+    const fromM = (m) => {
+        const x = ((Math.round(m) % 1440) + 1440) % 1440;
+        return toHM(Math.floor(x / 60), x % 60);
+    };
+
+    let wake = "07:00";
+    if (prefs.wake === "early") wake = "06:00";
+    else if (prefs.wake === "normal") wake = "07:00";
+    else if (prefs.wake === "late") wake = "08:30";
+    let sleep = "22:30";
+    if (prefs.sleep === "early") sleep = "21:30";
+    else if (prefs.sleep === "normal") sleep = "22:30";
+    else if (prefs.sleep === "late") sleep = "23:30";
+
+    let base = {};
+    dayNames.forEach((d) => { base[d] = []; });
+    if (fixedWeek && typeof fixedWeek === "object") {
+        const norm = typeof normalizeWeekDays === "function" ? normalizeWeekDays(fixedWeek) : fixedWeek;
+        dayNames.forEach((d) => {
+            base[d] = (norm[d] || []).map((b) => ({
+                task: String(b.task || "Block"),
+                start: String(b.start || "09:00").slice(0, 5),
+                end: String(b.end || "10:00").slice(0, 5)
+            }));
+        });
+    }
+    // Notes-based fixed overlay (school etc.) — only add if missing
+    if (notes && typeof buildWeekFromNotes === "function") {
+        try {
+            const fromNotes = buildWeekFromNotes(notes);
+            dayNames.forEach((d) => {
+                (fromNotes[d] || []).forEach((f) => {
+                    if (!/school|football|soccer|class|lecture|lab|work|shift|college/i.test(f.task || "")) return;
+                    const overlap = (base[d] || []).some((b) => rangesOverlap(b.start, b.end, f.start, f.end));
+                    const sameName = (base[d] || []).some((b) => String(b.task).toLowerCase() === String(f.task).toLowerCase());
+                    if (!overlap && !sameName) base[d].push({ task: f.task, start: f.start, end: f.end });
+                });
+            });
+        } catch (e) {}
+    }
+
+    const intensity = prefs.intensity || "balanced";
+    const studyStyle = prefs.study_style || "mixed";
+    const likesGames = prefs.games === "often" || prefs.games === "sometimes";
+    const likesNaps = prefs.naps === "yes" || prefs.naps === "sometimes";
+    const likesExercise = prefs.exercise === "often" || prefs.exercise === "sometimes";
+    const sideProjects = prefs.side === "yes" || prefs.side === "sometimes";
+    const role = prefs.role || (/school|college|class/.test(notesL) ? "student" : "other");
+    const favGame = prefs.favorite_games ? String(prefs.favorite_games).slice(0, 24) : "";
+    const sportName = prefs.favorite_sports ? String(prefs.favorite_sports).slice(0, 24) : "";
+
+    function dedupeDay(blocks) {
+        const sorted = (blocks || []).slice().sort((a, b) => toM(a.start) - toM(b.start));
+        const out = [];
+        sorted.forEach((b) => {
+            const s = toM(b.start), e = toM(b.end);
+            if (e <= s) return;
+            // merge with previous if same task and touching/overlapping
+            if (out.length) {
+                const prev = out[out.length - 1];
+                if (prev.task === b.task && s <= toM(prev.end) + 10) {
+                    prev.end = fromM(Math.max(toM(prev.end), e));
+                    return;
+                }
+            }
+            // skip if overlaps any existing (prefer earlier / fixed-looking)
+            if (out.some((x) => rangesOverlap(x.start, x.end, b.start, fromM(e)))) return;
+            out.push({ task: b.task, start: fromM(s), end: fromM(e), isSleep: !!b.isSleep });
+        });
+        return out;
+    }
+
+    function fillDay(day, fixedBlocks) {
+        const isWeekend = day === "Saturday" || day === "Sunday";
+        let dayWake = toM(wake);
+        let daySleep = toM(sleep);
+        if (day === "Sunday" && prefs.weekends === "yes") dayWake = Math.min(dayWake + 60, toM("10:00"));
+
+        // Start with fixed only (no wake/sleep yet)
+        let fixed = (fixedBlocks || [])
+            .filter((b) => !/wake|get ready|sleep/i.test(b.task || ""))
+            .map((b) => ({ task: b.task, start: toM(b.start), end: toM(b.end) }))
+            .filter((b) => b.end > b.start)
+            .sort((a, b) => a.start - b.start);
+
+        // Merge overlapping fixed with same/different names — keep first name
+        const merged = [];
+        fixed.forEach((b) => {
+            if (!merged.length || b.start >= merged[merged.length - 1].end) {
+                merged.push({ ...b });
+            } else {
+                merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, b.end);
+            }
+        });
+
+        const result = [];
+        result.push({ task: "Wake / Get Ready", start: fromM(dayWake), end: fromM(dayWake + 30) });
+        merged.forEach((b) => {
+            const s = Math.max(b.start, dayWake + 30);
+            const e = Math.min(b.end, daySleep);
+            if (e > s + 20) result.push({ task: b.task, start: fromM(s), end: fromM(e) });
+        });
+        result.push({ task: "Sleep", start: fromM(daySleep), end: "23:59", isSleep: true });
+
+        // Gaps
+        const occupied = result
+            .map((b) => ({ task: b.task, start: toM(b.start), end: toM(b.end) }))
+            .sort((a, b) => a.start - b.start);
+
+        const gaps = [];
+        for (let i = 0; i < occupied.length - 1; i++) {
+            const gs = occupied[i].end;
+            const ge = occupied[i + 1].start;
+            if (ge - gs >= 35) gaps.push({ start: gs, end: ge, after: occupied[i].task, before: occupied[i + 1].task });
+        }
+
+        gaps.forEach((gap) => {
+            let cur = gap.start;
+            const end = gap.end;
+            const placed = [];
+
+            function place(task, s, e) {
+                if (e - s < 30) return false;
+                if (s < cur) s = cur;
+                if (e > end) e = end;
+                if (e - s < 30) return false;
+                // no overlap with already placed in this gap
+                if (placed.some((p) => s < p.e && e > p.s)) return false;
+                result.push({ task, start: fromM(s), end: fromM(e) });
+                placed.push({ s, e });
+                cur = Math.max(cur, e + 5);
+                return true;
+            }
+
+            // Meals once per day max
+            const hasLunch = result.some((b) => /lunch/i.test(b.task));
+            const hasDinner = result.some((b) => /dinner/i.test(b.task));
+            if (!hasLunch && gap.start < toM("13:30") && gap.end > toM("11:45")) {
+                const ls = Math.max(gap.start, toM("12:00"));
+                place("Lunch", ls, Math.min(gap.end, ls + 40));
+            }
+            if (!hasDinner && gap.start < toM("20:30") && gap.end > toM("18:30")) {
+                const ds = Math.max(cur, toM("19:00"));
+                place("Dinner", ds, Math.min(gap.end, ds + 40));
+            }
+
+            // One meaningful block per gap (not a spam of Study)
+            let left = end - cur;
+            if (left < 35) return;
+
+            let task = "Leisure";
+            let dur = Math.min(60, left - 5);
+
+            if (/school|class|college/i.test(gap.after) && left >= 45) {
+                task = "Homework";
+                dur = Math.min(studyStyle === "deep" ? 100 : 75, left - 5);
+            } else if (/football|sport|gym/i.test(gap.before) && left >= 35) {
+                task = "Travel / Snack";
+                dur = Math.min(40, left - 5);
+            } else if (cur < toM("12:00")) {
+                task = (role === "student" || role === "both")
+                    ? (studyStyle === "deep" ? "Deep Study" : "Study")
+                    : (role === "work" ? "Focus Work" : "Morning Block");
+                dur = Math.min(studyStyle === "deep" ? 110 : 75, left - 5);
+            } else if (cur < toM("17:00")) {
+                if (likesNaps && !result.some((b) => /nap/i.test(b.task)) && cur >= toM("13:00") && cur <= toM("15:30")) {
+                    task = "Nap";
+                    dur = Math.min(40, left - 5);
+                } else if (role === "student" || role === "both") {
+                    task = "Homework";
+                    dur = Math.min(80, left - 5);
+                } else {
+                    task = "Focus Work";
+                    dur = Math.min(75, left - 5);
+                }
+            } else {
+                if (likesExercise && !result.some((b) => /football|exercise|gym|sport/i.test(b.task))) {
+                    task = sportName || "Exercise";
+                    dur = Math.min(50, left - 5);
+                } else if (sideProjects) {
+                    task = prefs.side_detail ? String(prefs.side_detail).slice(0, 24) : "Side Project";
+                    dur = Math.min(70, left - 5);
+                } else if (likesGames) {
+                    task = favGame ? ("Games: " + favGame) : "Games";
+                    dur = Math.min(55, left - 5);
+                } else if (isWeekend && prefs.weekends === "yes") {
+                    task = "Free Time";
+                    dur = Math.min(intensity === "light" ? left - 5 : 70, left - 5);
+                } else {
+                    task = intensity === "packed" ? "Extra Focus" : "Leisure";
+                    dur = Math.min(50, left - 5);
+                }
+            }
+
+            if (intensity === "light" && left > dur + 40) {
+                place(task, cur, cur + dur);
+                if (end - cur >= 35) place("Free Time", cur, end);
+            } else {
+                place(task, cur, cur + Math.min(dur, left - 5));
+                // if still a big leftover, one Free Time — not another Study
+                if (end - cur >= 40) place("Free Time", cur, end);
+            }
+        });
+
+        return dedupeDay(result);
+    }
+
+    const out = {};
+    dayNames.forEach((d) => { out[d] = fillDay(d, base[d] || []); });
+    return out;
+}
+
+
+function normalizeWeekDays(week) {
+    const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const map = {
+        mon: "Monday", monday: "Monday",
+        tue: "Tuesday", tues: "Tuesday", tuesday: "Tuesday",
+        wed: "Wednesday", wednesday: "Wednesday",
+        thu: "Thursday", thur: "Thursday", thurs: "Thursday", thursday: "Thursday",
+        fri: "Friday", friday: "Friday",
+        sat: "Saturday", saturday: "Saturday",
+        sun: "Sunday", sunday: "Sunday"
+    };
+    const out = {};
+    dayNames.forEach((d) => { out[d] = []; });
+    if (!week || typeof week !== "object") return out;
+    Object.keys(week).forEach((k) => {
+        const day = map[String(k).toLowerCase()] || (dayNames.includes(k) ? k : null);
+        if (!day) return;
+        const blocks = Array.isArray(week[k]) ? week[k] : [];
+        out[day] = blocks.map((b) => ({
+            task: String(b.task || b.name || "Block"),
+            start: String(b.start || "09:00").replace(".", ":").slice(0, 5),
+            end: String(b.end || "10:00").replace(".", ":").slice(0, 5),
+            completed: false,
+            xpAwarded: false,
+            xpAmount: 0,
+            notes: b.notes || "",
+            isSleep: !!(b.isSleep || /sleep|bed/i.test(String(b.task || "")))
+        }));
+    });
+    return out;
+}
+
+function mergeFixedCommitments(week, notes) {
+    if (!notes || typeof buildWeekFromNotes !== "function") return week;
+    let fixed;
+    try { fixed = buildWeekFromNotes(notes); } catch (e) { return week; }
+    const dayNames = typeof DAYS !== "undefined" ? DAYS : Object.keys(week);
+    dayNames.forEach((day) => {
+        const fixedBlocks = (fixed[day] || []).filter((b) =>
+            /school|football|soccer|class|lecture|lab|work|shift/i.test(b.task || "")
+        );
+        if (!fixedBlocks.length) return;
+        const existing = week[day] || [];
+        // Remove AI blocks that heavily overlap fixed commitments
+        const kept = existing.filter((b) => {
+            if (/school|football|soccer/i.test(b.task || "")) return false;
+            return !fixedBlocks.some((f) => rangesOverlap(b.start, b.end, f.start, f.end));
+        });
+        week[day] = kept.concat(fixedBlocks).sort((a, b) => String(a.start).localeCompare(String(b.start)));
+    });
+    return week;
+}
+
+function rangesOverlap(s1, e1, s2, e2) {
+    const toM = (t) => {
+        const p = String(t).split(":");
+        return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0);
+    };
+    const a1 = toM(s1), a2 = toM(e1), b1 = toM(s2), b2 = toM(e2);
+    return a1 < b2 && b1 < a2;
+}
+
+function applyAiWeek(week, opts) {
+    if (!week || typeof week !== "object") return 0;
+    opts = opts || {};
+    const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    let normalized = normalizeWeekDays(week);
+    const notes = (_planSession && _planSession.fixedNotes) || "";
+    const isEdit = opts.fullWeek || (_planSession && _planSession.phase === "editing");
+    if (isEdit) {
+        // Trust the full week from edit; only light dedupe
+        dayNames.forEach((d) => {
+            const blocks = normalized[d] || [];
+            const out = [];
+            blocks.forEach((b) => {
+                const s = String(b.start).slice(0, 5), e = String(b.end).slice(0, 5);
+                if (out.some((x) => rangesOverlap(x.start, x.end, s, e))) return;
+                out.push({ task: b.task, start: s, end: e, isSleep: !!b.isSleep });
+            });
+            normalized[d] = out.sort((a, b) => String(a.start).localeCompare(String(b.start)));
+        });
+    } else {
+        // Collecting → fixed only → expand school → rule fill once
+        normalized = keepOnlyFixedBlocks(normalized);
+        normalized = ensureSchoolMonSat(normalized, notes);
+        normalized = fillWeekAroundFixed(normalized, notes);
+    }
+
+    // Show in preview modal — do not apply until user clicks Keep
+    const preview = {};
+    let n = 0;
+    dayNames.forEach((day) => {
+        preview[day] = (normalized[day] || []).map((b) => ({
+            task: String(b.task || "Block"),
+            start: String(b.start || "09:00").slice(0, 5),
+            end: String(b.end || "10:00").slice(0, 5),
+            isSleep: !!(b.isSleep || /sleep|bed/i.test(String(b.task || "")))
+        }));
+        n += preview[day].length;
+    });
+    try {
+        if (typeof window !== "undefined") {
+            window._previewWeek = preview;
+            window._previewDay = dayNames[0];
+            window._previewApplyAllDays = true;
+            window._previewRoutineLabel = "Personalised week (fixed + rules)";
+            if (typeof showFullWeekInPreview === "function") {
+                showFullWeekInPreview(preview);
+            } else if (typeof syncPreviewFromPlan === "function") {
+                syncPreviewFromPlan(preview);
+            } else if (typeof openPreview === "function") {
+                openPreview();
+            }
+        }
+    } catch (e) {
+        console.warn("preview open failed", e);
+    }
+    return n;
+}
+
+async function callAiPlan(message) {
+    const res = await fetch(aiApiBase() + "/api/ai/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            message,
+            history: (_planSession && _planSession.history) || [],
+            context: {
+                streak: data.streak || 0,
+                rank: (typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0).rank : ""),
+                fixedNotes: (_planSession && _planSession.fixedNotes) || ""
+            }
+        })
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(j.error || ("AI error " + res.status));
+      err.failed_generation = j.failed_generation || null;
+      throw err;
+    }
+    if (j.failed_generation) {
+      console.warn("[Momento AI] failed_generation:", j.failed_generation);
+    }
+    if (j.error && !j.reply && !j.week) {
+      const err = new Error(j.error);
+      err.failed_generation = j.failed_generation || null;
+      throw err;
+    }
+    return j;
+}
+
+async function continuePlanSession(userText) {
+    if (!_planSession) {
+        _planSession = { phase: "ai", history: [], fixedNotes: "", style: "study" };
+    }
+
+    if (_planSession.phase === "intake") {
+        const text = String(userText || "").trim();
+        if (userSaidNoMore(text) || /^(none|no fixed|nothing fixed|just generate|normal week)\b/i.test(text)) {
+            const style = _planSession.style || "study";
+            _planSession = null;
+            return runRuleBasedWeek(style, style);
+        }
+        if (needsRealAiForSchedule(text) || text.length > 12) {
+            _planSession.phase = "ai";
+            _planSession.fixedNotes = text;
+            _planSession.history = [];
+        } else {
+            return (
+                "Got it, but I need a bit more detail, or say **no**.\n\n" +
+                "Any fixed classes / shifts / times? (or **no** to auto-build)"
+            );
+        }
+    }
+
+    if (!userSaidNoMore(userText)) {
+        _planSession.fixedNotes = ((_planSession.fixedNotes || "") + " " + userText).trim().slice(0, 2000);
+    }
+
+    const finishing = userSaidNoMore(userText);
+
+    const finalizeLocalFromNotes = (reason) => {
+        const notes = (_planSession && _planSession.fixedNotes) || userText || "study";
+        const style = (_planSession && _planSession.style) || "study";
+        _planSession = null;
+        const msg = runRuleBasedWeek(style, notes);
+        return (reason ? reason + "\n\n" : "") + msg +
+            "\n\n(Used your notes: " + String(notes).slice(0, 140) + (String(notes).length > 140 ? "…" : "") + ")";
+    };
+
+    try {
+        if (finishing) {
+            const isEdit = _planSession.phase === "editing";
+            const prompt = isEdit
+                ? ("User finished editing. Fixed notes:\n" + (_planSession.fixedNotes || "") +
+                   "\n\nPrevious week snapshot:\n" + JSON.stringify(_planSession.editContextWeek || (typeof window !== "undefined" ? window._previewWeek : null) || {}).slice(0, 3500) +
+                   "\n\nReturn JSON done:true with week = ONLY fixed commitments (all 7 days). Do not fill free time.")
+                : ("Finalize fixed commitments only.\n" + (_planSession.fixedNotes || "") +
+                   "\n\nReturn JSON done:true with week = ONLY fixed commitments Mon-Sun. No study/leisure filler.");
+
+            let result = await callAiPlan(prompt);
+            _planSession.history.push({ role: "user", content: userText });
+            _planSession.history.push({ role: "assistant", content: result.reply || "" });
+
+            if (result.week) {
+                const n = applyAiWeek(result.week);
+                _planSession = null;
+                return stripJsonFromReply(result.reply || "Week ready.") +
+                    (n ? "\n\n✅ Full week drafted (**" + n + "** blocks). Press **Accept week** if it looks good, or **Request changes**." : "");
+            }
+
+            result = await callAiPlan(
+                "OUTPUT ONLY JSON. done:true. week = fixed commitments only for Monday-Sunday. Notes: " +
+                (_planSession.fixedNotes || "")
+            );
+            if (result.week) {
+                const n = applyAiWeek(result.week);
+                _planSession = null;
+                return stripJsonFromReply(result.reply || "Week ready.") +
+                    (n ? "\n\n✅ Full week drafted (**" + n + "** blocks). Press **Accept week** or **Request changes**." : "");
+            }
+
+            return finalizeLocalFromNotes("AI did not return fixed blocks, so I built a week locally from your notes.");
+        }
+
+        // Editing mode mid-turn: update fixed week from feedback
+        if (_planSession.phase === "editing") {
+            const currentWeek = _planSession.editContextWeek || (typeof window !== "undefined" ? window._previewWeek : null) || {};
+            const result = await callAiPlan(
+                "EDIT MODE — apply the user's changes to the FULL week schedule.\n" +
+                "User said:\n" + userText + "\n\n" +
+                "Rules:\n" +
+                "- Return JSON {reply, done:false, week:{Monday:[...],...,Sunday:[...]}}.\n" +
+                "- week must be the COMPLETE updated schedule for all 7 days after applying their changes.\n" +
+                "- Apply removes, time changes, renames, and adds exactly as asked.\n" +
+                "- If school should be every day except Sunday, put School on Mon-Sat at the stated times.\n" +
+                "- Do NOT invent random duplicate Study/Homework blocks. Keep the day clean.\n" +
+                "- If a time is missing, keep the task and ask for the time in reply.\n\n" +
+                "Current week JSON:\n" + JSON.stringify(currentWeek).slice(0, 5000)
+            );
+            _planSession.history.push({ role: "user", content: userText });
+            _planSession.history.push({ role: "assistant", content: result.reply || "" });
+
+            let week = result.week || null;
+            // Local surgical fixes when model is weak
+            week = applyLocalWeekEdits(currentWeek, userText, week);
+
+            if (week) {
+                week = typeof normalizeWeekDays === "function" ? normalizeWeekDays(week) : week;
+                // Dedupe each day
+                const days = typeof DAYS !== "undefined" ? DAYS : Object.keys(week);
+                days.forEach((d) => {
+                    const blocks = week[d] || [];
+                    const seen = [];
+                    blocks.forEach((b) => {
+                        const s = String(b.start).slice(0, 5), e = String(b.end).slice(0, 5);
+                        if (seen.some((x) => x.task === b.task && x.start === s && x.end === e)) return;
+                        if (seen.some((x) => rangesOverlap(x.start, x.end, s, e))) return;
+                        seen.push({ task: b.task, start: s, end: e, isSleep: !!b.isSleep });
+                    });
+                    week[d] = seen.sort((a, b) => String(a.start).localeCompare(String(b.start)));
+                });
+                _planSession.editContextWeek = week;
+                if (typeof showFullWeekInPreview === "function") showFullWeekInPreview(week);
+                else if (typeof syncPreviewFromPlan === "function") syncPreviewFromPlan(week);
+                if (typeof setPreviewFooterMode === "function") setPreviewFooterMode("full");
+            }
+
+            let reply = stripJsonFromReply(result.reply || "Updated the week.");
+            if (!/anything else/i.test(reply)) {
+                reply += "\n\nAnything else to fix?\n\nPlease put **all** remaining issues in one message to save API resources.";
+            }
+            return reply;
+        }
+
+
+        const result = await callAiPlan(userText);
+        _planSession.history.push({ role: "user", content: userText });
+        _planSession.history.push({ role: "assistant", content: result.reply || "" });
+
+        // Ignore model done:true until user explicitly says no
+        try {
+            let draft = result.week || null;
+            if (draft) {
+                draft = keepOnlyFixedBlocks(draft);
+                draft = ensureSchoolMonSat(draft, (_planSession && _planSession.fixedNotes) || "");
+            }
+            if (draft && typeof showFixedDraftInPreview === "function") {
+                showFixedDraftInPreview(draft);
+            } else {
+                await refreshFixedDraftFromNotes();
+            }
+        } catch (e) {}
+
+        let reply = stripJsonFromReply(result.reply || "Got it.");
+        if (reply.length < 4) reply = "Got it.";
+        if (_planSession && _planSession.phase === "editing") {
+            if (!/anything else/i.test(reply)) {
+                reply += "\n\nAnything else to fix?\n\nPlease put **all** remaining issues in one message to save API resources.";
+            }
+        } else if (!/anything else/i.test(reply)) {
+            reply += "\n\nAnything else I should lock in (classes, shifts, gym times)? If not, say **no** and I will build the full week.";
+        }
+        return reply;
+
+    } catch (e) {
+        if (finishing || ((_planSession.fixedNotes || "").length > 20)) {
+            return finalizeLocalFromNotes("AI error (" + (e.message || e) + "). Built from your notes instead.");
+        }
+        _planSession = null;
+        return "AI unavailable: " + (e.message || e) + (e && e.failed_generation ? ("\n\n**failed_generation:**\n```\n" + String(e.failed_generation).slice(0, 1200) + "\n```") : "") + ". Try **generate study week** again, or check `AI_API_KEY` on the server.";
+    }
+}
+
+
+
+
+function applyLocalWeekEdits(currentWeek, userText, aiWeek) {
+    // Prefer AI week if it looks like a real 7-day schedule
+    const days = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    let base = aiWeek && typeof aiWeek === "object" ? (typeof normalizeWeekDays === "function" ? normalizeWeekDays(aiWeek) : aiWeek) : null;
+    const aiCount = base ? days.reduce((n, d) => n + ((base[d] || []).length), 0) : 0;
+    if (!base || aiCount < 5) {
+        base = currentWeek && typeof currentWeek === "object"
+            ? (typeof normalizeWeekDays === "function" ? normalizeWeekDays(currentWeek) : JSON.parse(JSON.stringify(currentWeek)))
+            : {};
+        days.forEach((d) => { if (!base[d]) base[d] = []; });
+    }
+
+    const t = String(userText || "").toLowerCase();
+
+    // school every day except sunday / mon-sat
+    if (/school/.test(t) && (/except\s+sunday|all\s+days|every\s+day|mon\s*[-–/to]+\s*sat|make sure all days/.test(t))) {
+        let start = "06:00", end = "14:30";
+        const m = t.match(/(\d{1,2})\s*[-–]\s*(\d{3,4})/);
+        if (m) {
+            const pad = (n) => String(n).padStart(2, "0");
+            start = pad(+m[1]) + ":00";
+            end = pad(parseInt(m[2].slice(0, m[2].length - 2), 10)) + ":" + pad(parseInt(m[2].slice(-2), 10));
+        } else {
+            // reuse existing school time if any
+            for (const d of days) {
+                const sc = (base[d] || []).find((b) => /school/i.test(b.task || ""));
+                if (sc) { start = sc.start; end = sc.end; break; }
+            }
+        }
+        const schoolDays = days.filter((d) => d !== "Sunday");
+        schoolDays.forEach((d) => {
+            base[d] = (base[d] || []).filter((b) => !/school/i.test(b.task || ""));
+            // remove study that sits inside school hours
+            base[d] = (base[d] || []).filter((b) => {
+                if (!/study/i.test(b.task || "")) return true;
+                return !(b.start >= start && b.end <= end);
+            });
+            base[d].push({ task: "School", start, end });
+            base[d].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+        });
+        // Sunday: no school
+        base.Sunday = (base.Sunday || []).filter((b) => !/school/i.test(b.task || ""));
+    }
+
+    // remove X
+    const rm = t.match(/remove\s+([a-z0-9\/\s]{2,30}?)(?:\s+on\s+(\w+))?$/i) || t.match(/remove\s+([a-z0-9\/\s]+)/i);
+    if (/remove\s+/.test(t)) {
+        const nameMatch = t.match(/remove\s+([a-z][a-z0-9\/\s]{1,24})/);
+        const name = nameMatch ? nameMatch[1].replace(/\s+on\s+\w+.*/i, "").trim() : "";
+        const dayMatch = t.match(/\bon\s+(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)/i);
+        const dayMap = { mon: "Monday", monday: "Monday", tue: "Tuesday", tues: "Tuesday", tuesday: "Tuesday", wed: "Wednesday", wednesday: "Wednesday", thu: "Thursday", thur: "Thursday", thursday: "Thursday", fri: "Friday", friday: "Friday", sat: "Saturday", saturday: "Saturday", sun: "Sunday", sunday: "Sunday" };
+        const onlyDay = dayMatch ? dayMap[dayMatch[1].toLowerCase()] : null;
+        if (name) {
+            const re = new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+            (onlyDay ? [onlyDay] : days).forEach((d) => {
+                base[d] = (base[d] || []).filter((b) => !re.test(b.task || ""));
+            });
+        }
+    }
+
+    return base;
+}
+
+
+function keepOnlyFixedBlocks(week) {
+    const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const fixedRe = /school|college|class|lecture|lab|seminar|football|soccer|sport|training|work|shift|office|internship|lesson|piano|tutor|commute|meeting/i;
+    const junkRe = /wake|get ready|sleep|study|homework|deep study|focus work|leisure|free time|break|nap|lunch|dinner|games|coding|side project|extra study|extra focus|morning block|travel/i;
+    const out = {};
+    dayNames.forEach((d) => {
+        const blocks = (week && week[d]) ? week[d] : [];
+        out[d] = (blocks || []).filter((b) => {
+            const t = String(b.task || b.name || "");
+            if (fixedRe.test(t)) return true;
+            if (junkRe.test(t)) return false;
+            // keep unknown only if user-named and not generic filler
+            return t.length > 2 && !/block/i.test(t);
+        }).map((b) => ({
+            task: b.task || b.name || "Fixed",
+            start: String(b.start || "09:00").slice(0, 5),
+            end: String(b.end || "10:00").slice(0, 5)
+        }));
+    });
+    return out;
+}
+
+function stripJsonFromReply(text) {
+    let s = String(text || "");
+    // remove fenced json
+    s = s.replace(/```json[\s\S]*?```/gi, "").replace(/```[\s\S]*?```/g, "");
+    // remove raw JSON objects that look like plan payloads
+    if (s.includes('"week"') || s.includes('"done"')) {
+        const start = s.indexOf("{");
+        const end = s.lastIndexOf("}");
+        if (start >= 0 && end > start) {
+            const maybe = s.slice(start, end + 1);
+            try {
+                JSON.parse(maybe);
+                s = (s.slice(0, start) + " " + s.slice(end + 1)).trim();
+            } catch (e) {}
+        }
+    }
+    s = s.replace(/\s+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+    return s || "Got it.";
+}
+
+function ensureSchoolMonSat(week, notes) {
+    const text = String(notes || "").toLowerCase();
+    if (!/school|college|class/.test(text)) return week;
+    const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    let days = [];
+    if (/except\s+sunday|all\s+days\s+except\s+sun|every\s+day\s+except\s+sun/.test(text)) {
+        days = dayNames.filter((d) => d !== "Sunday");
+    } else if (/mon\s*[-–/to]+\s*sat|mon(?:day)?\s*[-–/to]+\s*sat|monday\s*[-–/to]+\s*saturday|mon\/sat/.test(text)) {
+        days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    } else if (/mon\s*[-–/to]+\s*fri|weekdays/.test(text)) {
+        days = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+    }
+    if (!days.length) return week;
+
+    // Parse school time
+    let start = "06:00", end = "14:30";
+    const compact = text.match(/(\d{1,2})\s*[-–]\s*(\d{3,4})/);
+    if (compact) {
+        const h1 = parseInt(compact[1], 10);
+        const endRaw = compact[2];
+        const h2 = parseInt(endRaw.slice(0, endRaw.length - 2), 10);
+        const m2 = parseInt(endRaw.slice(-2), 10);
+        const pad = (n) => String(n).padStart(2, "0");
+        start = pad(h1) + ":00";
+        end = pad(h2) + ":" + pad(m2);
+    }
+    days.forEach((d) => {
+        if (!week[d]) week[d] = [];
+        const has = week[d].some((b) => /school|college/i.test(b.task || ""));
+        if (!has) week[d].push({ task: "School", start, end });
+        // remove study blocks that overlap school hours on those days
+        week[d] = week[d].filter((b) => {
+            if (/school|college/i.test(b.task || "")) return true;
+            // drop filler study sitting inside school window
+            if (/study/i.test(b.task || "") && b.start >= start && b.end <= end) return false;
+            return true;
+        });
+    });
+    return week;
+}
+
+
+function startWeekEditMode() {
+    if (!_planSession) {
+        _planSession = { phase: "editing", history: [], fixedNotes: "", style: "custom", seed: "" };
+    } else {
+        _planSession.phase = "editing";
+    }
+    // Snapshot current preview as context for the model
+    try {
+        _planSession.editContextWeek = window._previewWeek || null;
+    } catch (e) {
+        _planSession.editContextWeek = null;
+    }
+    const msg = "What should change?\n\nPlease list **every** issue or missing time in **one message** (saves API calls). Example: *Football should be 16:00-17:30, remove gym on Friday, add piano Mon 18:00-19:00*.\n\nI will update the week, then ask if anything else needs fixing.";
+    try {
+        if (typeof appendPreviewChat === "function") appendPreviewChat(msg, "bot");
+        if (typeof setPreviewFooterMode === "function") setPreviewFooterMode("draft");
+    } catch (e) {}
+    return msg;
+}
+
+async function refreshFixedDraftFromNotes() {
+    const notes = (_planSession && _planSession.fixedNotes) || "";
+    if (!notes || notes.length < 4) return;
+    let fixed = null;
+    // Prefer AI extract if available, else local notes parser
+    try {
+        const result = await callAiPlan(
+            "Extract ONLY fixed commitments so far into week JSON. done=false. week may be partial. Notes:\n" + notes
+        );
+        if (result && result.week) fixed = result.week;
+    } catch (e) {}
+    if (!fixed && typeof buildWeekFromNotes === "function") {
+        try {
+            const w = buildWeekFromNotes(notes);
+            // strip non-fixed
+            const days = typeof DAYS !== "undefined" ? DAYS : Object.keys(w);
+            fixed = {};
+            days.forEach((d) => {
+                fixed[d] = (w[d] || []).filter((b) =>
+                    /school|football|soccer|class|lecture|lab|work|shift|college|piano|lesson|training/i.test(b.task || "")
+                );
+            });
+        } catch (e) {}
+    }
+    if (fixed) {
+        fixed = keepOnlyFixedBlocks(fixed);
+        fixed = ensureSchoolMonSat(fixed, notes);
+        if (typeof showFixedDraftInPreview === "function") {
+            showFixedDraftInPreview(fixed);
+        } else if (typeof syncPreviewFromPlan === "function") {
+            syncPreviewFromPlan(fixed);
+            if (typeof setPreviewFooterMode === "function") setPreviewFooterMode("draft");
+        }
+    }
+}
+
+
+function startWeekIntake(seedText) {
+    const hint = String(seedText || "").toLowerCase();
+    let style = "balanced";
+    if (/\bstudy|exam|college|school\b/.test(hint)) style = "study";
+    else if (/\bwork|office|job\b/.test(hint)) style = "work";
+    else if (/\bfit|gym|health\b/.test(hint)) style = "fitness";
+    _planSession = {
+        phase: "intake",
+        history: [],
+        fixedNotes: "",
+        style,
+        seed: seedText || ""
+    };
+    try {
+        window._previewApplyAllDays = true;
+        if (typeof openPreview === "function") {
+            if (!window._previewWeek) {
+                window._previewWeek = {};
+                (typeof DAYS !== "undefined" ? DAYS : []).forEach((d) => { window._previewWeek[d] = []; });
+            }
+            openPreview();
+        }
+        if (typeof appendPreviewChat === "function") {
+            appendPreviewChat("Tell me any fixed classes, work, or sports. When you are done, say **no** and I will build a full week to preview.", "bot");
+        }
+    } catch (e) {}
+    return (
+        "Sure — opening the week builder.\n\n" +
+        "Any **fixed** stuff I should lock in first? (classes, college, work shifts, labs, commute)\n" +
+        "Example: *Mon/Wed lectures 10–12, Fri lab 2–5*\n\n" +
+        "If none, just say **no** and I will generate a normal **" + style + "** week."
+    );
+}
+
+
+function buildWeekFromNotes(notes) {
+    const text = String(notes || "").toLowerCase();
+    const days = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const week = {};
+    days.forEach((d) => { week[d] = []; });
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const toHM = (h, m) => pad(h) + ":" + pad(m || 0);
+
+    // Parse "6-1430" / "6-14:30" / "5-630" / "5-6:30"
+    function parseRange(str) {
+        const m = String(str).match(/(\d{1,2})(?::?(\d{2}))?\s*[-–to]+\s*(\d{1,2})(?::?(\d{2}))?/i);
+        if (!m) return null;
+        let h1 = parseInt(m[1], 10), min1 = m[2] ? parseInt(m[2], 10) : 0;
+        let h2 = parseInt(m[3], 10), min2 = m[4] ? parseInt(m[4], 10) : 0;
+        // 1430 style already split wrong — handle continuous digits
+        if (!m[2] && m[1].length <= 2 && m[3].length >= 3) {
+            // e.g. 6-1430
+            const endRaw = m[3] + (m[4] || "");
+            if (endRaw.length === 3 || endRaw.length === 4) {
+                h2 = parseInt(endRaw.slice(0, endRaw.length - 2), 10);
+                min2 = parseInt(endRaw.slice(-2), 10);
+            }
+        }
+        if (!m[4] && m[3].length >= 3 && m[2] == null) {
+            // already handled
+        }
+        // 630 as 6:30
+        if (!m[4] && String(m[3]).length === 3) {
+            h2 = parseInt(String(m[3])[0], 10);
+            min2 = parseInt(String(m[3]).slice(1), 10);
+        }
+        if (!m[2] && String(m[1]).length === 3) {
+            h1 = parseInt(String(m[1])[0], 10);
+            min1 = parseInt(String(m[1]).slice(1), 10);
+        }
+        if (h1 > 23 || h2 > 23) return null;
+        return { start: toHM(h1, min1), end: toHM(h2, min2) };
+    }
+
+    // Fix common "6-1430"
+    function parseLooseRange(chunk) {
+        const compact = chunk.replace(/\s/g, "");
+        let m = compact.match(/(\d{1,2})-(\d{3,4})/);
+        if (m) {
+            const h1 = parseInt(m[1], 10);
+            const end = m[2];
+            const h2 = parseInt(end.slice(0, end.length - 2), 10);
+            const min2 = parseInt(end.slice(-2), 10);
+            if (h1 <= 23 && h2 <= 23) return { start: toHM(h1, 0), end: toHM(h2, min2) };
+        }
+        m = compact.match(/(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?/);
+        if (m) {
+            return { start: toHM(+m[1], m[2] ? +m[2] : 0), end: toHM(+m[3], m[4] ? +m[4] : 0) };
+        }
+        return null;
+    }
+
+    const dayMap = {
+        mon: "Monday", monday: "Monday",
+        tue: "Tuesday", tues: "Tuesday", tuesday: "Tuesday",
+        wed: "Wednesday", wednesday: "Wednesday",
+        thu: "Thursday", thur: "Thursday", thurs: "Thursday", thursday: "Thursday",
+        fri: "Friday", friday: "Friday",
+        sat: "Saturday", saturday: "Saturday",
+        sun: "Sunday", sunday: "Sunday"
+    };
+
+    function daysFromPhrase(phrase) {
+        const p = phrase.toLowerCase();
+        if (/mon\s*[-–/to]+\s*sat|mon-sat|mon\/sat|monday\s*[-–/to]+\s*saturday/.test(p)) {
+            return ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        }
+        if (/except\s+sunday|all\s+days\s+except\s+sun/.test(p)) {
+            return ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        }
+        if (/mon\s*[-–to]+\s*fri|weekdays/.test(p)) {
+            return ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+        }
+        const found = [];
+        const re = /\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/g;
+        let x;
+        while ((x = re.exec(p))) {
+            const d = dayMap[x[1]];
+            if (d && !found.includes(d)) found.push(d);
+        }
+        return found;
+    }
+
+    // School block
+    if (/school|college|class(?:es)?/.test(text)) {
+        const range = parseLooseRange(text.match(/school[^.]{0,40}?(\d{1,2}\s*[-–]\s*\d{3,4}|\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}|\d{1,2}\s*[-–]\s*\d{1,2})/i)?.[1] || text.match(/(\d{1,2}\s*[-–]\s*\d{3,4})/)?.[1] || "6-1430")
+            || parseLooseRange("6-1430");
+        let ds = daysFromPhrase(text);
+        if (/except\s+sunday|all\s+days\s+except|every\s+day\s+except\s+sun/.test(text)) {
+            ds = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        } else if (/mon\s*[-–/to]+\s*sat|mon(?:day)?\s*[-–/to]+\s*sat|mon\/sat|monday\s*[-–/to]+\s*saturday/.test(text)) {
+            ds = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        } else if (!ds.length) {
+            ds = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+        }
+        // If phrase was only mon/sat as endpoints, still expand to all between
+        if (ds.length === 2 && ds[0] === "Monday" && ds[1] === "Saturday") {
+            ds = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        }
+        if (range) {
+            ds.forEach((d) => {
+                week[d].push({ task: "School", start: range.start, end: range.end });
+            });
+        }
+    }
+
+    // Football / sports after school — treat low hours as PM
+    if (/football|soccer/.test(text)) {
+        let use = { start: "17:00", end: "18:30" };
+        const loose = text.match(/football[^.]{0,80}?(\d{1,2}\s*[-–]\s*\d{3,4})/i)
+            || text.match(/football[^.]{0,80}?(\d{1,2}(?::\d{2})?\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(am|pm)?)/i);
+        if (loose) {
+            const r = parseLooseRange(loose[1]);
+            if (r) {
+                let [sh, sm] = r.start.split(":").map(Number);
+                let [eh, em] = r.end.split(":").map(Number);
+                // 5-630 or 5-6:30 in evening context → 17:00-18:30
+                if (sh < 12 && (/pm|evening|afternoon|football|soccer/.test(text))) sh += 12;
+                if (eh < 12 && eh < sh) eh += 12;
+                if (eh < 12 && /pm/.test(loose[0] || "")) eh += 12;
+                use = { start: toHM(sh % 24, sm), end: toHM(eh % 24, em) };
+            }
+        }
+        // Days only from the football clause when possible
+        const fbIdx = text.search(/football|soccer/);
+        const clause = fbIdx >= 0 ? text.slice(fbIdx, fbIdx + 80) : text;
+        let ds = daysFromPhrase(clause);
+        if (!ds.length) ds = ["Tuesday", "Thursday"];
+        ds.forEach((d) => {
+            week[d].push({ task: "Football", start: use.start, end: use.end });
+        });
+    }
+
+    // Sleep / wake
+    let wake = "06:30", sleep = "22:30";
+    const wakeM = text.match(/wake[^\d]{0,12}(\d{1,2})(?::(\d{2}))?/);
+    if (wakeM) wake = toHM(+wakeM[1], wakeM[2] ? +wakeM[2] : 0);
+    const sleepM = text.match(/sleep[^\d]{0,12}(\d{1,2})(?::?(\d{2}))?/);
+    if (sleepM) {
+        let h = +sleepM[1];
+        let min = sleepM[2] ? +sleepM[2] : 0;
+        if (h <= 12 && /pm|night|evening/.test(text)) h = h === 12 ? 12 : h + 12;
+        if (h < 12 && !sleepM[2] && h <= 11) h = h + 12; // 10 -> 22
+        sleep = toHM(h % 24, min);
+    }
+
+    days.forEach((d) => {
+        const blocks = week[d];
+        const wakeStart = (d === "Sunday" && /sunday[^\d]{0,20}8/.test(text)) ? "08:00" : wake;
+        blocks.unshift({ task: "Wake / Get Ready", start: wakeStart, end: addMins(wakeStart, 30) });
+        const sorted = blocks.slice().sort((a, b) => String(a.start).localeCompare(String(b.start)));
+        const filled = sorted.slice();
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const gapStart = sorted[i].end;
+            const gapEnd = sorted[i + 1].start;
+            const toM = (t) => { const p = String(t).split(":"); return (+p[0] || 0) * 60 + (+p[1] || 0); };
+            const mins = toM(gapEnd) - toM(gapStart);
+            if (mins >= 45 && mins <= 240) {
+                const label = /football/i.test(sorted[i + 1].task) ? "Travel / Snack" :
+                    /school/i.test(sorted[i].task) ? "Homework" : "Break";
+                filled.push({ task: label, start: gapStart, end: gapEnd });
+            }
+        }
+        week[d] = filled;
+        week[d].push({ task: "Sleep", start: sleep, end: "23:59", isSleep: true });
+        week[d].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+    });
+
+    function addMins(hm, mins) {
+        const [h, m] = hm.split(":").map(Number);
+        const t = h * 60 + m + mins;
+        return toHM(Math.floor(t / 60) % 24, t % 60);
+    }
+
+    return week;
+}
+
+
+function runRuleBasedWeek(style, notes) {
+    const intent = notes || style || "study";
+    try {
+        if (typeof DAYS !== "undefined" && typeof clawbackDayXP === "function") {
+            DAYS.forEach((d) => { try { clawbackDayXP(d, { silent: true }); } catch (e) {} });
+        }
+        let week = null;
+        if (notes && /school|football|college|class|lecture|shift|work/i.test(String(notes))) {
+            try {
+                const fixed = buildWeekFromNotes(notes);
+                week = fillWeekAroundFixed(fixed, notes);
+            } catch (e) { week = null; }
+        }
+        if (!week && typeof generateSmartWeekFromIntent === "function") {
+            const base = generateSmartWeekFromIntent(intent);
+            week = fillWeekAroundFixed(base, notes || intent);
+        }
+        if (!week) return "Could not build week (generator missing).";
+        const preview = {};
+        let total = 0;
+        DAYS.forEach((day) => {
+            preview[day] = week[day] ? JSON.parse(JSON.stringify(week[day])) : [];
+            total += preview[day].length;
+        });
+        try {
+            window._previewWeek = preview;
+            window._previewDay = DAYS[0];
+            window._previewApplyAllDays = true;
+            window._previewRoutineLabel = "Chat: " + String(intent).slice(0, 48);
+            if (typeof syncPreviewFromPlan === "function") syncPreviewFromPlan(preview);
+            else if (typeof openPreview === "function") openPreview();
+        } catch (e) {}
+        const n = (preview[DAYS[0]] || []).length;
+        return `✅ Draft ready — **${n}** blocks on the first day (${total} total). Review days in the preview, then **Keep This Week** to apply.`;
+    } catch (e) {
+        return "Week build failed: " + (e.message || e);
+    }
+}
+
+async function startPlanSession(seedText) {
+    _planSession = { phase: "ai", history: [], fixedNotes: seedText || "", style: "custom", seed: seedText || "" };
+    return continuePlanSession(
+        seedText ||
+        "I want a personalised week plan. Ask me about fixed classes, work, or other commitments."
+    );
+}
+
 
 function processNLPIntent(rawInput) {
     if (!rawInput || !rawInput.trim()) return;
     const input = rawInput.trim();
     const lower = input.toLowerCase();
-    const run = () => {
+
+    const runLocal = () => {
         const result = resolveLocalIntent(input, lower);
         appendMessage(result, "bot-msg");
     };
+
+    const finishReply = (reply) => {
+        const thinking = document.querySelector(".chat-msg.thinking:last-child");
+        if (thinking) thinking.remove();
+        appendMessage(reply, "bot-msg");
+    };
+
+    // Active planning session (intake question or AI)
+    if (_planSession) {
+        appendMessage("…", "bot-msg thinking");
+        Promise.resolve(continuePlanSession(input)).then(finishReply).catch((e) => {
+            finishReply("Planning error: " + (e.message || e));
+        });
+        return;
+    }
+
+    // Week-build / personalised plan → always ask about fixed stuff first
+    if (wantsWeekBuild(input) || /\b(personalised|personalized|custom week|help me plan|plan my week)\b/i.test(input)) {
+        if (needsRealAiForSchedule(input)) {
+            appendMessage("…", "bot-msg thinking");
+            Promise.resolve(startPlanSession(input)).then(finishReply).catch(runLocal);
+            return;
+        }
+        appendMessage(startWeekIntake(input), "bot-msg");
+        return;
+    }
+
     if (!NLP_CORPUS) {
-        loadNlpCorpus().then(run).catch(run);
+        loadNlpCorpus().then(runLocal).catch(runLocal);
     } else {
-        run();
+        runLocal();
     }
 }
 
