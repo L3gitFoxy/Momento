@@ -1,7 +1,7 @@
 {
   "name": "momento",
-  "version": "7.0.0",
-  "description": "Momento — offline-first gamified schedule app with optional google sync",
+  "version": "8.0.0",
+  "description": "Momento \u2014 offline-first gamified schedule app with optional google sync",
   "main": "electron-main.js",
   "scripts": {
     "start": "electron ."

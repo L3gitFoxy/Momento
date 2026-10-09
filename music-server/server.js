@@ -288,14 +288,14 @@ function sendJson(res, status, obj) {
 
 
 /* ---- AI plan assistant (server-side key, rate limited) ---- */
-const AI_API_KEY = process.env.AI_API_KEY || process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY || process.env.GROQ_KEY || "";
-const AI_API_BASE = (process.env.AI_API_BASE || process.env.OPENAI_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/$/, "");
-const AI_MODEL = process.env.AI_MODEL || process.env.GROQ_MODEL || "openai/gpt-oss-20b";
+const AI_API_KEY = process.env.AI_API_KEY || process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY || process.env.GROQ_KEY || "";
+const AI_API_BASE = (process.env.AI_API_BASE || process.env.OPENAI_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, "");
+const AI_MODEL = process.env.AI_MODEL || process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 const AI_RPM_LIMIT = Math.max(5, parseInt(process.env.AI_RPM_LIMIT || "30", 10) || 30);
 if (AI_API_KEY) {
   console.log("[Momento AI] configured, model=" + AI_MODEL + " base=" + AI_API_BASE);
 } else {
-  console.log("[Momento AI] not configured — set AI_API_KEY in music-server/.env");
+  console.log("[Momento AI] not configured — set AI_API_KEY or OPENROUTER_API_KEY");
 }
 const _aiHits = new Map(); // ip -> timestamps
 
@@ -356,7 +356,9 @@ function openaiChat(messages, opts) {
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + AI_API_KEY,
-        "Content-Length": Buffer.byteLength(payload)
+        "Content-Length": Buffer.byteLength(payload),
+        "HTTP-Referer": process.env.AI_HTTP_REFERER || "https://momento-silk.vercel.app",
+        "X-Title": process.env.AI_X_TITLE || "Momento"
       }
     }, (res) => {
       let data = "";
@@ -528,7 +530,7 @@ function createHandler() {
           ];
           let raw = null;
           let lastErr = null;
-          const modelsTry = [AI_MODEL, "openai/gpt-oss-20b", "openai/gpt-oss-120b"].filter((v, i, a) => v && a.indexOf(v) === i);
+          const modelsTry = [AI_MODEL, "openai/gpt-4o-mini", "google/gemini-2.0-flash-001", "meta-llama/llama-3.3-70b-instruct"].filter((v, i, a) => v && a.indexOf(v) === i);
           for (const model of modelsTry) {
             try {
               const saved = AI_MODEL;

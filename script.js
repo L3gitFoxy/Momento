@@ -1355,12 +1355,17 @@ let _authProfileHydrated = false;
 let _authHydratedUserId = null;
 
 function showAuthScreen() {
+    try { document.body.classList.add('auth-visible'); } catch (e) {}
+    try { const w = document.getElementById('ai-chat-widget'); if (w) { w.classList.remove('ai-chat-fullscreen'); const win = document.getElementById('ai-chat-window'); if (win) win.classList.add('chat-hidden'); } } catch (e) {}
+
     const el = document.getElementById("auth-screen");
     if (el) el.classList.remove("hidden");
     document.body.classList.add("auth-locked");
 }
 
 function hideAuthScreen() {
+    try { document.body.classList.remove('auth-visible'); } catch (e) {}
+
     const el = document.getElementById("auth-screen");
     if (el) el.classList.add("hidden");
     document.body.classList.remove("auth-locked");
@@ -1791,6 +1796,7 @@ async function bootstrapAuth() {
         }
     }
 
+    if (tryOfflineCloudProfile()) return true;
     showAuthScreen();
     return false;
 }
@@ -2208,6 +2214,7 @@ async function saveData() {
 
         
         if (currentUser && supabaseClient) {
+            try { localStorage.setItem("momento_last_cloud_user", currentUser); } catch (e) {}
             const { error: supabaseError } = await supabaseClient
                 .from("profiles")
                 .update({ app_data: data })
@@ -3252,12 +3259,12 @@ function parseTime(v) {
 
 function canOpenBlockInFocus(task) {
     if (!task || task.isSleep) return { ok: false, reason: "Sleep blocks can't be focused." };
+    if (task.completed) {
+        return { ok: false, reason: "This block is already done." };
+    }
     const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay;
     if (data.currentDay !== todayIdx) {
         return { ok: false, reason: "You can only focus blocks on today's day." };
-    }
-    if (task.completed) {
-        return { ok: false, reason: "This block is already done." };
     }
     const nowM = new Date().getHours() * 60 + new Date().getMinutes();
     const startM = timeToMinutes(task.start);
@@ -4725,10 +4732,16 @@ function setPreviewFooterMode(mode) {
 function requestPreviewEdits() {
     try {
         if (typeof startWeekEditMode === "function") startWeekEditMode();
-        else if (typeof appendPreviewChat === "function") {
-            appendPreviewChat("What should change? List every issue in one message so we only need one AI call.", "bot");
+        else if (typeof _planSession !== "undefined") {
+            if (!_planSession) _planSession = { phase: "editing", history: [], fixedNotes: "", gen: 0 };
+            else _planSession.phase = "editing";
+            try { _planSession.editContextWeek = window._previewWeek || _previewWeek || null; } catch (e) {}
         }
-        setPreviewFooterMode("draft");
+        window._previewReadyToAccept = true;
+        if (typeof setPreviewFooterMode === "function") setPreviewFooterMode("full");
+        if (typeof appendPreviewChat === "function") {
+            appendPreviewChat("What should change? List every issue in one message.", "bot");
+        }
         const input = document.getElementById("preview-chat-input");
         if (input) input.focus();
     } catch (e) { console.warn(e); }
@@ -4736,15 +4749,22 @@ function requestPreviewEdits() {
 
 function showFixedDraftInPreview(fixedWeek) {
     const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    if (typeof sanitizeWeekTimes === "function") fixedWeek = sanitizeWeekTimes(fixedWeek);
     const preview = {};
     dayNames.forEach((d) => {
         const blocks = (fixedWeek && fixedWeek[d]) ? fixedWeek[d] : [];
-        preview[d] = (blocks || []).map((b) => ({
+        preview[d] = (blocks || []).map((b) => {
+            let start = String(b.start || "09:00").slice(0, 5);
+            let end = String(b.end || "10:00").slice(0, 5);
+            if (/^30:/.test(start) || parseInt(start, 10) > 23) start = "06:30";
+            if (parseInt(end, 10) > 23) end = "14:30";
+            return {
             task: b.task || b.name || "Fixed",
-            start: String(b.start || "09:00").slice(0, 5),
-            end: String(b.end || "10:00").slice(0, 5),
+            start,
+            end,
             isSleep: !!b.isSleep
-        }));
+        };
+        });
     });
     _previewWeek = preview;
     window._previewWeek = preview;
@@ -4760,14 +4780,22 @@ function showFixedDraftInPreview(fixedWeek) {
 
 function showFullWeekInPreview(week) {
     const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    if (typeof sanitizeWeekTimes === "function") week = sanitizeWeekTimes(week);
     const preview = {};
     dayNames.forEach((d) => {
-        preview[d] = ((week && week[d]) || []).map((b) => ({
+        preview[d] = ((week && week[d]) || []).map((b) => {
+            let start = String(b.start || "09:00").slice(0, 5);
+            let end = String(b.end || "10:00").slice(0, 5);
+            if (/^30:/.test(start)) start = "06:30";
+            if (parseInt(start, 10) > 23) start = "06:30";
+            if (parseInt(end, 10) > 23) end = "14:30";
+            return {
             task: b.task || "Block",
-            start: String(b.start || "09:00").slice(0, 5),
-            end: String(b.end || "10:00").slice(0, 5),
+            start,
+            end,
             isSleep: !!b.isSleep
-        }));
+        };
+        });
     });
     _previewWeek = preview;
     window._previewWeek = preview;
@@ -4840,8 +4868,26 @@ function syncPreviewFromPlan(week) {
 
 
 function closePreview() {
-    document.getElementById("preview-modal").classList.add("hidden");
+    const modal = document.getElementById("preview-modal");
+    if (modal) modal.classList.add("hidden");
     _previewWeek = null;
+    window._previewWeek = null;
+    window._previewReadyToAccept = false;
+    // Exit AI week-builder session so chat returns to normal rule bot
+    try {
+        if (typeof _planAborted !== "undefined") _planAborted = true;
+        if (typeof _planGenId !== "undefined") _planGenId += 1;
+        if (typeof _planSession !== "undefined") _planSession = null;
+        if (typeof window !== "undefined") {
+            window._planSession = null;
+            window._planAborted = true;
+        }
+    } catch (e) {}
+    try {
+        if (typeof appendMessage === "function") {
+            appendMessage("assistant", "Week builder closed. Back to normal help — type **help** anytime.");
+        }
+    } catch (e) {}
 }
 
 function renderPreviewTabs() {
@@ -4859,15 +4905,74 @@ function renderPreviewTabs() {
 
 function renderPreviewDay() {
     const c = document.getElementById("preview-blocks");
-    if (!c || !_previewWeek) return;
-    const tasks = _previewWeek[_previewDay] || [];
-    c.innerHTML = tasks.map((t, i) => `
-        <div class="preview-block-row">
-            <span class="preview-time">${t.start} – ${t.end}</span>
-            <input type="text" value="${t.task || ""}" oninput="_previewWeek['${_previewDay}'][${i}].task=this.value" class="preview-task-input">
-        </div>
-    `).join("");
+    if (!c) return;
+    if (!_previewWeek) {
+        c.innerHTML = '<p class="theme-hint">No blocks yet — add fixed times in the chat or use + Add below.</p>';
+        return;
+    }
+    if (window._previewWeek && window._previewWeek[_previewDay]) {
+        _previewWeek = window._previewWeek;
+    }
+    const tasks = Array.isArray(_previewWeek[_previewDay]) ? _previewWeek[_previewDay] : [];
+    if (!tasks.length) {
+        c.innerHTML = '<p class="theme-hint">No blocks on ' + (_previewDay || "this day") + ' yet. Use + Add or chat.</p>';
+    } else {
+        c.innerHTML = tasks.map((t, i) => {
+            const start = String(t.start || "?").slice(0, 5);
+            const end = String(t.end || "?").slice(0, 5);
+            const task = String(t.task || "Block").replace(/"/g, "&quot;");
+            return '<div class="preview-block-row" data-i="' + i + '">' +
+                '<span class="preview-time">' + start + " – " + end + "</span>" +
+                '<input type="text" value="' + task + '" data-i="' + i + '" class="preview-task-input" />' +
+                '<button type="button" class="preview-del" data-i="' + i + '" title="Remove">✕</button>' +
+                "</div>";
+        }).join("");
+        c.querySelectorAll(".preview-task-input").forEach((inp) => {
+            inp.addEventListener("input", () => {
+                const i = parseInt(inp.getAttribute("data-i"), 10);
+                if (_previewWeek && _previewWeek[_previewDay] && _previewWeek[_previewDay][i]) {
+                    _previewWeek[_previewDay][i].task = inp.value;
+                    window._previewWeek = _previewWeek;
+                }
+            });
+        });
+        c.querySelectorAll(".preview-del").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const i = parseInt(btn.getAttribute("data-i"), 10);
+                if (!_previewWeek || !_previewWeek[_previewDay]) return;
+                _previewWeek[_previewDay].splice(i, 1);
+                window._previewWeek = _previewWeek;
+                renderPreviewDay();
+            });
+        });
+    }
+    try { bindPreviewManualAdd(); } catch (e) {}
 }
+
+let _previewAddBound = false;
+function bindPreviewManualAdd() {
+    const btn = document.getElementById("preview-add-btn");
+    if (!btn || _previewAddBound) return;
+    _previewAddBound = true;
+    btn.addEventListener("click", () => {
+        const day = _previewDay || (typeof DAYS !== "undefined" ? DAYS[0] : "Monday");
+        if (!_previewWeek) {
+            _previewWeek = {};
+            (typeof DAYS !== "undefined" ? DAYS : [day]).forEach((d) => { _previewWeek[d] = []; });
+        }
+        if (!_previewWeek[day]) _previewWeek[day] = [];
+        const start = (document.getElementById("preview-add-start") || {}).value || "16:00";
+        const end = (document.getElementById("preview-add-end") || {}).value || "17:00";
+        const name = ((document.getElementById("preview-add-name") || {}).value || "Block").trim() || "Block";
+        _previewWeek[day].push({ task: name, start: String(start).slice(0, 5), end: String(end).slice(0, 5) });
+        _previewWeek[day].sort((a, b) => String(a.start).localeCompare(String(b.start)));
+        window._previewWeek = _previewWeek;
+        const nameEl = document.getElementById("preview-add-name");
+        if (nameEl) nameEl.value = "";
+        renderPreviewDay();
+    });
+}
+
 
 function keepPreview() {
     if (!_previewWeek) return;
@@ -4875,37 +4980,78 @@ function keepPreview() {
         if (typeof showToast === "function") showToast("Finish the week first — say no when done collecting fixed times", "info");
         return;
     }
+    // Guard: never wipe the week with an empty draft
+    const dayNames = typeof DAYS !== "undefined" ? DAYS : Object.keys(_previewWeek);
+    let totalBlocks = 0;
+    dayNames.forEach((d) => { totalBlocks += ((_previewWeek[d] || []).length); });
+    if (totalBlocks < 3) {
+        if (typeof showToast === "function") showToast("Week looks empty — not applying. Add blocks or finish generation first.", "warn");
+        return;
+    }
+
     const applyAll = !!window._previewApplyAllDays;
     const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : 0;
-    DAYS.forEach((day, i) => {
+    const xpBefore = data.xp || 0;
+
+    dayNames.forEach((day, i) => {
         if (!applyAll && i < todayIdx) return;
-        if (typeof clawbackDayXP === "function") {
-            try { clawbackDayXP(day, { silent: true }); } catch (e) {}
-        }
-        data.schedules[day] = JSON.parse(JSON.stringify(_previewWeek[day] || [])).map(t => ({
-            task: t.task,
-            start: t.start,
-            end: t.end,
-            completed: false,
-            xpAwarded: false,
-            xpAmount: 0,
-            keyGenerated: false,
-            isSleep: !!t.isSleep,
-            notes: t.notes || ""
-        }));
+        const incoming = _previewWeek[day] || [];
+        // Skip days with no blocks in the preview — keep existing schedule
+        if (!incoming.length) return;
+
+        const prev = (data.schedules[day] || []).slice();
+        // NEVER claw back XP on Accept — user keeps earned XP
+        data.schedules[day] = incoming.map((t) => {
+            const start = String(t.start || "09:00").slice(0, 5);
+            const end = String(t.end || "10:00").slice(0, 5);
+            const name = String(t.task || "Block");
+            // Preserve completion if same task name + overlapping time existed
+            const match = prev.find((p) =>
+                String(p.task || "").toLowerCase() === name.toLowerCase() &&
+                p.start === start &&
+                p.end === end
+            );
+            if (match && (match.completed || match.xpAwarded)) {
+                return {
+                    task: name,
+                    start,
+                    end,
+                    completed: !!match.completed,
+                    xpAwarded: !!match.xpAwarded,
+                    xpAmount: match.xpAmount || 0,
+                    keyGenerated: !!match.keyGenerated,
+                    isSleep: !!(t.isSleep || match.isSleep),
+                    notes: t.notes || match.notes || ""
+                };
+            }
+            return {
+                task: name,
+                start,
+                end,
+                completed: false,
+                xpAwarded: false,
+                xpAmount: 0,
+                keyGenerated: false,
+                isSleep: !!t.isSleep,
+                notes: t.notes || ""
+            };
+        });
     });
+
     data.appliedRoutine = window._previewRoutineLabel ||
         ("AI: " + ((typeof ANALYSER_INTENTS !== "undefined" && ANALYSER_INTENTS[_analyserIntent])
             ? ANALYSER_INTENTS[_analyserIntent].label
             : "Generated"));
     window._previewApplyAllDays = false;
     window._previewRoutineLabel = null;
+    // XP must not drop from Accept
+    if ((data.xp || 0) < xpBefore) data.xp = xpBefore;
     saveData();
     renderCurrentDay();
     populatePresetMenus();
     if (typeof updateXPDisplay === "function") updateXPDisplay();
     closePreview();
-    if (typeof showToast === "function") showToast("Week applied", "success");
+    if (typeof showToast === "function") showToast("Week applied — your XP was kept", "success");
     else if (typeof showSavedMessage === "function") showSavedMessage("Week applied");
 }
 
@@ -6972,7 +7118,6 @@ function completeFocusTask() {
         showToast("⛔ You can only complete tasks on today's day!", "warn");
         return;
     }
-    
     const nowM = new Date().getHours() * 60 + new Date().getMinutes();
     const startM = timeToMinutes(task.start);
     if (startM - nowM > 120) {
@@ -7030,7 +7175,83 @@ function stopAmbient() {  }
 
 function setAmbient() {  }
 
-function addTodo() {
+function formatLocalYMD(d) {
+    const x = new Date(d);
+    const pad = (n) => String(n).padStart(2, "0");
+    return x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate());
+}
+
+function addDaysLocal(base, n) {
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    d.setDate(d.getDate() + n);
+    return d;
+}
+
+function nextWeekdayLocal(targetDow) {
+    // 0=Sun .. 6=Sat — returns next occurrence (not today)
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let add = (targetDow - d.getDay() + 7) % 7;
+    if (add === 0) add = 7;
+    d.setDate(d.getDate() + add);
+    return d;
+}
+
+function getTodoQuickDateOptions() {
+    const now = new Date();
+    const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const curName = dayNames[now.getDay()];
+    return [
+        { label: "Today", date: formatLocalYMD(now) },
+        { label: "Tomorrow", date: formatLocalYMD(addDaysLocal(now, 1)) },
+        { label: "Day after tomorrow", date: formatLocalYMD(addDaysLocal(now, 2)) },
+        { label: "Same day next week", date: formatLocalYMD(addDaysLocal(now, 7)) },
+        { label: "Next Monday", date: formatLocalYMD(nextWeekdayLocal(1)) },
+        { label: "Next " + curName, date: formatLocalYMD(addDaysLocal(now, 7)) }
+    ];
+}
+
+let _todoAddForOpen = false;
+function toggleTodoAddForMenu() {
+    const menu = document.getElementById("todo-add-for-menu");
+    const btn = document.getElementById("todo-add-for-btn");
+    if (!menu || !btn) return;
+    _todoAddForOpen = !_todoAddForOpen;
+    if (_todoAddForOpen) {
+        const opts = getTodoQuickDateOptions();
+        menu.innerHTML = opts.map((o) =>
+            '<button type="button" role="menuitem" data-due="' + o.date + '">' + o.label + "</button>"
+        ).join("");
+        menu.querySelectorAll("button").forEach((b) => {
+            b.onclick = () => {
+                const due = b.getAttribute("data-due");
+                addTodo(due);
+                _todoAddForOpen = false;
+                menu.classList.add("hidden");
+                btn.textContent = "Add for ▾";
+            };
+        });
+        menu.classList.remove("hidden");
+        btn.textContent = "Add for ▴";
+    } else {
+        menu.classList.add("hidden");
+        btn.textContent = "Add for ▾";
+    }
+}
+
+document.addEventListener("click", (e) => {
+    const wrap = document.querySelector(".todo-add-for-wrap");
+    if (!wrap || ! _todoAddForOpen) return;
+    if (!wrap.contains(e.target)) {
+        _todoAddForOpen = false;
+        const menu = document.getElementById("todo-add-for-menu");
+        const btn = document.getElementById("todo-add-for-btn");
+        if (menu) menu.classList.add("hidden");
+        if (btn) btn.textContent = "Add for ▾";
+    }
+});
+
+function addTodo(dueOverride) {
     ensureCrateData();
     const maxTodos = 5 + (Number(data.todoSlotBonus) || 0);
     const active = (data.todos || []).filter(x => !x.completed).length;
@@ -7042,14 +7263,21 @@ function addTodo() {
     const input = document.getElementById("todo-input");
     if (!input) return;
     const text = input.value.trim();
-    if (!text) return;
+    if (!text) {
+        showToast("Type a to-do first", "warn");
+        input.focus();
+        return;
+    }
     const dueEl = document.getElementById("todo-due-input");
-    const due = dueEl && dueEl.value ? dueEl.value : null;
+    let due = dueOverride || (dueEl && dueEl.value ? dueEl.value : null);
     if (!due) {
         showToast("Pick a due date for this to-do", "warn");
         if (dueEl) dueEl.focus();
         return;
     }
+    // Sync date input if quick-pick was used
+    if (dueEl && dueOverride) dueEl.value = due;
+
     data.todos = data.todos || [];
     data.todos.push({
         id: Date.now() + Math.random().toString(36).slice(2,7),
@@ -7064,6 +7292,7 @@ function addTodo() {
     if (dueEl) dueEl.value = "";
     saveData();
     renderTodos();
+    if (typeof showToast === "function") showToast("To-do added", "success");
 }
 
 function toggleTodo(id) {
@@ -8844,16 +9073,16 @@ const CRATE_LOOT = {
     ],
     rare: [
         { type: "xp_range", min: 400, max: 800 },
-        { type: "booster", mult: 1.1, hours: 36, label: "1.1× XP Booster (36h)" },
-        { type: "booster", mult: 1.25, hours: 24, label: "1.25× XP Booster (24h)" },
-        { type: "booster", mult: 1.5, hours: 18, label: "1.5× XP Booster (18h)" },
+        { type: "booster", label: "XP Booster" },
+        { type: "booster", label: "XP Booster" },
+        { type: "booster", label: "XP Booster" },
         { type: "cosmetic", id: "theme_crate_softteal", label: "Soft Teal Theme" },
         { type: "cosmetic", id: "theme_crate_softsand", label: "Soft Sand Theme" }
     ],
     legendary: [
         { type: "xp_range", min: 1000, max: 2000 },
-        { type: "booster", mult: 2, hours: 12, label: "2× XP Booster (12h)" },
-        { type: "booster", mult: 2.5, hours: 8, label: "2.5× XP Booster (8h)" },
+        { type: "booster", label: "XP Booster" },
+        { type: "booster", label: "XP Booster" },
 
         { type: "keys", amount: 15, label: "+15 Crate Keys", weight: 1 },
         { type: "keys", amount: 18, label: "+18 Crate Keys", weight: 1 },
@@ -8861,6 +9090,8 @@ const CRATE_LOOT = {
     ],
     mythical: [
         { type: "xp_range", min: 2000, max: 4000 },
+        { type: "booster", label: "XP Booster" },
+        { type: "booster", label: "XP Booster" },
         { type: "cosmetic", id: "theme_crate_void", label: "Void Pulse Theme" },
         { type: "cosmetic", id: "theme_crate_aurora", label: "Aurora Theme" },
         { type: "cosmetic", id: "theme_crate_cobalt", label: "Cobalt Theme" },
@@ -9198,13 +9429,35 @@ function grantCrateLoot(rarity, loot) {
         data.crateKeys = (Number(data.crateKeys) || 0) + (Number(loot.amount) || 0);
         updateCrateKeysBadge();
     } else if (loot.type === "booster") {
+        // Duration is ONLY tier-based. Multiplier is free (luck toward higher).
+        const dur = ({
+            rare: { min: 12, max: 36 },
+            legendary: { min: 18, max: 48 },
+            mythical: { min: 24, max: 72 },
+            uncommon: { min: 8, max: 24 },
+            common: { min: 4, max: 12 }
+        })[rarity] || { min: 12, max: 36 };
+        // Mult: not locked to tier — any drop can roll a wide range; higher tiers only nudge the floor slightly
+        const multFloor = ({ common: 1.05, uncommon: 1.1, rare: 1.1, legendary: 1.15, mythical: 1.2 })[rarity] || 1.1;
+        const multCeil = 5.0;
+        const luckH = 1 - Math.pow(1 - Math.random(), 2);
+        const luckM = 1 - Math.pow(1 - Math.random(), 2);
+        const hours = Math.round(dur.min + (dur.max - dur.min) * luckH);
+        let mult = multFloor + (multCeil - multFloor) * luckM;
+        mult = Math.round(mult * 20) / 20; // nearest 0.05
+        if (mult < 1.05) mult = 1.05;
+        if (mult > 5) mult = 5;
+        const label = mult + "× XP Booster (" + hours + "h)";
         data.boosterInventory.push({
             id: "b_" + Date.now() + Math.random().toString(36).slice(2, 6),
-            mult: loot.mult,
-            durationMs: (loot.hours || 24) * 3600 * 1000,
-            label: loot.label,
+            mult: mult,
+            durationMs: hours * 3600 * 1000,
+            hours: hours,
+            label: label,
             obtainedAt: Date.now()
         });
+        // so history shows real label
+        loot = Object.assign({}, loot, { label: label, mult: mult, hours: hours });
     } else if (loot.type === "cosmetic") {
         if (!data.crateUnlocks.includes(loot.id)) data.crateUnlocks.push(loot.id);
         if (String(loot.id).startsWith("cosmetic_")) {
@@ -9451,7 +9704,7 @@ window.activateCrateCosmetic = activateCrateCosmetic;
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "7.0.0";
+const CHANGELOG_VERSION = "8.0.0";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -9459,6 +9712,7 @@ const DEFAULT_DEVICE_CONFIG = {
     tutorialStep: 0,
     showedCL6_2: false,
     showedCL7_0: false,
+    showedCL8_0: false,
     changelogVersionShown: null
 };
 
@@ -9626,6 +9880,17 @@ const CHANGELOG_7_0 = [
     "Bug fixes for first-check XP sound, day locks, and theme contrast"
 ];
 
+const CHANGELOG_8_0 = [
+    "Personal AI: plug in your own key (e.g. Groq) for chat and week planning",
+    "Settings gear: online/offline AI routing, personal model, run in background",
+    "Full-screen AI chat with markdown replies",
+    "Chat can open crates, todos, calendar, themes, settings, and more",
+    "Week Accept keeps your XP; rate-limit friendly AI calls",
+    "Quick Add for… on todos (today, tomorrow, next week…)",
+    "XP boosters: duration by crate tier, multiplier free-rolls with luck",
+    "Desktop system tray with app icon when run in background"
+];
+
 let _tutorialIndex = 0;
 
 function renderTutorialStep() {
@@ -9685,7 +9950,7 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        body.innerHTML = "<ul>" + CHANGELOG_7_0.map(x => `<li>${x}</li>`).join("") + "</ul>";
+        body.innerHTML = "<ul>" + CHANGELOG_8_0.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
         el.classList.remove("hidden");
@@ -9703,6 +9968,7 @@ async function closeChangelog() {
         showedCL6_2: true,
         showedCL6_2_0: true,
         showedCL7_0: true,
+        showedCL8_0: true,
         changelogVersionShown: CHANGELOG_VERSION
     };
     await saveDeviceConfig(patch);
@@ -9896,12 +10162,19 @@ let _personalizeDraft = {};
 let _personalizeShownThisSession = false;
 
 function needsPersonalizationPrompt() {
+    try {
+        const auth = document.getElementById("auth-screen");
+        if (auth && !auth.classList.contains("hidden")) return false;
+    } catch (e) {}
+    try {
+        if (typeof currentUser === "undefined" || !currentUser) return false;
+    } catch (e) { return false; }
+
     ensurePersonalizationShape();
     if (_personalizeShownThisSession) return false;
     try {
         const localStatus = localStorage.getItem("MOMENTO_PERSONALIZATION_STATUS");
         if (localStatus === "completed" || localStatus === "declined") {
-            // Keep app data in sync
             if (data.personalization.status === "pending") {
                 data.personalization.status = localStatus;
             }
@@ -10149,7 +10422,131 @@ function bindOnboardingUi() {
     if (ok) ok.onclick = () => closeChangelog();
 }
 
+
+function tryOfflineCloudProfile() {
+    try {
+        if (navigator.onLine) return false;
+        const uid = localStorage.getItem("momento_last_cloud_user");
+        if (!uid) return false;
+        const raw = localStorage.getItem("momento_user_data_" + uid) || localStorage.getItem(profileStorageKey(uid));
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        currentUser = uid;
+        if (typeof applyAppDataObject === "function") applyAppDataObject(parsed);
+        else if (typeof applyProfileData === "function") applyProfileData(parsed);
+        try { _authProfileHydrated = true; _authHydratedUserId = uid; } catch (e) {}
+        if (typeof hideAuthScreen === "function") hideAuthScreen();
+        if (typeof finishAuth === "function") finishAuth();
+        if (typeof showToast === "function") showToast("Offline — loaded your last saved profile. Changes sync when you are back online.", "info");
+        return true;
+    } catch (e) {
+        console.warn("[offline profile]", e);
+        return false;
+    }
+}
+
+window.addEventListener("online", () => {
+    try {
+        if (currentUser && typeof saveData === "function") saveData();
+        if (typeof showToast === "function") showToast("Back online — syncing your profile", "info");
+    } catch (e) {}
+});
+
+
+const APP_SETTINGS_KEY = "MOMENTO_APP_SETTINGS";
+const DEFAULT_APP_SETTINGS = {
+    aiMode: "online-first",
+    runInBackground: false,
+    personalApiKey: "",
+    personalApiUrl: "",
+    personalApiModel: "",
+    usePersonalForPlan: false,
+    usePersonalForChat: false
+};
+
+function loadAppSettings() {
+    try {
+        const raw = localStorage.getItem(APP_SETTINGS_KEY);
+        if (!raw) return Object.assign({}, DEFAULT_APP_SETTINGS);
+        const j = JSON.parse(raw);
+        return Object.assign({}, DEFAULT_APP_SETTINGS, j || {});
+    } catch (e) {
+        return Object.assign({}, DEFAULT_APP_SETTINGS);
+    }
+}
+
+function getAppSettings() {
+    if (!window._appSettings) window._appSettings = loadAppSettings();
+    return window._appSettings;
+}
+
+function saveAppSettingsFromUi() {
+    const s = {
+        aiMode: (document.getElementById("set-ai-mode") || {}).value || "online-first",
+        runInBackground: !!(document.getElementById("set-run-background") || {}).checked,
+        personalApiKey: ((document.getElementById("set-personal-key") || {}).value || "").trim(),
+        personalApiUrl: ((document.getElementById("set-personal-url") || {}).value || "").trim().replace(/\/$/, ""),
+        personalApiModel: ((document.getElementById("set-personal-model") || {}).value || "").trim(),
+        usePersonalForPlan: !!(document.getElementById("set-personal-plan") || {}).checked,
+        usePersonalForChat: !!(document.getElementById("set-personal-chat") || {}).checked
+    };
+    localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(s));
+    window._appSettings = s;
+    try {
+        if (window.electronAPI && typeof window.electronAPI.setRunInBackground === "function") {
+            window.electronAPI.setRunInBackground(!!s.runInBackground);
+        }
+    } catch (e) {}
+    if (typeof showToast === "function") showToast("Settings saved", "success");
+    toggleAppSettings(false);
+}
+
+function saveAppSettings() { saveAppSettingsFromUi(); }
+
+function populateAppSettingsUi() {
+    const s = getAppSettings();
+    const mode = document.getElementById("set-ai-mode");
+    const bg = document.getElementById("set-run-background");
+    const url = document.getElementById("set-personal-url");
+    const key = document.getElementById("set-personal-key");
+    const model = document.getElementById("set-personal-model");
+    const plan = document.getElementById("set-personal-plan");
+    const chat = document.getElementById("set-personal-chat");
+    if (mode) mode.value = s.aiMode === "offline-first" ? "offline-first" : "online-first";
+    if (bg) bg.checked = !!s.runInBackground;
+    if (url) url.value = s.personalApiUrl || "";
+    if (key) key.value = s.personalApiKey || "";
+    if (model) model.value = s.personalApiModel || "";
+    if (plan) plan.checked = !!s.usePersonalForPlan;
+    if (chat) chat.checked = !!s.usePersonalForChat;
+}
+
+function toggleAppSettings(force) {
+    const panel = document.getElementById("app-settings-panel");
+    if (!panel) return;
+    const open = force === true || (force !== false && panel.classList.contains("hidden"));
+    if (open) {
+        populateAppSettingsUi();
+        panel.classList.remove("hidden");
+        panel.setAttribute("aria-hidden", "false");
+    } else {
+        panel.classList.add("hidden");
+        panel.setAttribute("aria-hidden", "true");
+    }
+}
+
+function shouldUseLocalScheduleNlp() {
+    const s = getAppSettings();
+    const online = typeof navigator === "undefined" || navigator.onLine !== false;
+    if (s.aiMode === "offline-first") return true; // try local first even online
+    return !online; // online-first: local only when offline
+}
+
+// init settings once
+try { window._appSettings = loadAppSettings(); } catch (e) {}
+
 async function runDeviceOnboarding() {
+    try { if (tryOfflineCloudProfile()) { /* offline profile loaded */ } } catch (e) {}
     bindOnboardingUi();
     try { bindPersonalizeUi(); } catch (e) { console.warn("bindPersonalizeUi", e); }
     await loadDeviceConfig();
@@ -10428,3 +10825,42 @@ setTimeout(function() {
         }
     } catch (e) {}
 }, 2500);
+
+function toggleAiFullscreen(force) {
+    const w = document.getElementById("ai-chat-widget");
+    const win = document.getElementById("ai-chat-window");
+    if (!w) return;
+    const on = force === true || (force !== false && !w.classList.contains("ai-chat-fullscreen"));
+    if (on) {
+        w.classList.add("ai-chat-fullscreen");
+        if (win) win.classList.remove("chat-hidden");
+        const btn = document.getElementById("ai-fullscreen-btn");
+        if (btn) { btn.textContent = "🮱"; btn.title = "Exit full screen"; }
+    } else {
+        w.classList.remove("ai-chat-fullscreen");
+        const btn = document.getElementById("ai-fullscreen-btn");
+        if (btn) { btn.textContent = "⛶"; btn.title = "Full screen"; }
+    }
+}
+
+function closeAiChat() {
+    const w = document.getElementById("ai-chat-widget");
+    const win = document.getElementById("ai-chat-window");
+    if (w) w.classList.remove("ai-chat-fullscreen");
+    if (win) win.classList.add("chat-hidden");
+    const btn = document.getElementById("ai-fullscreen-btn");
+    if (btn) { btn.textContent = "⛶"; btn.title = "Full screen"; }
+    // FAB must always remain available when not on auth screen
+    const toggle = document.getElementById("ai-chat-toggle");
+    if (toggle) toggle.style.display = "";
+}
+
+function syncAuthVisibleClass() {
+    try {
+        const auth = document.getElementById("auth-screen");
+        if (auth && !auth.classList.contains("hidden")) document.body.classList.add("auth-visible");
+        else document.body.classList.remove("auth-visible");
+    } catch (e) {}
+}
+try { document.addEventListener("DOMContentLoaded", syncAuthVisibleClass); } catch (e) {}
+setTimeout(syncAuthVisibleClass, 0);

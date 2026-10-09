@@ -218,7 +218,10 @@
         <div id="ai-chat-window" class="chat-hidden">
             <div class="chat-header">
                 <span>&#10024; Momento AI</span>
-                <button onclick="toggleChatWindow()">&#10005;</button>
+                <div class="chat-header-actions">
+                    <button type="button" id="ai-fullscreen-btn" title="Full screen" onclick="toggleAiFullscreen()">⛶</button>
+                    <button type="button" onclick="toggleChatWindow()">&#10005;</button>
+                </div>
             </div>
             <div id="chat-messages">
                 <div class="chat-msg bot-msg">Hey! I can build your schedule, apply presets, or change settings. Type "help" for all commands.</div>
@@ -267,7 +270,13 @@
                 <div class="preview-week-main">
                     <p class="analyser-subtitle preview-status-hint" id="preview-status-hint">Collecting fixed commitments…</p>
                     <div id="preview-day-tabs" class="builder-tabs"></div>
-                    <div id="preview-blocks" class="builder-tasks-list" style="max-height:280px"></div>
+                    <div id="preview-blocks" class="builder-tasks-list" style="max-height:min(58vh,480px);overflow-y:auto"></div>
+                    <div class="preview-manual-add" id="preview-manual-add">
+                        <input type="time" id="preview-add-start" value="16:00" />
+                        <input type="time" id="preview-add-end" value="17:00" />
+                        <input type="text" id="preview-add-name" placeholder="Block name" />
+                        <button type="button" class="btn-add-slot" id="preview-add-btn">+ Add</button>
+                    </div>
                 </div>
                 <div class="preview-week-chat">
                     <div class="preview-chat-label">Week assistant</div>
@@ -536,7 +545,11 @@
         <div class="todo-add-row todo-add-row-ext">
             <input type="text" id="todo-input" placeholder="Add a lasting to-do..." onkeydown="if(event.key==='Enter')addTodo()">
             <input type="date" id="todo-due-input" class="todo-due-input" title="Due date (required)" required>
-            <button onclick="addTodo()" class="todo-add-btn">Add</button>
+            <button type="button" onclick="addTodo()" class="todo-add-btn">Add</button>
+            <div class="todo-add-for-wrap">
+                <button type="button" id="todo-add-for-btn" class="todo-add-for-btn" onclick="toggleTodoAddForMenu()">Add for ▾</button>
+                <div id="todo-add-for-menu" class="todo-add-for-menu hidden" role="menu"></div>
+            </div>
         </div>
     </div>
 
@@ -830,6 +843,47 @@
                 <button type="button" class="btn-cancel" onclick="closeSinkInput(false)">Cancel</button>
                 <button type="button" class="btn-save-final" onclick="closeSinkInput(true)">Confirm</button>
             </div>
+        </div>
+    </div>
+
+
+    <!-- App settings (bottom-left gear) -->
+    <button type="button" id="app-settings-btn" class="app-settings-btn" title="Settings" onclick="toggleAppSettings()" aria-label="Settings">⚙</button>
+    <div id="app-settings-panel" class="app-settings-panel hidden" aria-hidden="true">
+        <div class="app-settings-header">
+            <strong>Settings</strong>
+            <button type="button" class="close-btn" onclick="toggleAppSettings(false)">✕</button>
+        </div>
+        <div class="app-settings-body">
+            <label class="app-settings-label">AI routing</label>
+            <select id="set-ai-mode" class="app-settings-input">
+                <option value="online-first">Online-first (cloud AI when online)</option>
+                <option value="offline-first">Offline-first (local parse when possible)</option>
+            </select>
+            <p class="app-settings-hint">Online-first never uses the local schedule parser while you have a connection.</p>
+
+            <label class="app-settings-check">
+                <input type="checkbox" id="set-run-background" />
+                Keep app in system tray when closed (desktop)
+            </label>
+
+            <hr class="app-settings-hr" />
+            <label class="app-settings-label">Personal model (optional)</label>
+            <p class="app-settings-hint">Your key stays in this browser / device only. Not uploaded to Momento servers.</p>
+            <input type="url" id="set-personal-url" class="app-settings-input" placeholder="API base URL e.g. https://api.openai.com/v1" />
+            <input type="password" id="set-personal-key" class="app-settings-input" placeholder="API key" autocomplete="off" />
+            <input type="text" id="set-personal-model" class="app-settings-input" placeholder="Model id e.g. gpt-4o-mini" />
+            <label class="app-settings-check">
+                <input type="checkbox" id="set-personal-plan" />
+                Use personal model for week planning
+            </label>
+            <label class="app-settings-check">
+                <input type="checkbox" id="set-personal-chat" />
+                Use personal model for Momento chatbot
+            </label>
+            <p class="app-settings-hint">When chatbot uses your model, Momento injects app context and can run silent local actions (open widgets, themes) without showing those calls in chat.</p>
+
+            <button type="button" class="btn-save-final app-settings-save" onclick="saveAppSettings()">Save settings</button>
         </div>
     </div>
 
