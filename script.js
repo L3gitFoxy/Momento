@@ -3566,24 +3566,68 @@ function setFlapDigit(key, value) {
 
 function updateClock() {
     const now = new Date();
-    let h = now.getHours();
+    const fmt = getClockFormat();
+    let h24 = now.getHours();
     const m = now.getMinutes();
-    const ampm = h >= 12 ? "PM" : "AM";
-    h = h % 12;
-    if (h === 0) h = 12;
-    const hStr = String(h).padStart(2, " "); 
-    const mStr = String(m).padStart(2, "0");
-    const stamp = hStr + mStr + ampm;
-    if (stamp !== _lastFlapTime) {
-        _lastFlapTime = stamp;
-        setFlapDigit("h1", hStr[0] === " " ? "" : hStr[0]);
-        setFlapDigit("h2", hStr[1]);
-        setFlapDigit("m1", mStr[0]);
-        setFlapDigit("m2", mStr[1]);
-        setFlapDigit("ampm", ampm);
-        const h1 = document.querySelector('[data-flap="h1"]');
-        if (h1) h1.classList.toggle("flap-empty", hStr[0] === " ");
+    const s = now.getSeconds();
+    const ampm = h24 >= 12 ? "PM" : "AM";
+    let hDisp = h24;
+    if (fmt === "12") {
+        hDisp = h24 % 12;
+        if (hDisp === 0) hDisp = 12;
     }
+    const hStr = fmt === "12" ? String(hDisp).padStart(2, " ") : String(hDisp).padStart(2, "0");
+    const mStr = String(m).padStart(2, "0");
+    const timeStr = (fmt === "12" ? String(hDisp) : String(hDisp).padStart(2, "0")) + ":" + mStr;
+    const stamp = timeStr + (fmt === "12" ? ampm : "24") + (data.clockTheme || "plain");
+
+    const clock = document.getElementById("live-clock");
+    if (clock) {
+        const type = data.clockTheme || clock.getAttribute("data-clock-type") || "plain";
+        if (clock.getAttribute("data-clock-type") !== type || clock.getAttribute("data-clock-format") !== fmt) {
+            buildClockShell(type);
+        }
+        if (type === "analog") {
+            const hourAngle = ((h24 % 12) + m / 60) * 30;
+            const minAngle = (m + s / 60) * 6;
+            const secAngle = s * 6;
+            const setHand = (id, angle, len) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const rad = (angle - 90) * Math.PI / 180;
+                el.setAttribute("x2", String(50 + Math.cos(rad) * len));
+                el.setAttribute("y2", String(50 + Math.sin(rad) * len));
+            };
+            setHand("analog-hour", hourAngle, 22);
+            setHand("analog-minute", minAngle, 30);
+            setHand("analog-second", secAngle, 34);
+        } else if (type === "plain" || type === "digital" || type === "crystal" || type === "ember" || type === "aurora" || type === "orbit" || type === "chrono") {
+            const tEl = clock.querySelector('[data-flap="time"]');
+            const aEl = clock.querySelector('[data-flap="ampm"]');
+            if (tEl) tEl.textContent = timeStr;
+            if (aEl) aEl.textContent = fmt === "12" ? ampm : "";
+        } else if (type === "stacked") {
+            const hEl = clock.querySelector('[data-flap="h"]');
+            const mEl = clock.querySelector('[data-flap="m"]');
+            const aEl = clock.querySelector('[data-flap="ampm"]');
+            if (hEl) hEl.textContent = fmt === "12" ? String(hDisp) : String(hDisp).padStart(2, "0");
+            if (mEl) mEl.textContent = mStr;
+            if (aEl) aEl.textContent = fmt === "12" ? ampm : "";
+        } else if (stamp !== _lastFlapTime) {
+            // flap
+            setFlapDigit("h1", hStr[0] === " " ? "" : hStr[0]);
+            setFlapDigit("h2", hStr[1]);
+            setFlapDigit("m1", mStr[0]);
+            setFlapDigit("m2", mStr[1]);
+            setFlapDigit("ampm", fmt === "12" ? ampm : "");
+            const h1 = document.querySelector('[data-flap="h1"]');
+            if (h1) h1.classList.toggle("flap-empty", hStr[0] === " ");
+            const am = document.querySelector('[data-flap="ampm"]');
+            if (am) am.style.display = fmt === "12" ? "" : "none";
+        }
+    }
+    _lastFlapTime = stamp;
+
     const datee = document.getElementById("live-date");
     if (datee) {
         datee.textContent = now.toDateString();
@@ -4348,6 +4392,21 @@ function getMomentoAudioCtx() {
     }
 }
 
+function getSfxVolumeScale(kind) {
+    try {
+        const s = (typeof getAppSettings === "function") ? getAppSettings() : {};
+        const vols = (s && s.volumes) || {};
+        let key = "complete";
+        if (kind === "levelup" || kind === "fanfare" || kind === "victory") key = "levelup";
+        else if (kind === "down") key = "down";
+        else if (kind === "transition" || kind === "notif") key = "transition";
+        else if (kind === "crate" || kind === "reward") key = "crate";
+        else if (kind === "complete") key = "complete";
+        const pct = vols[key] != null ? Number(vols[key]) : 100;
+        return Math.max(0, Math.min(5, pct / 100));
+    } catch (e) { return 1; }
+}
+
 function playRewardSound(kind, forcePreview) {
     if (!forcePreview && data.sfxEnabled === false && kind !== "down") return;
     // Complete/levelup always allowed when sfx on (ignore transition-notif toggle)
@@ -4361,6 +4420,7 @@ function playRewardSound(kind, forcePreview) {
             if (ch && isChimeUnlocked(ch)) tone = pref;
         }
     }
+    const volScale = getSfxVolumeScale(kind);
 
     const schedule = (ctx) => {
         if (!ctx) return;
@@ -4371,7 +4431,8 @@ function playRewardSound(kind, forcePreview) {
                 const gain = ctx.createGain();
                 osc.type = type || "sine";
                 osc.frequency.setValueAtTime(freq, now + startAt);
-                gain.gain.setValueAtTime(Math.max(0.0001, vol || 0.2), now + startAt);
+                const v = Math.max(0.0001, (vol || 0.2) * volScale);
+                gain.gain.setValueAtTime(v, now + startAt);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + startAt + dur);
                 osc.connect(gain);
                 gain.connect(ctx.destination);
@@ -4473,7 +4534,219 @@ function updateXPDisplay() {
     applyRankCosmetics(info);
 }
 
+
+
+
+const CLOCK_THEMES = [
+    // Rank unlocks — gated so early ranks stay sparse
+    { id: "plain", name: "Plain", desc: "Bare numbers", atLevel: 0 },
+    { id: "flap", name: "Page-turner", desc: "Flap-card digits", atLevel: 6 },
+    { id: "digital", name: "Digital", desc: "Boxed mono readout", atLevel: 12 },
+    { id: "analog", name: "Analog", desc: "Round face + hands", atLevel: 18 },
+    { id: "stacked", name: "Stacked", desc: "Hour over minutes", atLevel: 24 },
+    { id: "roman", name: "Roman", desc: "Roman numeral face", atLevel: 28 },
+    { id: "station", name: "Station", desc: "Split-flap board", atLevel: 32 },
+    { id: "orbit", name: "Orbit Ring", desc: "Time inside a ring", atLevel: 36 },
+    { id: "binary", name: "Binary", desc: "Dot columns H:M", atLevel: 40 },
+    { id: "chrono", name: "Chronograph", desc: "Bezel + subdial", atLevel: 44 },
+    // Crate-only specials
+    { id: "celestial", name: "Celestial", desc: "Starfield analog", crateOnly: true, crateId: "clock_crate_celestial" },
+    { id: "crystal", name: "Crystal", desc: "Faceted digital frame", crateOnly: true, crateId: "clock_crate_crystal" },
+    { id: "ember", name: "Ember", desc: "Warm flame accents", crateOnly: true, crateId: "clock_crate_ember" },
+    { id: "voidgate", name: "Void Gate", desc: "Portal-ring analog", crateOnly: true, crateId: "clock_crate_voidgate" },
+    { id: "aurora", name: "Aurora Arc", desc: "Gradient arc over time", crateOnly: true, crateId: "clock_crate_aurora" }
+];
+
+function getClockFormat() {
+    try {
+        if (data && (data.clockFormat === "24" || data.clockFormat === "12")) return data.clockFormat;
+        const s = (typeof getAppSettings === "function") ? getAppSettings() : {};
+        if (s.clockFormat === "24" || s.clockFormat === "12") return s.clockFormat;
+    } catch (e) {}
+    return "12";
+}
+
+function isClockThemeUnlocked(theme) {
+    if (!theme) return false;
+    if (theme.crateOnly || theme.crateId) {
+        const id = theme.crateId || ("clock_crate_" + theme.id);
+        return typeof isCrateUnlocked === "function" && isCrateUnlocked(id);
+    }
+    const info = getLevelInfo(data.xp || 0);
+    return info.levelIndex >= (theme.atLevel || 0);
+}
+
+function _analogSvg(extraClass, decor) {
+    decor = decor || "";
+    return `<div class="analog-wrap ${extraClass || ""}">${decor}<svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="analog-face" cx="50" cy="50" r="42"/>
+        <g class="analog-ticks">${[0,30,60,90,120,150,180,210,240,270,300,330].map(function(a){
+            var rad = (a - 90) * Math.PI / 180;
+            var x1 = 50 + Math.cos(rad) * 34;
+            var y1 = 50 + Math.sin(rad) * 34;
+            var x2 = 50 + Math.cos(rad) * 40;
+            var y2 = 50 + Math.sin(rad) * 40;
+            return '<line class="analog-tick" x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'"/>';
+        }).join("")}</g>
+        <line class="analog-hour" id="analog-hour" x1="50" y1="50" x2="50" y2="30"/>
+        <line class="analog-minute" id="analog-minute" x1="50" y1="50" x2="50" y2="20"/>
+        <line class="analog-second" id="analog-second" x1="50" y1="50" x2="50" y2="16"/>
+        <circle class="analog-hub" cx="50" cy="50" r="3"/>
+    </svg></div>`;
+}
+
+function buildClockShell(type) {
+    const clock = document.getElementById("live-clock");
+    if (!clock) return;
+    const fmt = getClockFormat();
+    clock.className = "live-clock clock-type-" + type;
+    clock.setAttribute("data-clock-type", type);
+    clock.setAttribute("data-clock-format", fmt);
+    const am = fmt === "24" ? "" : "AM";
+
+    if (type === "analog") {
+        clock.innerHTML = _analogSvg("");
+        return;
+    }
+    if (type === "roman") {
+        clock.innerHTML = _analogSvg("analog-roman",
+            '<text class="roman-mark" x="50" y="18" text-anchor="middle" dominant-baseline="middle">XII</text>' +
+            '<text class="roman-mark" x="82" y="52" text-anchor="middle">III</text>' +
+            '<text class="roman-mark" x="50" y="88" text-anchor="middle">VI</text>' +
+            '<text class="roman-mark" x="18" y="52" text-anchor="middle">IX</text>');
+        // roman marks need to be inside svg — rebuild
+        clock.innerHTML = `<div class="analog-wrap analog-roman"><svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="analog-face" cx="50" cy="50" r="42"/>
+            <text class="roman-mark" x="50" y="20" text-anchor="middle" fill="var(--muted-color)" font-size="8" font-family="Georgia,serif">XII</text>
+            <text class="roman-mark" x="80" y="54" text-anchor="middle" fill="var(--muted-color)" font-size="8" font-family="Georgia,serif">III</text>
+            <text class="roman-mark" x="50" y="88" text-anchor="middle" fill="var(--muted-color)" font-size="8" font-family="Georgia,serif">VI</text>
+            <text class="roman-mark" x="20" y="54" text-anchor="middle" fill="var(--muted-color)" font-size="8" font-family="Georgia,serif">IX</text>
+            <line class="analog-hour" id="analog-hour" x1="50" y1="50" x2="50" y2="30"/>
+            <line class="analog-minute" id="analog-minute" x1="50" y1="50" x2="50" y2="20"/>
+            <line class="analog-second" id="analog-second" x1="50" y1="50" x2="50" y2="16"/>
+            <circle class="analog-hub" cx="50" cy="50" r="3"/>
+        </svg></div>`;
+        return;
+    }
+    if (type === "station") {
+        clock.innerHTML =
+            '<div class="station-clock">' +
+            '<span class="station-cell" data-flap="h1">0</span>' +
+            '<span class="station-cell" data-flap="h2">0</span>' +
+            '<span class="station-colon">:</span>' +
+            '<span class="station-cell" data-flap="m1">0</span>' +
+            '<span class="station-cell" data-flap="m2">0</span>' +
+            '<span class="station-ampm" data-flap="ampm">' + am + '</span></div>';
+        return;
+    }
+    if (type === "binary") {
+        clock.innerHTML = '<div class="binary-clock" data-flap="binary"></div>';
+        return;
+    }
+    if (type === "celestial") {
+        clock.innerHTML = _analogSvg("analog-celestial",
+            '<span class="clock-decor star s1">✦</span><span class="clock-decor star s2">✧</span><span class="clock-decor star s3">✦</span>');
+        return;
+    }
+    if (type === "voidgate") {
+        clock.innerHTML = _analogSvg("analog-void",
+            '<span class="clock-decor void-ring"></span>');
+        return;
+    }
+    if (type === "plain") {
+        clock.innerHTML = '<span class="plain-time" data-flap="time">12:00</span><span class="plain-ampm" data-flap="ampm">' + am + "</span>";
+        return;
+    }
+    if (type === "aurora") {
+        clock.innerHTML = '<div class="aurora-arc"></div><span class="plain-time" data-flap="time">12:00</span><span class="plain-ampm" data-flap="ampm">' + am + "</span>";
+        return;
+    }
+    if (type === "digital" || type === "crystal" || type === "ember") {
+        clock.innerHTML = '<div class="digital-frame frame-' + type + '"><span class="digital-readout" data-flap="time">12:00</span><span class="plain-ampm" data-flap="ampm">' + am + "</span></div>";
+        return;
+    }
+    if (type === "stacked") {
+        clock.innerHTML = '<div class="stacked-clock"><span class="stacked-h" data-flap="h">12</span><span class="stacked-m" data-flap="m">00</span><span class="plain-ampm" data-flap="ampm">' + am + "</span></div>";
+        return;
+    }
+    if (type === "orbit") {
+        clock.innerHTML = '<div class="orbit-clock"><span class="orbit-ring"></span><span class="orbit-time" data-flap="time">12:00</span><span class="plain-ampm" data-flap="ampm">' + am + "</span></div>";
+        return;
+    }
+    if (type === "chrono") {
+        clock.innerHTML = '<div class="chrono-clock"><span class="chrono-bezel"></span><span class="chrono-time" data-flap="time">12:00</span><span class="plain-ampm" data-flap="ampm">' + am + "</span></div>";
+        return;
+    }
+    // flap
+    clock.innerHTML = `
+      <div class="flap-digit" data-flap="h1"><span class="flap-card">1</span></div>
+      <div class="flap-digit" data-flap="h2"><span class="flap-card">2</span></div>
+      <div class="flap-colon">:</div>
+      <div class="flap-digit" data-flap="m1"><span class="flap-card">0</span></div>
+      <div class="flap-digit" data-flap="m2"><span class="flap-card">0</span></div>
+      <div class="flap-ampm" data-flap="ampm">${am}</div>`;
+}
+
+function applyClockTheme(themeId, opts) {
+    opts = opts || {};
+    const theme = CLOCK_THEMES.find(function (t) { return t.id === themeId; }) || CLOCK_THEMES[0];
+    if (!opts.force && !isClockThemeUnlocked(theme)) {
+        if (typeof showToast === "function") {
+            showToast(theme.crateOnly ? "🔒 Unlock this clock from crates first" : "🔒 Rank up to unlock this clock", "warn");
+        }
+        return;
+    }
+    data.clockTheme = theme.id;
+    buildClockShell(theme.id);
+    _lastFlapTime = "";
+    try { if (typeof updateClock === "function") updateClock(); } catch (e) {}
+    try { if (typeof saveData === "function") saveData(); } catch (e) {}
+    try { renderClockThemePicker(); } catch (e) {}
+    if (opts.toast && typeof showToast === "function") showToast("Clock: " + theme.name, "success");
+}
+
+function renderClockThemePicker() {
+    const box = document.getElementById("clock-theme-list");
+    if (!box) return;
+    const active = data.clockTheme || "plain";
+    const fmt = getClockFormat();
+    const sample = fmt === "24" ? "14:35" : "2:35";
+    const ampm = fmt === "24" ? "" : " PM";
+    box.innerHTML = CLOCK_THEMES.map(function (t) {
+        const unlocked = isClockThemeUnlocked(t);
+        const isActive = active === t.id;
+        let need = "Crate";
+        if (!t.crateOnly && typeof LEVEL_TABLE !== "undefined" && LEVEL_TABLE[t.atLevel]) {
+            need = LEVEL_TABLE[t.atLevel].rank;
+        } else if (!t.crateOnly) need = "Lv " + t.atLevel;
+        let preview = "";
+        if (t.id === "plain" || t.id === "aurora") {
+            preview = '<div class="cts-preview preview-plain">' + sample + '<span class="cts-ampm">' + ampm.trim() + "</span></div>";
+        } else if (t.id === "flap") {
+            const chars = fmt === "24" ? ["1","4","3","5"] : ["2","3","5"];
+            preview = '<div class="cts-preview preview-flap">' + chars.map(function (c) { return "<span>" + c + "</span>"; }).join("") + "</div>";
+        } else if (t.id === "digital" || t.id === "crystal" || t.id === "ember") {
+            preview = '<div class="cts-preview preview-digital frame-' + t.id + '">' + sample + ampm + "</div>";
+        } else if (t.id === "stacked") {
+            preview = '<div class="cts-preview preview-stacked"><span>2</span><span>35</span></div>';
+        } else if (t.id === "orbit" || t.id === "chrono") {
+            preview = '<div class="cts-preview preview-orbit">' + sample + "</div>";
+        } else {
+            // analog family
+            preview = '<div class="cts-preview preview-analog"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="var(--surface)" stroke="var(--accent-color)" stroke-width="3"/><line x1="50" y1="50" x2="50" y2="26" stroke="var(--text-color)" stroke-width="3" stroke-linecap="round"/><line x1="50" y1="50" x2="74" y2="50" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round"/><circle cx="50" cy="50" r="3" fill="var(--accent-color)"/></svg></div>';
+        }
+        return '<button type="button" class="clock-type-swatch ' + (isActive ? "active" : "") + " " + (unlocked ? "" : "locked") + '"' +
+            ' onclick="applyClockTheme(\'' + t.id + '\', { toast: true })" ' + (unlocked ? "" : "disabled") + ">" +
+            preview +
+            '<span class="cts-name">' + t.name + "</span>" +
+            (unlocked ? "" : '<span class="cts-lock">🔒 ' + need + "</span>") +
+            "</button>";
+    }).join("");
+}
+
 function applyRankCosmetics(info) {
+
+
     info = info || getLevelInfo(data.xp || 0);
     const tier = String(info.rank || "Starter").split(" ")[0].toLowerCase().replace(/[^a-z]/g, "") || "starter";
     const tiers = ["starter","beginner","amateur","aboveaveragekid","skilled","expert","exemplar","master","legend","mythic"];
@@ -4490,11 +4763,9 @@ function applyRankCosmetics(info) {
     }
     const clock = document.getElementById("live-clock");
     if (clock) {
-        clock.classList.forEach(c => { if (c.startsWith("clock-skin-")) clock.classList.remove(c); });
-        if (info.levelIndex >= 25) clock.classList.add("clock-skin-expert");
-        else if (info.levelIndex >= 15) clock.classList.add("clock-skin-skilled");
-        else if (info.levelIndex >= 5) clock.classList.add("clock-skin-beginner");
-        else clock.classList.add("clock-skin-starter");
+        // Prefer user-selected clock theme; fall back to plain
+        const tid = data.clockTheme || "plain";
+        applyClockTheme(tid, { force: true });
     }
     const sidebar = document.getElementById("preset-sidebar");
     if (sidebar) {
@@ -4697,15 +4968,79 @@ function generateSmartWeekFromIntent(prompt) {
     return week;
 }
 
-function applyAnalyserFix() {
+async function applyAnalyserFix() {
     if (!_analyserIntent) return;
-    const prompt = ANALYSER_INTENTS[_analyserIntent].prompt;
-    try {
-        _previewWeek = generateSmartWeekFromIntent(prompt);
-    } catch(e) { console.error(e); return; }
-    _previewDay = "Monday";
+    const intent = ANALYSER_INTENTS[_analyserIntent];
+    const label = intent.label || _analyserIntent;
+    const checks = intent.checks || {};
     closeAnalyser();
-    openPreview();
+    if (typeof showToast === "function") showToast("Generating week to match " + label + "…", "info");
+
+    // Snapshot current week as context (no interactive ask)
+    const currentWeek = {};
+    (typeof DAYS !== "undefined" ? DAYS : []).forEach((d) => {
+        currentWeek[d] = JSON.parse(JSON.stringify((data.schedules && data.schedules[d]) || []));
+    });
+
+    const goals = [];
+    if (checks.minSleepHours) goals.push("sleep about " + checks.minSleepHours + "h+ per night (or overnight gap from last block to first next day)");
+    if (checks.minWorkPct) goals.push("study/work around " + checks.minWorkPct + "%+ of waking blocks");
+    if (checks.maxWorkPct != null) goals.push("study/work at most " + checks.maxWorkPct + "%");
+    if (checks.minRelaxPct) goals.push("relax/gaming around " + checks.minRelaxPct + "%+");
+    if (checks.minExercisePct) goals.push("exercise around " + checks.minExercisePct + "%+");
+
+    const aiPrompt =
+        "OUTPUT ONLY JSON: {\"reply\":string,\"done\":true,\"week\":{\"Monday\":[{\"task\",\"start\",\"end\",\"isSleep\"}],...\"Sunday\":[]}}.\n" +
+        "Rebuild this person's FULL week to match a **" + label + "** intent.\n" +
+        "Goals: " + (goals.join("; ") || "balanced day") + ".\n" +
+        "Keep fixed commitments (school, classes, work shifts, named clubs) from the current week when possible.\n" +
+        "Use HH:MM 24h times. Include Sleep blocks overnight when needed.\n" +
+        "Do NOT ask questions. Return the complete week now.\n\n" +
+        "Current week JSON:\n" + JSON.stringify(currentWeek).slice(0, 7000);
+
+    let week = null;
+    try {
+        if (typeof callAiPlan === "function") {
+            // temporary session so callAiPlan has history context
+            if (typeof _planSession !== "undefined") {
+                _planSession = { phase: "editing", history: [], fixedNotes: "analyser regenerate: " + label, gen: Date.now() };
+            }
+            const result = await callAiPlan(aiPrompt);
+            if (typeof _planSession !== "undefined") _planSession = null;
+            if (result && result.week) week = result.week;
+        }
+    } catch (e) {
+        console.warn("analyser AI", e);
+        if (typeof _planSession !== "undefined") _planSession = null;
+    }
+
+    if (!week) {
+        try {
+            week = generateSmartWeekFromIntent(intent.prompt || label);
+        } catch (e2) {
+            if (typeof showToast === "function") showToast("Could not generate week: " + (e2.message || e2), "warn");
+            return;
+        }
+    }
+
+    if (typeof sanitizeWeekTimes === "function") week = sanitizeWeekTimes(week);
+    if (typeof normalizeWeekDays === "function") week = normalizeWeekDays(week);
+    if (typeof showFullWeekInPreview === "function") {
+        showFullWeekInPreview(week);
+    } else {
+        _previewWeek = week;
+        window._previewWeek = week;
+    }
+    window._previewReadyToAccept = true;
+    window._previewApplyAllDays = true;
+    window._previewRoutineLabel = "Analyser: " + label;
+    if (typeof setPreviewFooterMode === "function") setPreviewFooterMode("full");
+    _previewDay = "Monday";
+    if (typeof openPreview === "function") openPreview();
+    else if (typeof document.getElementById("preview-modal") !== "undefined") {
+        const m = document.getElementById("preview-modal");
+        if (m) m.classList.remove("hidden");
+    }
 }
 
 
@@ -5951,17 +6286,15 @@ function isBlockingOverlayOpen() {
 function updateNowPlayingVisibility() {
     const bar = document.getElementById("now-playing-bar");
     if (!bar) return;
-    const musicOpen = document.getElementById("music-page") &&
-        !document.getElementById("music-page").classList.contains("hidden");
-    const mainOk = !isBlockingOverlayOpen();
-
-    if (_npWantVisible && mainOk) {
+    // Show on every page (including focus / music / modals) while music is active
+    const auth = document.getElementById("auth-screen");
+    const onAuth = auth && !auth.classList.contains("hidden");
+    if (_npWantVisible && !onAuth) {
         bar.classList.remove("hidden");
+        bar.style.zIndex = "20040";
     } else {
         bar.classList.add("hidden");
     }
-
-    if (_npWantVisible && musicOpen) bar.classList.remove("hidden");
 }
 
 function applyMusicLoopState() {
@@ -7205,7 +7538,6 @@ function getTodoQuickDateOptions() {
         { label: "Today", date: formatLocalYMD(now) },
         { label: "Tomorrow", date: formatLocalYMD(addDaysLocal(now, 1)) },
         { label: "Day after tomorrow", date: formatLocalYMD(addDaysLocal(now, 2)) },
-        { label: "Same day next week", date: formatLocalYMD(addDaysLocal(now, 7)) },
         { label: "Next Monday", date: formatLocalYMD(nextWeekdayLocal(1)) },
         { label: "Next " + curName, date: formatLocalYMD(addDaysLocal(now, 7)) }
     ];
@@ -7712,16 +8044,45 @@ function runAnalysis() {
     let totalIssues = 0;
     let html = "<div class='analyser-results-grid'>";
 
-    DAYS.forEach(day => {
-        const tasks = (data.schedules[day] || []).filter(t => t.task && !t.isSleep);
-        if (tasks.length === 0) return;
+    DAYS.forEach((day, dayIdx) => {
+        const allTasks = (data.schedules[day] || []).filter(t => t.task);
+        if (allTasks.length === 0) return;
+        // Active (non-sleep) tasks for category % — sleep counted separately
+        const tasks = allTasks.filter(t => !t.isSleep && !/sleep|zzz|^bed$/i.test(t.task));
 
-        const sleepTask = tasks.find(t => /sleep|zzz|bed/i.test(t.task) || t.isSleep);
+        // Explicit sleep blocks (including isSleep)
+        const sleepTasks = allTasks.filter(t => t.isSleep || /sleep|zzz|bed/i.test(t.task));
         let sleepHours = 0;
-        if (sleepTask) {
+        sleepTasks.forEach((sleepTask) => {
             const s = timeToMinutes(sleepTask.start);
             const e = timeToMinutes(sleepTask.end);
-            sleepHours = e <= s ? (e + 1440 - s) / 60 : (e - s) / 60;
+            sleepHours += e <= s ? (e + 1440 - s) / 60 : (e - s) / 60;
+        });
+        // Implicit overnight sleep: gap from last block end today → first block start tomorrow
+        if (sleepHours < 0.5 && allTasks.length) {
+            const sorted = allTasks.slice().sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+            const last = sorted[sorted.length - 1];
+            const nextDay = DAYS[(dayIdx + 1) % 7];
+            const nextTasks = (data.schedules[nextDay] || []).filter(t => t.task).slice()
+                .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+            if (last && nextTasks.length) {
+                const endM = timeToMinutes(last.end);
+                const startM = timeToMinutes(nextTasks[0].start);
+                // overnight: end evening → start morning
+                let gap = (startM + 1440 - endM);
+                if (gap > 24 * 60) gap = gap % (24 * 60);
+                // only count as sleep if gap is 4h–14h (typical overnight)
+                if (gap >= 4 * 60 && gap <= 14 * 60) {
+                    sleepHours = gap / 60;
+                }
+            } else if (last) {
+                // no next day blocks: assume sleep from last end to 06:00-ish if evening end
+                const endM = timeToMinutes(last.end);
+                if (endM >= 20 * 60) {
+                    sleepHours = (6 * 60 + 1440 - endM) / 60;
+                    if (sleepHours > 14) sleepHours = 8;
+                }
+            }
         }
         const sleepOk = sleepHours >= cfg.minSleepHours;
         const sleepWarn = sleepHours > 0 && sleepHours < cfg.minSleepHours;
@@ -7730,10 +8091,11 @@ function runAnalysis() {
         let totalMins = 0;
         tasks.forEach(t => {
             const s = timeToMinutes(t.start), e = timeToMinutes(t.end);
-            if (e > s) {
+            const dur = e > s ? (e - s) : (e + 1440 - s);
+            if (dur > 0 && dur < 20 * 60) {
                 const cat = detectCategory(t.task);
-                dayMins[cat] = (dayMins[cat] || 0) + (e - s);
-                totalMins += (e - s);
+                dayMins[cat] = (dayMins[cat] || 0) + dur;
+                totalMins += dur;
             }
         });
 
@@ -8166,6 +8528,8 @@ window.closeOverdueModal = closeOverdueModal;
 
 /* ---- App Customiser ---- */
 function openAppCustomiser() {
+    try { renderClockThemePicker(); } catch (e) {}
+
     const panel = document.getElementById("app-customiser-panel");
     if (!panel) return;
     panel.classList.remove("hidden");
@@ -9083,6 +9447,8 @@ const CRATE_LOOT = {
         { type: "xp_range", min: 1000, max: 2000 },
         { type: "booster", label: "XP Booster" },
         { type: "booster", label: "XP Booster" },
+        { type: "cosmetic", id: "clock_crate_crystal", label: "Crystal Clock" },
+        { type: "cosmetic", id: "clock_crate_ember", label: "Ember Clock" },
 
         { type: "keys", amount: 15, label: "+15 Crate Keys", weight: 1 },
         { type: "keys", amount: 18, label: "+18 Crate Keys", weight: 1 },
@@ -9105,6 +9471,11 @@ const CRATE_LOOT = {
         { type: "cosmetic", id: "cosmetic_crate_trail", label: "Stardust Trail" },
         { type: "cosmetic", id: "cosmetic_crate_checkmark", label: "Emerald Check" },
         { type: "cosmetic", id: "cosmetic_crate_orbit", label: "Orbit Mark" },
+        { type: "cosmetic", id: "clock_crate_celestial", label: "Celestial Clock" },
+        { type: "cosmetic", id: "clock_crate_crystal", label: "Crystal Clock" },
+        { type: "cosmetic", id: "clock_crate_ember", label: "Ember Clock" },
+        { type: "cosmetic", id: "clock_crate_voidgate", label: "Void Gate Clock" },
+        { type: "cosmetic", id: "clock_crate_aurora", label: "Aurora Arc Clock" },
 
         { type: "keys", amount: 15, label: "+15 Crate Keys", weight: 1 },
         { type: "keys", amount: 18, label: "+18 Crate Keys", weight: 1 },
@@ -9496,6 +9867,9 @@ function showCrateResult(rarity, loot) {
         actions = `<button type="button" class="btn-save-final" onclick="applyCrateTheme('${loot.id}');closeCrateResult()">Apply theme</button>`;
     } else if (loot.type === "cosmetic" && String(loot.id).startsWith("chime_")) {
         actions = `<button type="button" class="btn-save-final" onclick="applyCrateChime('${loot.id}');closeCrateResult()">Use chime</button>`;
+    } else if (loot.type === "cosmetic" && String(loot.id).startsWith("clock_crate_")) {
+        const clockId = String(loot.id).replace("clock_crate_", "");
+        actions = `<button type="button" class="btn-save-final" onclick="applyClockTheme('${clockId}',{toast:true});closeCrateResult()">Use clock</button>`;
     } else if (loot.type === "cosmetic") {
         actions = `<button type="button" class="btn-save-final" onclick="activateCrateCosmetic('${loot.id}');closeCrateResult()">Equip</button>`;
     } else {
@@ -9704,7 +10078,7 @@ window.activateCrateCosmetic = activateCrateCosmetic;
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "8.0.0";
+const CHANGELOG_VERSION = "8.1.0";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -9713,6 +10087,7 @@ const DEFAULT_DEVICE_CONFIG = {
     showedCL6_2: false,
     showedCL7_0: false,
     showedCL8_0: false,
+    showedCL8_1: false,
     changelogVersionShown: null
 };
 
@@ -9763,107 +10138,151 @@ async function saveDeviceConfig(patch) {
 
 const TUTORIAL_STEPS = [
     {
-        title: "Plan the week",
-        body: "Pick a day at the top, then add time blocks for deep work, classes, gym, rest — whatever your week looks like. Your schedule stays on this device (or your account if signed in).",
+        title: "Welcome to Momento",
+        body: "Momento is a weekly time-block planner with XP, ranks, and light gamification so planning feels worth opening. This short tour shows the main pieces — you can skip anytime and reopen help later.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
   <rect width="360" height="160" rx="16" fill="#0d0a14"/>
   <g class="tut-anim tut-pulse">
-    <rect x="24" y="28" width="70" height="22" rx="8" fill="#6c5ce7"/>
-    <text x="59" y="43" text-anchor="middle" fill="#fff" font-size="11" font-family="system-ui">Mon</text>
+    <rect x="40" y="40" width="280" height="80" rx="14" fill="#1a1528" stroke="#6c5ce7"/>
+    <text x="180" y="75" text-anchor="middle" fill="#c4b5fd" font-size="18" font-family="system-ui">Momento</text>
+    <text x="180" y="100" text-anchor="middle" fill="#9a96b0" font-size="11" font-family="system-ui">Plan · Focus · Level up</text>
   </g>
-  <rect x="100" y="28" width="70" height="22" rx="8" fill="#2d2250"/>
-  <text x="135" y="43" text-anchor="middle" fill="#a78bfa" font-size="11" font-family="system-ui">Tue</text>
-  <rect x="176" y="28" width="70" height="22" rx="8" fill="#2d2250"/>
-  <text x="211" y="43" text-anchor="middle" fill="#a78bfa" font-size="11" font-family="system-ui">Wed</text>
+</svg>`
+    },
+    {
+        title: "Your week in blocks",
+        body: "Each day is a list of time blocks (study, school, gym, sleep…). Tap a day tab at the top to switch. Add blocks with start/end times. Checking a block off on today (within about 2 hours of its start) awards XP.",
+        visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
+  <rect width="360" height="160" rx="16" fill="#0d0a14"/>
   <g class="tut-anim tut-slide">
-    <rect x="24" y="64" width="210" height="28" rx="8" fill="#1a1528" stroke="#6c5ce7" stroke-width="2"/>
-    <text x="36" y="82" fill="#e2def8" font-size="12" font-family="system-ui">09:00  Deep work</text>
+    <rect x="20" y="24" width="48" height="22" rx="8" fill="#6c5ce7"/><text x="44" y="39" text-anchor="middle" fill="#fff" font-size="10" font-family="system-ui">Mon</text>
+    <rect x="74" y="24" width="48" height="22" rx="8" fill="#2d2250"/><text x="98" y="39" text-anchor="middle" fill="#9a96b0" font-size="10" font-family="system-ui">Tue</text>
+    <rect x="128" y="24" width="48" height="22" rx="8" fill="#2d2250"/><text x="152" y="39" text-anchor="middle" fill="#9a96b0" font-size="10" font-family="system-ui">Wed</text>
   </g>
-  <g class="tut-anim tut-slide" style="animation-delay:0.4s">
-    <rect x="24" y="100" width="210" height="28" rx="8" fill="#1a1528" stroke="#2d2250" stroke-width="2"/>
-    <text x="36" y="118" fill="#9a96b0" font-size="12" font-family="system-ui">11:00  Gym</text>
+  <g class="tut-anim tut-bounce" style="animation-delay:0.2s">
+    <rect x="24" y="60" width="310" height="28" rx="8" fill="#1a1528" stroke="#3d2f6b"/>
+    <text x="36" y="78" fill="#a78bfa" font-size="10" font-family="system-ui">09:00–10:30  Study</text>
+    <rect x="24" y="96" width="310" height="28" rx="8" fill="#1a1528" stroke="#3d2f6b"/>
+    <text x="36" y="114" fill="#a78bfa" font-size="10" font-family="system-ui">10:30–12:00  School</text>
   </g>
-  <text x="300" y="100" text-anchor="middle" fill="#a78bfa" font-size="28" font-family="system-ui" class="tut-anim tut-bounce">✦</text>
 </svg>`
     },
     {
-        title: "Play the day",
-        body: "Check off blocks when you finish them. Staying honest with time keeps XP and ranks meaningful.",
+        title: "XP, ranks & streaks",
+        body: "Finishing blocks earns XP and pushes your rank (Starter → Mythic). Keep a streak by completing something each day. Rank rewards can include crate keys — open crates for themes, chimes, and boosters.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
   <rect width="360" height="160" rx="16" fill="#0d0a14"/>
-  <rect x="40" y="48" width="240" height="36" rx="10" fill="#1a1528" stroke="#2d2250"/>
-  <rect x="52" y="58" width="18" height="16" rx="4" fill="#2d2250" stroke="#6c5ce7"/>
-  <text x="82" y="71" fill="#e2def8" font-size="13" font-family="system-ui">09:00 Study</text>
-  <g class="tut-anim tut-check">
-    <rect x="40" y="96" width="240" height="36" rx="10" fill="#1a1528" stroke="#00b894"/>
-    <rect x="52" y="106" width="18" height="16" rx="4" fill="#00b894"/>
-    <path d="M56 114 l4 4 l8 -8" stroke="#fff" stroke-width="2" fill="none"/>
-    <text x="82" y="119" fill="#a7f3d0" font-size="13" font-family="system-ui">07:30 Morning — done</text>
+  <g class="tut-anim tut-pulse">
+    <rect x="50" y="50" width="260" height="24" rx="12" fill="#2d2250"/>
+    <rect x="50" y="50" width="160" height="24" rx="12" fill="#6c5ce7"/>
+    <text x="180" y="100" text-anchor="middle" fill="#e2def8" font-size="13" font-family="system-ui">Expert · 1,105 XP left</text>
   </g>
-  <text x="300" y="90" font-size="28" class="tut-anim tut-bounce">⭐</text>
 </svg>`
     },
     {
-        title: "Generate a smart week",
-        body: "Type generate study week in chat. Momento asks about fixed classes or work, builds a live draft, then fills the gaps using your personalisation.",
+        title: "AI week builder",
+        body: "Type generate study week in the AI chat (robot button). Tell it fixed classes or sports; say no when done. Preview the week, request changes, or Accept. Accept keeps XP you already earned.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
   <rect width="360" height="160" rx="16" fill="#0d0a14"/>
-  <rect x="30" y="36" width="220" height="88" rx="12" fill="#1a1528" stroke="#2d2250"/>
-  <text x="44" y="58" fill="#a78bfa" font-size="11" font-family="system-ui">Chat</text>
   <g class="tut-anim tut-fade">
-    <rect x="44" y="68" width="160" height="18" rx="6" fill="#6c5ce733"/>
-    <text x="52" y="81" fill="#e2def8" font-size="11" font-family="system-ui">generate study week</text>
-  </g>
-  <g class="tut-anim tut-slide" style="animation-delay:0.5s">
-    <rect x="44" y="94" width="180" height="18" rx="6" fill="#00b89433"/>
-    <text x="52" y="107" fill="#a7f3d0" font-size="11" font-family="system-ui">Any fixed classes?</text>
+    <rect x="30" y="30" width="180" height="100" rx="12" fill="#1a1528" stroke="#2d2250"/>
+    <text x="42" y="52" fill="#a7f3d0" font-size="11" font-family="system-ui">Any fixed classes?</text>
+    <text x="42" y="72" fill="#9a96b0" font-size="10" font-family="system-ui">School Mon–Sat 6:30–14:30</text>
   </g>
   <g class="tut-anim tut-bounce">
-    <rect x="270" y="50" width="60" height="60" rx="12" fill="#6c5ce744" stroke="#6c5ce7"/>
-    <text x="300" y="85" text-anchor="middle" fill="#fff" font-size="22">🗓️</text>
+    <circle cx="280" cy="80" r="36" fill="#6c5ce7"/>
+    <text x="280" y="86" text-anchor="middle" fill="#fff" font-size="22">🤖</text>
   </g>
 </svg>`
     },
     {
-        title: "Todos & calendar",
-        body: "Park longer goals in Todos (+XP when cleared). Open the calendar for exams, birthdays, and deadlines — they show up when the day arrives.",
+        title: "Todos that stick",
+        body: "Open the to-do drawer for lasting tasks with due dates. Use Add for… for today, tomorrow, or next Monday. Completing them gives XP; rushing too fast can cost a small penalty.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
   <rect width="360" height="160" rx="16" fill="#0d0a14"/>
   <g class="tut-anim tut-slide">
-    <rect x="28" y="36" width="140" height="90" rx="12" fill="#1a1528" stroke="#2d2250"/>
-    <text x="42" y="58" fill="#a78bfa" font-size="11" font-family="system-ui">To-Dos</text>
-    <rect x="42" y="70" width="12" height="12" rx="3" fill="#6c5ce7"/>
-    <text x="60" y="80" fill="#e2def8" font-size="11" font-family="system-ui">Finish essay</text>
-    <rect x="42" y="94" width="12" height="12" rx="3" fill="#2d2250"/>
-    <text x="60" y="104" fill="#9a96b0" font-size="11" font-family="system-ui">Call dentist</text>
-  </g>
-  <g class="tut-anim tut-pulse" style="animation-delay:0.3s">
-    <rect x="190" y="36" width="140" height="90" rx="12" fill="#1a1528" stroke="#2d2250"/>
-    <text x="204" y="58" fill="#a78bfa" font-size="11" font-family="system-ui">Calendar</text>
-    <circle cx="230" cy="90" r="6" fill="#e84393" class="tut-anim tut-bounce"/>
-    <circle cx="260" cy="90" r="6" fill="#6c5ce7"/>
-    <circle cx="290" cy="90" r="6" fill="#00b894"/>
+    <rect x="40" y="36" width="280" height="90" rx="12" fill="#1a1528" stroke="#2d2250"/>
+    <text x="56" y="58" fill="#a78bfa" font-size="11" font-family="system-ui">Persistent To-Dos</text>
+    <rect x="56" y="72" width="12" height="12" rx="3" fill="#6c5ce7"/>
+    <text x="76" y="82" fill="#e2def8" font-size="11" font-family="system-ui">Finish essay</text>
+    <rect x="56" y="96" width="12" height="12" rx="3" fill="#2d2250"/>
+    <text x="76" y="106" fill="#9a96b0" font-size="11" font-family="system-ui">Call dentist</text>
   </g>
 </svg>`
     },
     {
-        title: "Themes, crates & ranks",
-        body: "Earn XP, climb ranks, open crates for themes and cosmetics. Make Momento look and sound the way you like.",
+        title: "Calendar & yearly events",
+        body: "The calendar holds exams, meetings, birthdays, and anniversaries. Dots on the month view mark days with pending todos. Yearly events can surface on the home view when the day arrives.",
+        visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
+  <rect width="360" height="160" rx="16" fill="#0d0a14"/>
+  <g class="tut-anim tut-pulse">
+    <rect x="90" y="28" width="180" height="110" rx="12" fill="#1a1528" stroke="#2d2250"/>
+    <text x="180" y="52" text-anchor="middle" fill="#a78bfa" font-size="11" font-family="system-ui">October</text>
+    <circle cx="130" cy="80" r="5" fill="#e84393" class="tut-anim tut-bounce"/>
+    <circle cx="180" cy="80" r="5" fill="#6c5ce7"/>
+    <circle cx="230" cy="80" r="5" fill="#00b894"/>
+    <circle cx="155" cy="110" r="5" fill="#fbbf24"/>
+  </g>
+</svg>`
+    },
+    {
+        title: "Focus mode & music",
+        body: "Open a block in focus mode to run a timer and micro-steps. The music page lets you play local or free tracks. While music plays, the now-playing bar stays on top of every page — drag it wherever you like.",
+        visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
+  <rect width="360" height="160" rx="16" fill="#0d0a14"/>
+  <g class="tut-anim tut-pulse">
+    <circle cx="100" cy="80" r="40" fill="#1a1528" stroke="#6c5ce7" stroke-width="4"/>
+    <text x="100" y="86" text-anchor="middle" fill="#fff" font-size="14" font-family="system-ui">25:00</text>
+  </g>
+  <g class="tut-anim tut-slide">
+    <rect x="170" y="55" width="150" height="50" rx="10" fill="#1a1528" stroke="#3d2f6b"/>
+    <text x="190" y="78" fill="#e2def8" font-size="11" font-family="system-ui">▶  Now playing</text>
+    <text x="190" y="94" fill="#9a96b0" font-size="9" font-family="system-ui">Lo-fi study mix</text>
+  </g>
+</svg>`
+    },
+    {
+        title: "Crates, themes & boosters",
+        body: "Spend keys on crate tiers for XP, themes, chimes, cosmetics, and XP boosters. Booster duration depends on crate tier; multiplier free-rolls with luck. Apply themes from the customiser once unlocked.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
   <rect width="360" height="160" rx="16" fill="#0d0a14"/>
   <g class="tut-anim tut-bounce">
-    <circle cx="90" cy="80" r="28" fill="#6c5ce7"/>
+    <rect x="50" y="45" width="70" height="70" rx="12" fill="#6c5ce7"/>
+    <text x="85" y="85" text-anchor="middle" fill="#fff" font-size="12" font-family="system-ui">Rare</text>
   </g>
-  <g class="tut-anim tut-bounce" style="animation-delay:0.25s">
-    <circle cx="170" cy="80" r="28" fill="#e84393"/>
+  <g class="tut-anim tut-bounce" style="animation-delay:0.2s">
+    <rect x="145" y="45" width="70" height="70" rx="12" fill="#e84393"/>
+    <text x="180" y="85" text-anchor="middle" fill="#fff" font-size="11" font-family="system-ui">Legend</text>
   </g>
-  <g class="tut-anim tut-bounce" style="animation-delay:0.5s">
-    <circle cx="250" cy="80" r="28" fill="#0984e3"/>
+  <g class="tut-anim tut-bounce" style="animation-delay:0.4s">
+    <rect x="240" y="45" width="70" height="70" rx="12" fill="#0984e3"/>
+    <text x="275" y="85" text-anchor="middle" fill="#fff" font-size="11" font-family="system-ui">Mythic</text>
   </g>
-  <text x="180" y="130" text-anchor="middle" fill="#c4b5fd" font-size="12" font-family="system-ui">Themes · Chimes · Cosmetics</text>
+</svg>`
+    },
+    {
+        title: "Settings & personal AI",
+        body: "The gear (bottom-right) opens settings: AI routing, system tray, start with Windows/Mac, personal API keys (e.g. Groq), volume mixer, and optional system-prompt edits. Save after changes — closing without save asks you to confirm.",
+        visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
+  <rect width="360" height="160" rx="16" fill="#0d0a14"/>
+  <g class="tut-anim tut-pulse">
+    <circle cx="180" cy="80" r="36" fill="#1a1528" stroke="#c4b5fd" stroke-width="3"/>
+    <text x="180" y="88" text-anchor="middle" fill="#c4b5fd" font-size="28">⚙</text>
+  </g>
+</svg>`
+    },
+    {
+        title: "You're ready",
+        body: "Sign in for cloud sync across devices, or stay local. Plan a day, check off a block, and open a crate when you have keys. Type help in the AI chat anytime. Happy planning!",
+        visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
+  <rect width="360" height="160" rx="16" fill="#0d0a14"/>
+  <g class="tut-anim tut-bounce">
+    <text x="180" y="90" text-anchor="middle" fill="#a7f3d0" font-size="22" font-family="system-ui">✓ Let's go</text>
+  </g>
 </svg>`
     }
 ];
+
 
 const CHANGELOG_6_2 = [
     "Discord sign-in alongside Google and local accounts",
@@ -9889,6 +10308,15 @@ const CHANGELOG_8_0 = [
     "Quick Add for… on todos (today, tomorrow, next week…)",
     "XP boosters: duration by crate tier, multiplier free-rolls with luck",
     "Desktop system tray with app icon when run in background"
+];
+
+const CHANGELOG_8_1 = [
+    "Clock types (rank): Plain, Page-turner, Digital, Analog, Stacked, Orbit Ring, Chronograph",
+    "Crate clocks: Celestial, Crystal, Ember, Void Gate, Aurora Arc",
+    "Bigger clock faces; 12h/24h format in Settings (synced with account)",
+    "Week analyser detects overnight sleep gaps; AI regenerate to match intent",
+    "Search music BETA note; clearer Online website + GitHub footer links",
+    "System tray on startup, open-at-login option, volume mixer, editable system prompt"
 ];
 
 let _tutorialIndex = 0;
@@ -9950,7 +10378,7 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        body.innerHTML = "<ul>" + CHANGELOG_8_0.map(x => `<li>${x}</li>`).join("") + "</ul>";
+        body.innerHTML = "<ul>" + (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0).map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
         el.classList.remove("hidden");
@@ -9969,6 +10397,7 @@ async function closeChangelog() {
         showedCL6_2_0: true,
         showedCL7_0: true,
         showedCL8_0: true,
+        showedCL8_1: true,
         changelogVersionShown: CHANGELOG_VERSION
     };
     await saveDeviceConfig(patch);
@@ -10453,25 +10882,61 @@ window.addEventListener("online", () => {
 });
 
 
+
 const APP_SETTINGS_KEY = "MOMENTO_APP_SETTINGS";
+const DEFAULT_SYSTEM_PROMPT = `You are Momento's in-app assistant (weekly time-block planner with XP, ranks, crates, themes, todos, calendar, focus).
+Speak like a helpful product guide. NEVER list internal function names, action ids, or JSON schemas to the user.
+When the user asks you to DO something in the app, end your reply with ONE silent JSON line the UI will strip (user must not see it), for example:
+{"momento_action":"open_crates","args":{}}
+{"momento_action":"open_todos","args":{}}
+{"momento_action":"open_calendar","args":{}}
+{"momento_action":"open_customiser","args":{}}
+{"momento_action":"open_settings","args":{}}
+{"momento_action":"goto_today","args":{}}
+{"momento_action":"goto_day","args":{"day":"monday"}}
+{"momento_action":"add_todo","args":{"text":"...","due":"YYYY-MM-DD"}}
+{"momento_action":"add_block","args":{"day":"Monday","task":"Study","start":"16:00","end":"17:30"}}
+{"momento_action":"remove_block","args":{"day":"Monday","task":"Gym"}}
+{"momento_action":"check_block","args":{"day":"Monday","task":"Homework"}}
+{"momento_action":"set_theme","args":{"theme":"..."}}
+{"momento_action":"start_week_builder","args":{}}
+Only emit that JSON when you are actually performing an action. If a limit blocks it, say so in plain language — never invent success.
+Reply in clear markdown.`;
+
 const DEFAULT_APP_SETTINGS = {
     aiMode: "online-first",
     runInBackground: false,
+    openAtLogin: false,
+    clockFormat: "12",
     personalApiKey: "",
     personalApiUrl: "",
     personalApiModel: "",
     usePersonalForPlan: false,
-    usePersonalForChat: false
+    usePersonalForChat: false,
+    systemPrompt: "",
+    volumes: {
+        complete: 100,
+        levelup: 100,
+        down: 100,
+        transition: 100,
+        crate: 100,
+        music: 100
+    }
 };
+
+let _settingsDirty = false;
+let _settingsSnapshot = "";
 
 function loadAppSettings() {
     try {
         const raw = localStorage.getItem(APP_SETTINGS_KEY);
-        if (!raw) return Object.assign({}, DEFAULT_APP_SETTINGS);
+        if (!raw) return Object.assign({}, DEFAULT_APP_SETTINGS, { volumes: Object.assign({}, DEFAULT_APP_SETTINGS.volumes) });
         const j = JSON.parse(raw);
-        return Object.assign({}, DEFAULT_APP_SETTINGS, j || {});
+        const merged = Object.assign({}, DEFAULT_APP_SETTINGS, j || {});
+        merged.volumes = Object.assign({}, DEFAULT_APP_SETTINGS.volumes, (j && j.volumes) || {});
+        return merged;
     } catch (e) {
-        return Object.assign({}, DEFAULT_APP_SETTINGS);
+        return Object.assign({}, DEFAULT_APP_SETTINGS, { volumes: Object.assign({}, DEFAULT_APP_SETTINGS.volumes) });
     }
 }
 
@@ -10480,25 +10945,131 @@ function getAppSettings() {
     return window._appSettings;
 }
 
-function saveAppSettingsFromUi() {
-    const s = {
+function getEffectiveSystemPrompt() {
+    const s = getAppSettings();
+    const custom = (s.systemPrompt || "").trim();
+    return custom || DEFAULT_SYSTEM_PROMPT;
+}
+
+function isPersonalModelConfigured() {
+    const s = getAppSettings();
+    return !!(s.personalApiKey && s.personalApiUrl && s.personalApiModel);
+}
+
+function readSettingsFromUi() {
+    const vol = (id) => {
+        const el = document.getElementById(id);
+        return el ? Math.max(0, Math.min(500, Number(el.value) || 100)) : 100;
+    };
+    return {
         aiMode: (document.getElementById("set-ai-mode") || {}).value || "online-first",
         runInBackground: !!(document.getElementById("set-run-background") || {}).checked,
+        openAtLogin: !!(document.getElementById("set-open-at-login") || {}).checked,
+        clockFormat: (document.getElementById("set-clock-format") || {}).value === "24" ? "24" : "12",
         personalApiKey: ((document.getElementById("set-personal-key") || {}).value || "").trim(),
         personalApiUrl: ((document.getElementById("set-personal-url") || {}).value || "").trim().replace(/\/$/, ""),
         personalApiModel: ((document.getElementById("set-personal-model") || {}).value || "").trim(),
         usePersonalForPlan: !!(document.getElementById("set-personal-plan") || {}).checked,
-        usePersonalForChat: !!(document.getElementById("set-personal-chat") || {}).checked
+        usePersonalForChat: !!(document.getElementById("set-personal-chat") || {}).checked,
+        systemPrompt: ((document.getElementById("set-system-prompt") || {}).value || ""),
+        volumes: {
+            complete: vol("vol-complete"),
+            levelup: vol("vol-levelup"),
+            down: vol("vol-down"),
+            transition: vol("vol-transition"),
+            crate: vol("vol-crate"),
+            music: vol("vol-music")
+        }
     };
+}
+
+function markSettingsDirty() {
+    _settingsDirty = true;
+    updatePersonalModelOptionsState();
+}
+
+function updatePersonalModelOptionsState() {
+    const url = ((document.getElementById("set-personal-url") || {}).value || "").trim();
+    const key = ((document.getElementById("set-personal-key") || {}).value || "").trim();
+    const model = ((document.getElementById("set-personal-model") || {}).value || "").trim();
+    const ready = !!(url && key && model);
+    const box = document.getElementById("personal-model-options");
+    if (box) box.classList.toggle("is-disabled", !ready);
+    ["set-personal-plan", "set-personal-chat"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !ready;
+    });
+}
+
+function bindSettingsDirtyListeners() {
+    const panel = document.getElementById("app-settings-panel");
+    if (!panel || panel.dataset.dirtyBound === "1") return;
+    panel.dataset.dirtyBound = "1";
+    panel.querySelectorAll("[data-settings-field]").forEach((el) => {
+        el.addEventListener("input", markSettingsDirty);
+        el.addEventListener("change", markSettingsDirty);
+    });
+}
+
+function applyVolumesToRuntime(s) {
+    try {
+        const musicPct = (s.volumes && s.volumes.music != null) ? Number(s.volumes.music) : 100;
+        // music slider is relative to base 0.4 at 100%
+        const base = 0.4;
+        _musicVolume = Math.max(0, Math.min(1, base * (musicPct / 100)));
+        if (typeof setMusicVolume === "function") {
+            // setMusicVolume expects 0-100 absolute UI scale - map carefully
+        }
+        ["stream-audio", "local-audio"].forEach((id) => {
+            const a = document.getElementById(id);
+            if (a) a.volume = _musicVolume;
+        });
+        if (typeof setYouTubePlayerVolume === "function") setYouTubePlayerVolume(_musicVolume);
+        const npVol = document.getElementById("np-volume");
+        if (npVol) npVol.value = Math.round(Math.min(100, musicPct));
+    } catch (e) {}
+}
+
+function saveAppSettingsFromUi() {
+    const s = readSettingsFromUi();
+    if (!(s.personalApiKey && s.personalApiUrl && s.personalApiModel)) {
+        s.usePersonalForPlan = false;
+        s.usePersonalForChat = false;
+    }
     localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(s));
     window._appSettings = s;
+    _settingsDirty = false;
+    // Account-synced prefs (follow the user when signed in)
     try {
-        if (window.electronAPI && typeof window.electronAPI.setRunInBackground === "function") {
-            window.electronAPI.setRunInBackground(!!s.runInBackground);
+        if (typeof data === "object" && data) {
+            data.clockFormat = s.clockFormat || "12";
+            if (!data.clockTheme) data.clockTheme = "plain";
+            if (typeof saveData === "function") saveData();
+        }
+        _lastFlapTime = "";
+        if (typeof buildClockShell === "function") buildClockShell(data.clockTheme || "plain");
+        if (typeof updateClock === "function") updateClock();
+    } catch (e) {}
+    applyVolumesToRuntime(s);
+    try {
+        if (window.electronAPI) {
+            if (typeof window.electronAPI.setRunInBackground === "function") {
+                window.electronAPI.setRunInBackground(!!s.runInBackground);
+            }
+            if (typeof window.electronAPI.setOpenAtLogin === "function") {
+                window.electronAPI.setOpenAtLogin(!!s.openAtLogin);
+            }
+            if (typeof window.electronAPI.applyStartupPrefs === "function") {
+                window.electronAPI.applyStartupPrefs({
+                    runInBackground: !!s.runInBackground,
+                    openAtLogin: !!s.openAtLogin
+                });
+            }
         }
     } catch (e) {}
     if (typeof showToast === "function") showToast("Settings saved", "success");
-    toggleAppSettings(false);
+    _settingsDirty = false;
+    toggleAppSettings(false, true);
 }
 
 function saveAppSettings() { saveAppSettingsFromUi(); }
@@ -10507,24 +11078,91 @@ function populateAppSettingsUi() {
     const s = getAppSettings();
     const mode = document.getElementById("set-ai-mode");
     const bg = document.getElementById("set-run-background");
+    const login = document.getElementById("set-open-at-login");
     const url = document.getElementById("set-personal-url");
     const key = document.getElementById("set-personal-key");
     const model = document.getElementById("set-personal-model");
     const plan = document.getElementById("set-personal-plan");
     const chat = document.getElementById("set-personal-chat");
+    const prompt = document.getElementById("set-system-prompt");
     if (mode) mode.value = s.aiMode === "offline-first" ? "offline-first" : "online-first";
     if (bg) bg.checked = !!s.runInBackground;
+    if (login) login.checked = !!s.openAtLogin;
+    const cf = document.getElementById("set-clock-format");
+    if (cf) {
+        const acc = (typeof data === "object" && data && data.clockFormat) ? data.clockFormat : s.clockFormat;
+        cf.value = acc === "24" ? "24" : "12";
+    }
     if (url) url.value = s.personalApiUrl || "";
     if (key) key.value = s.personalApiKey || "";
     if (model) model.value = s.personalApiModel || "";
     if (plan) plan.checked = !!s.usePersonalForPlan;
     if (chat) chat.checked = !!s.usePersonalForChat;
+    if (prompt) prompt.value = (s.systemPrompt && s.systemPrompt.trim()) ? s.systemPrompt : DEFAULT_SYSTEM_PROMPT;
+    const vols = s.volumes || {};
+    ["complete", "levelup", "down", "transition", "crate", "music"].forEach((k) => {
+        const el = document.getElementById("vol-" + k);
+        const num = document.getElementById("vol-" + k + "-num");
+        const v = vols[k] != null ? Number(vols[k]) : 100;
+        if (el) el.value = String(v);
+        if (num) num.textContent = v + "%";
+        if (el && !el._volBound) {
+            el._volBound = true;
+            el.addEventListener("input", () => {
+                const n = document.getElementById("vol-" + k + "-num");
+                if (n) n.textContent = el.value + "%";
+            });
+        }
+    });
+    updatePersonalModelOptionsState();
+    // collapse sections when opening
+    const sp = document.getElementById("sys-prompt-editor");
+    const vm = document.getElementById("volume-mixer");
+    if (sp) sp.classList.add("hidden");
+    if (vm) vm.classList.add("hidden");
+    const spa = document.getElementById("sys-prompt-arrow");
+    const vma = document.getElementById("volume-mixer-arrow");
+    if (spa) spa.textContent = "▾";
+    if (vma) vma.textContent = "▾";
+    bindSettingsDirtyListeners();
+    _settingsDirty = false;
 }
 
-function toggleAppSettings(force) {
+function toggleSystemPromptEditor() {
+    const ed = document.getElementById("sys-prompt-editor");
+    const ar = document.getElementById("sys-prompt-arrow");
+    if (!ed) return;
+    const open = ed.classList.contains("hidden");
+    ed.classList.toggle("hidden", !open);
+    if (ar) ar.textContent = open ? "▴" : "▾";
+}
+
+function toggleVolumeMixer() {
+    const ed = document.getElementById("volume-mixer");
+    const ar = document.getElementById("volume-mixer-arrow");
+    if (!ed) return;
+    const open = ed.classList.contains("hidden");
+    ed.classList.toggle("hidden", !open);
+    if (ar) ar.textContent = open ? "▴" : "▾";
+}
+
+function resetSystemPromptToDefault() {
+    const prompt = document.getElementById("set-system-prompt");
+    if (prompt) prompt.value = DEFAULT_SYSTEM_PROMPT;
+    markSettingsDirty();
+}
+
+function toggleAppSettings(force, skipDirtyCheck) {
     const panel = document.getElementById("app-settings-panel");
     if (!panel) return;
-    const open = force === true || (force !== false && panel.classList.contains("hidden"));
+    const currentlyHidden = panel.classList.contains("hidden");
+    const open = force === true || (force !== false && currentlyHidden);
+    if (!open && !skipDirtyCheck && _settingsDirty) {
+        if (!confirm("You changed settings but did not save them. Close anyway and discard changes?")) {
+            return;
+        }
+        _settingsDirty = false;
+    }
     if (open) {
         populateAppSettingsUi();
         panel.classList.remove("hidden");
@@ -10532,18 +11170,94 @@ function toggleAppSettings(force) {
     } else {
         panel.classList.add("hidden");
         panel.setAttribute("aria-hidden", "true");
+        // collapse mixers
+        const sp = document.getElementById("sys-prompt-editor");
+        const vm = document.getElementById("volume-mixer");
+        if (sp) sp.classList.add("hidden");
+        if (vm) vm.classList.add("hidden");
     }
 }
 
 function shouldUseLocalScheduleNlp() {
     const s = getAppSettings();
     const online = typeof navigator === "undefined" || navigator.onLine !== false;
-    if (s.aiMode === "offline-first") return true; // try local first even online
-    return !online; // online-first: local only when offline
+    if (s.aiMode === "offline-first") return true;
+    return !online;
 }
 
-// init settings once
-try { window._appSettings = loadAppSettings(); } catch (e) {}
+function initNpDrag() {
+    const bar = document.getElementById("now-playing-bar");
+    if (!bar || bar.dataset.dragBound === "1") return;
+    bar.dataset.dragBound = "1";
+    let dragging = false, ox = 0, oy = 0;
+    const onDown = (e) => {
+        if (e.target && (e.target.closest("button") || e.target.closest("input"))) return;
+        dragging = true;
+        bar.classList.add("dragging");
+        const rect = bar.getBoundingClientRect();
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        ox = cx - rect.left;
+        oy = cy - rect.top;
+        e.preventDefault();
+    };
+    const onMove = (e) => {
+        if (!dragging) return;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        let left = cx - ox;
+        let top = cy - oy;
+        left = Math.max(0, Math.min(window.innerWidth - bar.offsetWidth, left));
+        top = Math.max(0, Math.min(window.innerHeight - bar.offsetHeight, top));
+        bar.style.left = left + "px";
+        bar.style.top = top + "px";
+        bar.style.right = "auto";
+        bar.style.bottom = "auto";
+    };
+    const onUp = () => {
+        if (!dragging) return;
+        dragging = false;
+        bar.classList.remove("dragging");
+        try {
+            localStorage.setItem("MOMENTO_NP_POS", JSON.stringify({
+                left: bar.style.left,
+                top: bar.style.top
+            }));
+        } catch (e) {}
+    };
+    bar.addEventListener("mousedown", onDown);
+    bar.addEventListener("touchstart", onDown, { passive: false });
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchend", onUp);
+    try {
+        const saved = JSON.parse(localStorage.getItem("MOMENTO_NP_POS") || "null");
+        if (saved && saved.left && saved.top) {
+            bar.style.left = saved.left;
+            bar.style.top = saved.top;
+            bar.style.right = "auto";
+            bar.style.bottom = "auto";
+        }
+    } catch (e) {}
+}
+
+// init settings once + push tray/login prefs to electron on load
+try {
+    window._appSettings = loadAppSettings();
+    applyVolumesToRuntime(window._appSettings);
+    if (window.electronAPI && typeof window.electronAPI.applyStartupPrefs === "function") {
+        window.electronAPI.applyStartupPrefs({
+            runInBackground: !!window._appSettings.runInBackground,
+            openAtLogin: !!window._appSettings.openAtLogin
+        });
+    } else if (window.electronAPI && typeof window.electronAPI.setRunInBackground === "function") {
+        window.electronAPI.setRunInBackground(!!window._appSettings.runInBackground);
+    }
+    setTimeout(initNpDrag, 500);
+} catch (e) {}
+
+
 
 async function runDeviceOnboarding() {
     try { if (tryOfflineCloudProfile()) { /* offline profile loaded */ } } catch (e) {}
@@ -10864,3 +11578,29 @@ function syncAuthVisibleClass() {
 }
 try { document.addEventListener("DOMContentLoaded", syncAuthVisibleClass); } catch (e) {}
 setTimeout(syncAuthVisibleClass, 0);
+
+function bindMusicBetaTooltip() {
+    const tag = document.querySelector(".beta-tag");
+    const tip = document.getElementById("music-beta-tip");
+    if (!tag || !tip) return;
+    const show = () => { tip.hidden = false; tip.style.display = "block"; };
+    const hide = () => { tip.hidden = true; tip.style.display = "none"; };
+    tag.addEventListener("mouseenter", show);
+    tag.addEventListener("mouseleave", () => setTimeout(() => { if (!tip.matches(":hover")) hide(); }, 150));
+    tip.addEventListener("mouseenter", show);
+    tip.addEventListener("mouseleave", hide);
+    tip.querySelectorAll("a").forEach((a) => {
+        a.addEventListener("click", (e) => {
+            e.preventDefault();
+            const url = a.href;
+            try {
+                if (window.electronAPI && typeof require === "undefined") {
+                    // electron: open external via shell if available
+                }
+            } catch (err) {}
+            window.open(url, "_blank", "noopener");
+        });
+    });
+}
+try { document.addEventListener("DOMContentLoaded", bindMusicBetaTooltip); } catch (e) {}
+setTimeout(bindMusicBetaTooltip, 800);

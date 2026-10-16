@@ -3070,24 +3070,7 @@ function runSilentMomentoAction(act) {
 async function callPersonalChatbot(userText) {
     const settings = (typeof getAppSettings === "function") ? getAppSettings() : {};
     if (!settings.usePersonalForChat || !settings.personalApiKey || !settings.personalApiUrl) return null;
-    const overview = `You are Momento's in-app assistant (weekly time-block planner with XP, ranks, crates, themes, todos, calendar, focus).
-Speak like a helpful product guide. NEVER list internal function names, action ids, or JSON schemas to the user.
-When the user asks you to DO something in the app, end your reply with ONE silent JSON line the UI will strip (user must not see it), for example:
-{"momento_action":"open_crates","args":{}}
-{"momento_action":"open_todos","args":{}}
-{"momento_action":"open_calendar","args":{}}
-{"momento_action":"open_customiser","args":{}}
-{"momento_action":"open_settings","args":{}}
-{"momento_action":"goto_today","args":{}}
-{"momento_action":"goto_day","args":{"day":"monday"}}
-{"momento_action":"add_todo","args":{"text":"...","due":"YYYY-MM-DD"}}
-{"momento_action":"add_block","args":{"day":"Monday","task":"Study","start":"16:00","end":"17:30"}}
-{"momento_action":"remove_block","args":{"day":"Monday","task":"Gym"}}
-{"momento_action":"check_block","args":{"day":"Monday","task":"Homework"}}
-{"momento_action":"set_theme","args":{"theme":"..."}}
-{"momento_action":"start_week_builder","args":{}}
-Only emit that JSON when you are actually performing an action. If a limit blocks it, say so in plain language — never invent success.
-Reply in clear markdown.`;
+    const overview = (typeof getEffectiveSystemPrompt === "function") ? getEffectiveSystemPrompt() : `You are Momento's in-app assistant.`;
     try {
         const body = {
             model: settings.personalApiModel || "gpt-4o-mini",

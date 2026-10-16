@@ -24,7 +24,6 @@ function resolveAppIcon() {
       if (img && !img.isEmpty()) return img;
     } catch (e) {}
   }
-  // Purple "M" style fallback so tray is never invisible
   return nativeImage.createFromDataURL(
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAnUlEQVRYR+2W0Q3AIAhE3X8f3cAd3MARukJX6ApdoVvoBr1JJcaWGqDxJ/dD8g4QEEIIIebBJSJvZnYHcANwV3V7A/AE8ADwYGbHPbPaATgBuALYATiq+v5XgIjczOzFzJ7M7KGqT2Y2/1eAiDyJ6ADg8gfA2cxu/wQQkY+q7kTkYmYXVX1s7f8DIISQ/5E3gBBCCCGEEEIIIYQQQv4NXjYdHykJbqGMAAAAAElFSuQmCC'
   );
@@ -38,12 +37,19 @@ function createTray() {
     tray.setToolTip('Momento');
     const contextMenu = Menu.buildFromTemplate([
       { label: 'Show Momento', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
-      { label: 'Quit', click: () => { runInBackground = false; app.quit(); } }
+      { label: 'Quit', click: () => { runInBackground = false; app.isQuitting = true; app.quit(); } }
     ]);
     tray.setContextMenu(contextMenu);
     tray.on('double-click', () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
   } catch (e) {
     console.warn('[Momento] tray failed', e);
+  }
+}
+
+function destroyTray() {
+  if (tray) {
+    try { tray.destroy(); } catch (e) {}
+    tray = null;
   }
 }
 
@@ -132,7 +138,7 @@ async function createWindow() {
   });
 
   mainWindow.on("close", (e) => {
-    if (runInBackground) {
+    if (runInBackground && !app.isQuitting) {
       e.preventDefault();
       mainWindow.hide();
       createTray();
@@ -149,16 +155,59 @@ async function createWindow() {
 ipcMain.on("momento-set-run-in-background", (_evt, enabled) => {
   runInBackground = !!enabled;
   if (runInBackground) createTray();
-  else if (tray) {
-    try { tray.destroy(); } catch (e) {}
-    tray = null;
+  else destroyTray();
+});
+
+ipcMain.handle("momento-get-open-at-login", () => {
+  try {
+    const s = app.getLoginItemSettings();
+    return !!(s && s.openAtLogin);
+  } catch (e) {
+    return false;
+  }
+});
+
+ipcMain.on("momento-set-open-at-login", (_evt, enabled) => {
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: !!enabled,
+      openAsHidden: false,
+      path: process.execPath,
+      args: []
+    });
+  } catch (e) {
+    console.warn("[Momento] openAtLogin failed", e);
+  }
+});
+
+// Renderer can ask main to apply tray on startup once settings are known
+ipcMain.on("momento-apply-startup-prefs", (_evt, prefs) => {
+  try {
+    if (prefs && prefs.runInBackground) {
+      runInBackground = true;
+      createTray();
+    }
+    if (prefs && typeof prefs.openAtLogin === "boolean") {
+      app.setLoginItemSettings({
+        openAtLogin: !!prefs.openAtLogin,
+        openAsHidden: false,
+        path: process.execPath,
+        args: []
+      });
+    }
+  } catch (e) {
+    console.warn("[Momento] apply-startup-prefs", e);
   }
 });
 
 app.whenReady().then(createWindow);
 
+app.on("before-quit", () => {
+  app.isQuitting = true;
+});
+
 app.on("window-all-closed", () => {
-  if (runInBackground) return;
+  if (runInBackground && !app.isQuitting) return;
   if (musicServer) {
     try { musicServer.close(); } catch (e) {}
     musicServer = null;

@@ -49,14 +49,7 @@
                 <span id="live-date" class="top-bar-date"></span>
             </div>
             <div class="top-bar-right">
-                <div id="live-clock" class="flap-clock" aria-label="Current time">
-                    <div class="flap-digit" data-flap="h1"><span class="flap-card">1</span></div>
-                    <div class="flap-digit" data-flap="h2"><span class="flap-card">2</span></div>
-                    <div class="flap-colon">:</div>
-                    <div class="flap-digit" data-flap="m1"><span class="flap-card">0</span></div>
-                    <div class="flap-digit" data-flap="m2"><span class="flap-card">0</span></div>
-                    <div class="flap-ampm" data-flap="ampm">AM</div>
-                </div>
+                <div id="live-clock" class="live-clock clock-type-plain" aria-label="Current time" data-clock-type="plain"></div>
             </div>
         </div>
 
@@ -401,7 +394,12 @@
         </div>
         <div class="music-page-grid music-page-grid-2">
             <section class="music-panel" data-widget="music-search">
-                <h3>🔍 Search music</h3>
+                <h3 class="music-search-heading">🔍 Search music <span class="beta-tag" title="">BETA</span></h3>
+                <div class="beta-tooltip" id="music-beta-tip" hidden>
+                    This feature may not work properly on the desktop app due to current YouTube guidelines.
+                    Please visit <a href="https://momento-silk.vercel.app" target="_blank" rel="noopener">https://momento-silk.vercel.app</a>
+                    if you want music with fewer limits, or use an app like Spotify / Amazon Music.
+                </div>
                 <p class="music-hint">Search any song or artist online</p>
                 <div class="music-search-row">
                     <input type="text" id="music-search-input" class="music-search-input" placeholder="Search for any song or artist..." onkeydown="if(event.key==='Enter')searchFreeMusic()">
@@ -698,7 +696,11 @@
                 <hr class="sidebar-divider">
                 <div class="sidebar-group">
                     <label>✨ Cosmetics</label>
-                    <div id="cosmetics-list" class="cosmetics-list"></div>
+                    <div class="sidebar-group" style="margin-top:10px">
+                    <h4 class="sidebar-label">🕐 Clock theme</h4>
+                    <div id="clock-theme-list" class="clock-theme-picker"></div>
+                </div>
+                <div id="cosmetics-list" class="cosmetics-list"></div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -847,7 +849,7 @@
     </div>
 
 
-    <!-- App settings (bottom-left gear) -->
+        <!-- App settings (bottom-right gear) -->
     <button type="button" id="app-settings-btn" class="app-settings-btn" title="Settings" onclick="toggleAppSettings()" aria-label="Settings">⚙</button>
     <div id="app-settings-panel" class="app-settings-panel hidden" aria-hidden="true">
         <div class="app-settings-header">
@@ -855,38 +857,110 @@
             <button type="button" class="close-btn" onclick="toggleAppSettings(false)">✕</button>
         </div>
         <div class="app-settings-body">
+            <label class="app-settings-label">Clock format</label>
+            <select id="set-clock-format" class="app-settings-input" data-settings-field>
+                <option value="12">12-hour (AM / PM)</option>
+                <option value="24">24-hour</option>
+            </select>
+            <p class="app-settings-hint">Synced with your account when signed in.</p>
+
             <label class="app-settings-label">AI routing</label>
-            <select id="set-ai-mode" class="app-settings-input">
+            <select id="set-ai-mode" class="app-settings-input" data-settings-field>
                 <option value="online-first">Online-first (cloud AI when online)</option>
                 <option value="offline-first">Offline-first (local parse when possible)</option>
             </select>
             <p class="app-settings-hint">Online-first never uses the local schedule parser while you have a connection.</p>
 
             <label class="app-settings-check">
-                <input type="checkbox" id="set-run-background" />
-                Keep app in system tray when closed (desktop)
+                <input type="checkbox" id="set-run-background" data-settings-field />
+                Keep app in system tray (desktop) — tray appears on startup when on
+            </label>
+            <label class="app-settings-check">
+                <input type="checkbox" id="set-open-at-login" data-settings-field />
+                Automatically start when you turn on the computer (desktop)
             </label>
 
             <hr class="app-settings-hr" />
             <label class="app-settings-label">Personal model (optional)</label>
             <p class="app-settings-hint">Your key stays in this browser / device only. Not uploaded to Momento servers.</p>
-            <input type="url" id="set-personal-url" class="app-settings-input" placeholder="API base URL e.g. https://api.openai.com/v1" />
-            <input type="password" id="set-personal-key" class="app-settings-input" placeholder="API key" autocomplete="off" />
-            <input type="text" id="set-personal-model" class="app-settings-input" placeholder="Model id e.g. gpt-4o-mini" />
-            <label class="app-settings-check">
-                <input type="checkbox" id="set-personal-plan" />
-                Use personal model for week planning
-            </label>
-            <label class="app-settings-check">
-                <input type="checkbox" id="set-personal-chat" />
-                Use personal model for Momento chatbot
-            </label>
-            <p class="app-settings-hint">When chatbot uses your model, Momento injects app context and can run silent local actions (open widgets, themes) without showing those calls in chat.</p>
+            <input type="url" id="set-personal-url" class="app-settings-input" data-settings-field placeholder="API base URL e.g. https://api.groq.com/openai/v1" />
+            <input type="password" id="set-personal-key" class="app-settings-input" data-settings-field placeholder="API key" autocomplete="off" />
+            <input type="text" id="set-personal-model" class="app-settings-input" data-settings-field placeholder="Model id e.g. llama-3.3-70b-versatile" />
+
+            <div id="personal-model-options" class="personal-model-options is-disabled">
+                <label class="app-settings-check" id="set-personal-plan-wrap">
+                    <input type="checkbox" id="set-personal-plan" data-settings-field />
+                    Use personal model for week planning
+                </label>
+                <label class="app-settings-check" id="set-personal-chat-wrap">
+                    <input type="checkbox" id="set-personal-chat" data-settings-field />
+                    Use personal model for Momento chatbot
+                </label>
+                <p class="app-settings-hint">Fill URL + key + model above to enable these options.</p>
+            </div>
+
+            <button type="button" class="app-settings-collapse-btn" id="sys-prompt-toggle" onclick="toggleSystemPromptEditor()">
+                Edit system prompt <span id="sys-prompt-arrow">▾</span>
+                <span class="warn-tag" title="This may break Momento chatbot if you edit too aggressively. Keep enough context so the AI still knows it is inside Momento and can open pages, add todos, and plan weeks. Do not strip tool rules or the app overview.">WARN</span>
+            </button>
+            <div id="sys-prompt-editor" class="sys-prompt-editor hidden">
+                <textarea id="set-system-prompt" class="app-settings-input sys-prompt-textarea" data-settings-field rows="8" placeholder="Custom system prompt for personal AI…"></textarea>
+                <button type="button" class="app-settings-hint-btn" onclick="resetSystemPromptToDefault()">Reset to default</button>
+            </div>
+
+            <hr class="app-settings-hr" />
+            <button type="button" class="app-settings-collapse-btn" id="volume-mixer-toggle" onclick="toggleVolumeMixer()">
+                Volume mixer <span id="volume-mixer-arrow">▾</span>
+            </button>
+            <div id="volume-mixer" class="volume-mixer hidden">
+                <div class="vol-row" data-vol-key="complete">
+                    <span class="vol-label">Task complete <span class="info-i" title="Plays when you check off a time block or finish a focus task.">i</span></span>
+                    <input type="range" id="vol-complete" min="0" max="500" step="1" value="100" list="vol-ticks" data-settings-field />
+                    <span class="vol-num" id="vol-complete-num">100%</span>
+                </div>
+                <div class="vol-row" data-vol-key="levelup">
+                    <span class="vol-label">Level up <span class="info-i" title="Fanfare when you rank up from XP.">i</span></span>
+                    <input type="range" id="vol-levelup" min="0" max="500" step="1" value="100" list="vol-ticks" data-settings-field />
+                    <span class="vol-num" id="vol-levelup-num">100%</span>
+                </div>
+                <div class="vol-row" data-vol-key="down">
+                    <span class="vol-label">XP taken back <span class="info-i" title="Soft tone when XP is removed (e.g. unchecking a block).">i</span></span>
+                    <input type="range" id="vol-down" min="0" max="500" step="1" value="100" list="vol-ticks" data-settings-field />
+                    <span class="vol-num" id="vol-down-num">100%</span>
+                </div>
+                <div class="vol-row" data-vol-key="transition">
+                    <span class="vol-label">Task transition <span class="info-i" title="Cue when the current block ends or the next one starts.">i</span></span>
+                    <input type="range" id="vol-transition" min="0" max="500" step="1" value="100" list="vol-ticks" data-settings-field />
+                    <span class="vol-num" id="vol-transition-num">100%</span>
+                </div>
+                <div class="vol-row" data-vol-key="crate">
+                    <span class="vol-label">Crate / reward <span class="info-i" title="Sounds for crate opens and special rewards.">i</span></span>
+                    <input type="range" id="vol-crate" min="0" max="500" step="1" value="100" list="vol-ticks" data-settings-field />
+                    <span class="vol-num" id="vol-crate-num">100%</span>
+                </div>
+                <div class="vol-row" data-vol-key="music">
+                    <span class="vol-label">Music player <span class="info-i" title="Master volume for the in-app music / now-playing bar.">i</span></span>
+                    <input type="range" id="vol-music" min="0" max="500" step="1" value="100" list="vol-ticks" data-settings-field />
+                    <span class="vol-num" id="vol-music-num">100%</span>
+                </div>
+                <datalist id="vol-ticks">
+                    <option value="0"></option><option value="25"></option><option value="50"></option>
+                    <option value="75"></option><option value="100"></option><option value="150"></option>
+                    <option value="200"></option><option value="300"></option><option value="500"></option>
+                </datalist>
+                <p class="app-settings-hint">Ticks: 0 · 25 · 50 · 75 · 100 · 150 · 200 · 300 · 500%. Default 100%.</p>
+            </div>
 
             <button type="button" class="btn-save-final app-settings-save" onclick="saveAppSettings()">Save settings</button>
         </div>
     </div>
 
+
+    <footer id="app-footer-links" class="app-footer-links">
+        <a href="https://momento-silk.vercel.app" target="_blank" rel="noopener">Online website</a>
+        <span class="footer-sep">·</span>
+        <a href="https://github.com/l3gitfoxy/momento" target="_blank" rel="noopener">GitHub repo</a>
+    </footer>
 </body>
 
 </html>
