@@ -6353,6 +6353,7 @@ body.auth-visible .app-footer-links { display: none; }
   letter-spacing: 0.06em;
 }
 .live-clock.clock-type-analog,
+.live-clock.clock-type-roman,
 .live-clock.clock-type-celestial,
 .live-clock.clock-type-voidgate {
   width: 108px;
@@ -6603,3 +6604,90 @@ body.auth-visible .app-footer-links { display: none; }
   font-size: 1.05rem;
 }
 .live-clock.clock-type-aurora .plain-time { font-size: 1.75rem; font-weight: 650; }
+
+
+/* Hands visible on every analog-style clock (roman / celestial / voidgate / analog) */
+.live-clock .analog-wrap .analog-face,
+.live-clock.clock-type-analog .analog-face,
+.live-clock.clock-type-roman .analog-face {
+  fill: var(--surface, #1a1528);
+  stroke: var(--accent-color, #6c5ce7);
+  stroke-width: 2.5;
+}
+.live-clock .analog-wrap .analog-hour,
+.live-clock .analog-hour {
+  stroke: var(--text-color, #e2def8) !important;
+  stroke-width: 3 !important;
+  stroke-linecap: round;
+}
+.live-clock .analog-wrap .analog-minute,
+.live-clock .analog-minute {
+  stroke: var(--accent-color, #6c5ce7) !important;
+  stroke-width: 2.5 !important;
+  stroke-linecap: round;
+}
+.live-clock .analog-wrap .analog-second,
+.live-clock .analog-second {
+  stroke: var(--accent-color, #6c5ce7) !important;
+  stroke-width: 1.25 !important;
+  opacity: 0.85;
+  stroke-linecap: round;
+}
+.live-clock .analog-wrap .analog-hub,
+.live-clock .analog-hub {
+  fill: var(--accent-color, #6c5ce7) !important;
+}
+.live-clock .roman-mark {
+  fill: var(--accent-color, #6c5ce7) !important;
+  font-size: 9px;
+  font-family: Georgia, serif;
+}
+.live-clock .station-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.live-clock .station-cell {
+  min-width: 1.1em;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--surface, #1a1528);
+  border: 1px solid var(--border-color, #3d315f);
+  color: var(--text-color, #e2def8);
+  font-size: 1.25rem;
+  text-align: center;
+}
+.live-clock .station-colon {
+  color: var(--accent-color);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+.live-clock .station-ampm {
+  font-size: 0.75rem;
+  color: var(--accent-color);
+  margin-left: 4px;
+}
+.live-clock .binary-clock {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.live-clock .bin-col {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 3px;
+}
+.live-clock .bin-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-color, #3d315f);
+  opacity: 0.45;
+}
+.live-clock .bin-dot.on {
+  background: var(--accent-color, #6c5ce7);
+  opacity: 1;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent-color) 50%, transparent);
+}

@@ -158,6 +158,33 @@ ipcMain.on("momento-set-run-in-background", (_evt, enabled) => {
   else destroyTray();
 });
 
+
+function setOpenAtLoginEnabled(enabled) {
+  enabled = !!enabled;
+  try {
+    if (app.isPackaged) {
+      // Installed build: register THIS app executable (Momento.exe), not a bare Electron
+      app.setLoginItemSettings({
+        openAtLogin: enabled,
+        openAsHidden: false,
+        path: process.execPath,
+        args: []
+      });
+    } else {
+      // Dev (npm start): electron.exe needs the app directory as arg or login launches empty Electron
+      app.setLoginItemSettings({
+        openAtLogin: enabled,
+        openAsHidden: false,
+        path: process.execPath,
+        args: [path.resolve(__dirname)]
+      });
+    }
+    console.log("[Momento] openAtLogin=", enabled, "packaged=", app.isPackaged, "exe=", process.execPath);
+  } catch (err) {
+    console.warn("[Momento] openAtLogin failed", err);
+  }
+}
+
 ipcMain.handle("momento-get-open-at-login", () => {
   try {
     const s = app.getLoginItemSettings();
@@ -168,16 +195,7 @@ ipcMain.handle("momento-get-open-at-login", () => {
 });
 
 ipcMain.on("momento-set-open-at-login", (_evt, enabled) => {
-  try {
-    app.setLoginItemSettings({
-      openAtLogin: !!enabled,
-      openAsHidden: false,
-      path: process.execPath,
-      args: []
-    });
-  } catch (e) {
-    console.warn("[Momento] openAtLogin failed", e);
-  }
+  setOpenAtLoginEnabled(!!enabled);
 });
 
 // Renderer can ask main to apply tray on startup once settings are known
@@ -188,12 +206,7 @@ ipcMain.on("momento-apply-startup-prefs", (_evt, prefs) => {
       createTray();
     }
     if (prefs && typeof prefs.openAtLogin === "boolean") {
-      app.setLoginItemSettings({
-        openAtLogin: !!prefs.openAtLogin,
-        openAsHidden: false,
-        path: process.execPath,
-        args: []
-      });
+      setOpenAtLoginEnabled(!!prefs.openAtLogin);
     }
   } catch (e) {
     console.warn("[Momento] apply-startup-prefs", e);

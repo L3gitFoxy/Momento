@@ -271,6 +271,8 @@ function getDefaultAppData() {
         activeBooster: null,
         crateUnlocks: [],
         widgetLayout: {},
+        clockTheme: "plain",
+        clockFormat: "12",
         personalization: {
             status: "pending",
             version: 1,
@@ -2099,6 +2101,12 @@ function applyAppDataObject(parsed) {
         data.boosterInventory = Array.isArray(parsed.boosterInventory) ? parsed.boosterInventory : [];
         data.activeBooster = parsed.activeBooster || null;
         data.crateUnlocks = Array.isArray(parsed.crateUnlocks) ? parsed.crateUnlocks : [];
+    let ct = (parsed.clockTheme && typeof parsed.clockTheme === "string") ? parsed.clockTheme : null;
+    if (!ct) { try { ct = localStorage.getItem("MOMENTO_CLOCK_THEME"); } catch (e) {} }
+    data.clockTheme = ct || defaults.clockTheme || "plain";
+    let cf = (parsed.clockFormat === "24" || parsed.clockFormat === "12") ? parsed.clockFormat : null;
+    if (!cf) { try { cf = localStorage.getItem("MOMENTO_CLOCK_FORMAT"); } catch (e) {} }
+    data.clockFormat = (cf === "24" || cf === "12") ? cf : (defaults.clockFormat || "12");
 
         data.widgetLayout = (parsed.widgetLayout && typeof parsed.widgetLayout === 'object') ? parsed.widgetLayout : {};
     data.rewardsUnlocked = Array.isArray(parsed.rewardsUnlocked) ? parsed.rewardsUnlocked : [];
@@ -2165,7 +2173,13 @@ function loadData() {
     });
 
     ensureDays();
-    
+    try {
+        if (typeof buildClockShell === "function") {
+            buildClockShell(data.clockTheme || "plain");
+            _lastFlapTime = "";
+            if (typeof updateClock === "function") updateClock();
+        }
+    } catch (e) {}
     saveData();
 }
 
@@ -3587,12 +3601,14 @@ function updateClock() {
         if (clock.getAttribute("data-clock-type") !== type || clock.getAttribute("data-clock-format") !== fmt) {
             buildClockShell(type);
         }
-        if (type === "analog") {
+        const analogTypes = { analog: 1, roman: 1, celestial: 1, voidgate: 1 };
+        if (analogTypes[type]) {
             const hourAngle = ((h24 % 12) + m / 60) * 30;
             const minAngle = (m + s / 60) * 6;
             const secAngle = s * 6;
             const setHand = (id, angle, len) => {
-                const el = document.getElementById(id);
+                // Prefer hand inside this clock (avoid id clashes)
+                let el = clock.querySelector("#" + id) || clock.querySelector("." + id) || document.getElementById(id);
                 if (!el) return;
                 const rad = (angle - 90) * Math.PI / 180;
                 el.setAttribute("x2", String(50 + Math.cos(rad) * len));
@@ -3613,17 +3629,46 @@ function updateClock() {
             if (hEl) hEl.textContent = fmt === "12" ? String(hDisp) : String(hDisp).padStart(2, "0");
             if (mEl) mEl.textContent = mStr;
             if (aEl) aEl.textContent = fmt === "12" ? ampm : "";
-        } else if (stamp !== _lastFlapTime) {
-            // flap
-            setFlapDigit("h1", hStr[0] === " " ? "" : hStr[0]);
-            setFlapDigit("h2", hStr[1]);
-            setFlapDigit("m1", mStr[0]);
-            setFlapDigit("m2", mStr[1]);
-            setFlapDigit("ampm", fmt === "12" ? ampm : "");
-            const h1 = document.querySelector('[data-flap="h1"]');
-            if (h1) h1.classList.toggle("flap-empty", hStr[0] === " ");
-            const am = document.querySelector('[data-flap="ampm"]');
-            if (am) am.style.display = fmt === "12" ? "" : "none";
+        } else if (type === "binary") {
+            const bin = clock.querySelector('[data-flap="binary"]');
+            if (bin) {
+                const toDots = (n, bits) => {
+                    let s = "";
+                    for (let i = bits - 1; i >= 0; i--) {
+                        const on = (n >> i) & 1;
+                        s += '<span class="bin-dot ' + (on ? "on" : "") + '"></span>';
+                    }
+                    return s;
+                };
+                const hh = fmt === "12" ? hDisp : h24;
+                bin.innerHTML =
+                    '<div class="bin-col" title="H">' + toDots(hh, 5) + '</div>' +
+                    '<div class="bin-col" title="M">' + toDots(m, 6) + '</div>';
+            }
+        } else if (type === "station" || type === "flap" || stamp !== _lastFlapTime) {
+            // flap + station split cells
+            const setCell = (key, val) => {
+                const el = clock.querySelector('[data-flap="' + key + '"]');
+                if (!el) {
+                    try { setFlapDigit(key, val); } catch (e) {}
+                    return;
+                }
+                if (el.querySelector && el.querySelector(".flap-card")) {
+                    const card = el.querySelector(".flap-card");
+                    if (card) card.textContent = val || "";
+                } else {
+                    el.textContent = val || "";
+                }
+            };
+            setCell("h1", hStr[0] === " " ? (fmt === "24" ? "0" : "") : hStr[0]);
+            setCell("h2", hStr[1]);
+            setCell("m1", mStr[0]);
+            setCell("m2", mStr[1]);
+            setCell("ampm", fmt === "12" ? ampm : "");
+            const h1 = clock.querySelector('[data-flap="h1"]');
+            if (h1) h1.classList.toggle("flap-empty", hStr[0] === " " && fmt === "12");
+            const amEl = clock.querySelector('[data-flap="ampm"]');
+            if (amEl) amEl.style.display = fmt === "12" ? "" : "none";
         }
     }
     _lastFlapTime = stamp;
@@ -4697,6 +4742,7 @@ function applyClockTheme(themeId, opts) {
         return;
     }
     data.clockTheme = theme.id;
+    try { localStorage.setItem("MOMENTO_CLOCK_THEME", theme.id); } catch (e) {}
     buildClockShell(theme.id);
     _lastFlapTime = "";
     try { if (typeof updateClock === "function") updateClock(); } catch (e) {}
@@ -4763,9 +4809,15 @@ function applyRankCosmetics(info) {
     }
     const clock = document.getElementById("live-clock");
     if (clock) {
-        // Prefer user-selected clock theme; fall back to plain
         const tid = data.clockTheme || "plain";
-        applyClockTheme(tid, { force: true });
+        // restore shell only — do not re-save (avoids wipe races)
+        try {
+            buildClockShell(tid);
+            _lastFlapTime = "";
+            if (typeof updateClock === "function") updateClock();
+        } catch (e) {
+            try { applyClockTheme(tid, { force: true }); } catch (e2) {}
+        }
     }
     const sidebar = document.getElementById("preset-sidebar");
     if (sidebar) {
@@ -11043,6 +11095,7 @@ function saveAppSettingsFromUi() {
     try {
         if (typeof data === "object" && data) {
             data.clockFormat = s.clockFormat || "12";
+            try { localStorage.setItem("MOMENTO_CLOCK_FORMAT", data.clockFormat); } catch (e2) {}
             if (!data.clockTheme) data.clockTheme = "plain";
             if (typeof saveData === "function") saveData();
         }
