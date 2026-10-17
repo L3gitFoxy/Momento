@@ -1,6 +1,6 @@
 {
   "name": "momento",
-  "version": "8.1.1",
+  "version": "9.0.0",
   "description": "Momento \u2014 offline-first gamified schedule app with optional google sync",
   "main": "electron-main.js",
   "scripts": {
@@ -9,16 +9,40 @@
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux",
     "build:mac": "electron-builder --mac",
-    "release": "electron-builder --win --publish always",
-    "release:all": "electron-builder -mwl --publish always"
+    "release": "node scripts/prepare-release-notes.js && electron-builder --win --publish always",
+    "release:all": "electron-builder -mwl --publish always",
+    "prepare-release-notes": "node scripts/prepare-release-notes.js"
   },
   "build": {
     "appId": "com.momento.app",
     "productName": "Momento",
     "icon": "assets/icon.ico",
+    "compression": "maximum",
     "files": [
-      "**/*",
+      "electron-main.js",
+      "preload.js",
+      "index.html",
+      "script.js",
+      "style.css",
+      "ai-chatbot.js",
+      "chatbot-nlp.json",
+      "ai-generations-nlp.json",
+      "assets/**/*",
+      "music-server/**/*",
+      "package.json",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
       "!dist/**",
+      "!.git/**",
+      "!.github/**",
+      "!supabase/**",
+      "!**/*.md",
+      "!AUTO_UPDATE.md"
+    ],
+    "asar": true,
+    "asarUnpack": [
       "music-server/**/*"
     ],
     "directories": {
@@ -27,8 +51,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "l3gitfoxy",
-        "repo": "momento",
+        "owner": "L3gitFoxy",
+        "repo": "Momento",
         "releaseType": "release"
       }
     ],
@@ -47,8 +71,12 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "differentialPackage": true
     },
+    "electronLanguages": [
+      "en-US"
+    ],
     "linux": {
       "target": [
         "AppImage"
@@ -61,6 +89,9 @@
         "zip"
       ],
       "category": "public.app-category.productivity"
+    },
+    "releaseInfo": {
+      "releaseNotesFile": "release-notes-current.md"
     }
   },
   "author": "Momento",

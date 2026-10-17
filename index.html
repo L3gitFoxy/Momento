@@ -59,7 +59,10 @@
         <div class="divider"></div>
 
         
-        <div class="day-tabs" id="day-tabs-container"></div>
+        <div class="day-tabs-row">
+            <div class="day-tabs" id="day-tabs-container"></div>
+            <button type="button" id="day-flex-btn" class="day-flex-btn" onclick="runDayFlex()" title="Shift remaining blocks to fit the rest of today">Day Flex</button>
+        </div>
 
         
         <div class="nav-header">
@@ -205,7 +208,8 @@
     </div>
 
     
-    <div id="ai-chat-widget" data-widget="ai-chat">
+    <button type="button" id="voice-fab" class="voice-fab" title="Voice control (hold or click)" onclick="toggleVoiceListen()" aria-label="Voice control">&#127908;</button>
+<div id="ai-chat-widget" data-widget="ai-chat">
         <button id="ai-chat-toggle" onclick="toggleChatWindow()">&#129302;</button>
 
         <div id="ai-chat-window" class="chat-hidden">
@@ -217,7 +221,7 @@
                 </div>
             </div>
             <div id="chat-messages">
-                <div class="chat-msg bot-msg">Hey! I can build your schedule, apply presets, or change settings. Type "help" for all commands.</div>
+                <div class="chat-msg bot-msg">Hey! I can build weeks, open crates, run Day Flex, control voice settings, and more. Type "help" for everything.</div>
             </div>
             <div class="chat-input-area">
                 <input type="text" id="chat-input" placeholder="e.g. generate study week..." onkeydown="if(event.key === 'Enter') sendChatMessage()">
@@ -225,8 +229,11 @@
             </div>
         </div>
     </div>
+    <div id="voice-hud" class="voice-hud hidden" aria-live="polite">
+        <span class="voice-hud-dot"></span>
+        <span id="voice-hud-text">Listening…</span>
+    </div>
 
-    
     <div id="analyser-modal" class="modal-overlay hidden">
         <div class="modal-box analyser-box">
             <div class="modal-header">
@@ -857,6 +864,26 @@
             <button type="button" class="close-btn" onclick="toggleAppSettings(false)">✕</button>
         </div>
         <div class="app-settings-body">
+            <label class="app-settings-label">Voice engine</label>
+            <select id="set-tts-engine" class="app-settings-input" data-settings-field>
+                <option value="auto">Auto (cloud TTS if API set, else system)</option>
+                <option value="system">System voices only</option>
+                <option value="cloud">Cloud TTS (needs personal API key)</option>
+            </select>
+            <label class="app-settings-label">System voice</label>
+            <select id="set-tts-voice" class="app-settings-input" data-settings-field>
+                <option value="">Auto-pick best system voice</option>
+            </select>
+            <label class="app-settings-label">Voice speed</label>
+            <select id="set-tts-rate" class="app-settings-input" data-settings-field>
+                <option value="0.9">Slow</option>
+                <option value="1">Normal</option>
+                <option value="1.15" selected>Slightly fast</option>
+                <option value="1.3">Fast</option>
+            </select>
+            <button type="button" class="btn-cancel" id="tts-preview-btn" onclick="previewTtsVoice()" style="margin-bottom:10px">Preview voice</button>
+            <p class="app-settings-hint">Mic: records audio and transcribes with Whisper when a personal API key is set (works in Electron). Without a key, browser speech is used (often broken in Electron). Cloud TTS needs an OpenAI-compatible key that supports /audio/speech.</p>
+
             <label class="app-settings-label">Clock format</label>
             <select id="set-clock-format" class="app-settings-input" data-settings-field>
                 <option value="12">12-hour (AM / PM)</option>
@@ -942,6 +969,11 @@
                     <span class="vol-label">Music player <span class="info-i" title="Master volume for the in-app music / now-playing bar.">i</span></span>
                     <input type="range" id="vol-music" min="0" max="500" step="1" value="100" list="vol-ticks" data-settings-field />
                     <span class="vol-num" id="vol-music-num">100%</span>
+                </div>
+                <div class="vol-row" data-vol-key="voice">
+                    <span class="vol-label">Voice / TTS <span class="info-i" title="How loud Momento speaks (mic replies and system voice).">i</span></span>
+                    <input type="range" id="vol-voice" min="0" max="500" step="1" value="100" list="vol-ticks" data-settings-field />
+                    <span class="vol-num" id="vol-voice-num">100%</span>
                 </div>
                 <datalist id="vol-ticks">
                     <option value="0"></option><option value="25"></option><option value="50"></option>

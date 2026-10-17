@@ -1397,6 +1397,20 @@ const AI_DATABASE = {
                 "🔔 **Sound:** \"mute\" / \"unmute\""
         },
         {
+            id: "day_flex",
+            keywords: ["day flex","flex my day","reshape today","flex today","reshape my day"],
+            patterns: [/(flex|reshape)\s+(my\s+)?(day|today|afternoon|evening)/i, /day flex/i],
+            handler: () => {
+                try {
+                    if (typeof runDayFlex === "function") {
+                        const r = runDayFlex();
+                        return (r && r.message) ? r.message : "Day Flex finished.";
+                    }
+                } catch (e) {}
+                return "Could not run Day Flex.";
+            }
+        },
+        {
             id: "open_crates",
             keywords: ["open crates","crates","crate page"],
             patterns: [/(?:open|show)\s+crates?/i],
@@ -2884,10 +2898,30 @@ function runSilentMomentoAction(act) {
     const args = act.args || {};
     try {
         // --- navigation / pages ---
+        if (a === "day_flex" || a === "flex_day" || a === "reshape_day") {
+            if (typeof runDayFlex === "function") {
+                const r = runDayFlex();
+                return { ok: !!(r && r.ok), message: (r && r.message) || "Day Flex done." };
+            }
+            return { ok: false, message: "Day Flex unavailable." };
+        }
         if (a === "open_crates" || a === "open_crate" || a === "crates") {
-            if (typeof openCratesPage === "function") openCratesPage();
-            else if (typeof openCratesModal === "function") openCratesModal();
-            return { ok: true, message: "*Opened crates.*" };
+            let opened = false;
+            try {
+                if (typeof openCratesPage === "function") { openCratesPage(); opened = true; }
+                else if (typeof openCratesModal === "function") { openCratesModal(); opened = true; }
+                else if (typeof showCrates === "function") { showCrates(); opened = true; }
+            } catch (e) {}
+            // Force visible if page exists but stayed hidden
+            try {
+                const page = document.getElementById("crates-page");
+                if (page) {
+                    page.classList.remove("hidden");
+                    page.style.display = "";
+                    opened = true;
+                }
+            } catch (e2) {}
+            return { ok: opened, message: opened ? "Opened crates." : "Could not open crates." };
         }
         if (a === "close_crates" && typeof closeCratesPage === "function") { closeCratesPage(); return { ok: true }; }
         if (a === "open_customiser" || a === "open_customizer") {
@@ -3191,6 +3225,99 @@ function processNLPIntent(rawInput) {
         runLocal();
     }
 }
+
+
+
+/** Voice / headless path: run NLP + actions, return reply text, never touch chat UI */
+async function processNLPIntentSilent(rawInput) {
+    if (!rawInput || !String(rawInput).trim()) return "";
+    const input = rawInput.trim();
+    const lower = input.toLowerCase();
+
+    const quick = [
+        { re: /\b(open|show)\s+(the\s+)?crates?\b/, act: { momento_action: "open_crates" } },
+        { re: /\b(open|show)\s+(the\s+)?(to-?dos?|todo list)\b/, act: { momento_action: "open_todos" } },
+        { re: /\b(open|show)\s+(the\s+)?calendar\b/, act: { momento_action: "open_calendar" } },
+        { re: /\b(open|show)\s+(the\s+)?(customiser|customizer|settings)\b/, act: { momento_action: "open_settings" } },
+        { re: /\b(open|show)\s+(the\s+)?themes?\b/, act: { momento_action: "open_themes" } },
+        { re: /\bgo to today\b|\bshow today\b/, act: { momento_action: "goto_today" } },
+    ];
+    for (const q of quick) {
+        if (q.re.test(lower)) {
+            const r = runSilentMomentoAction(q.act);
+            return (r && r.message) ? r.message : (r && r.ok ? "Done." : "Could not do that.");
+        }
+    }
+
+    // Personal model for general chat (not mid week-plan)
+    try {
+        const settings = (typeof getAppSettings === "function") ? getAppSettings() : {};
+        const inPlan = typeof _planSession !== "undefined" && _planSession;
+        if (!inPlan && settings.usePersonalForChat && settings.personalApiKey && settings.personalApiUrl) {
+            const reply = await callPersonalChatbot(input);
+            if (reply) return reply;
+        }
+    } catch (e) { console.warn(e); }
+
+    if (typeof _planSession !== "undefined" && _planSession) {
+        try {
+            return await continuePlanSession(input);
+        } catch (e) {
+            return "Planning error: " + (e.message || e);
+        }
+    }
+
+    if (typeof wantsWeekBuild === "function" && (wantsWeekBuild(input) || /\b(personalised|personalized|custom week|help me plan|plan my week)\b/i.test(input))) {
+        try {
+            if (typeof needsRealAiForSchedule === "function" && needsRealAiForSchedule(input)) {
+                return await startPlanSession(input);
+            }
+            if (typeof startWeekIntake === "function") return startWeekIntake(input);
+        } catch (e) {
+            return "Could not start week planning.";
+        }
+    }
+
+    if (!NLP_CORPUS) {
+        try { await loadNlpCorpus(); } catch (e) {}
+    }
+    try {
+        return resolveLocalIntent(input, lower);
+    } catch (e) {
+        return "Something went wrong.";
+    }
+}
+
+async function processVoiceThroughAI(rawInput) {
+    try {
+        return await processNLPIntentSilent(rawInput);
+    } catch (e) {
+        console.warn(e);
+        return "Sorry, I could not process that.";
+    }
+}
+
+function speechFriendlyText(s) {
+    let t = String(s || "");
+    t = t.replace(/```[\s\S]*?```/g, " ");
+    t = t.replace(/`([^`]+)`/g, "$1");
+    t = t.replace(/\*\*(.+?)\*\*/g, "$1");
+    t = t.replace(/\*(.+?)\*/g, "$1");
+    t = t.replace(/__(.+?)__/g, "$1");
+    t = t.replace(/[_#>|]+/g, " ");
+    t = t.replace(/!\[[^\]]*\]\([^)]*\)/g, " ");
+    t = t.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
+    t = t.replace(/^\s*[-•]\s+/gm, "");
+    t = t.replace(/\r/g, "");
+    t = t.replace(/\n+/g, ". ");
+    // Strip symbols TTS might spell out
+    t = t.replace(/[/*\\{}[\]<>]/g, " ");
+    t = t.replace(/\s{2,}/g, " ");
+    t = t.replace(/(\s*\.\s*)+/g, ". ");
+    t = t.replace(/^\s*\.\s*/, "");
+    return t.trim();
+}
+
 
 function resolveLocalIntent(input, lower) {
     for (const intent of AI_DATABASE.intents) {

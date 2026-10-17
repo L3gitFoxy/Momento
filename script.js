@@ -10130,7 +10130,7 @@ window.activateCrateCosmetic = activateCrateCosmetic;
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "8.1.0";
+const CHANGELOG_VERSION = "9.0.0";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -10140,6 +10140,7 @@ const DEFAULT_DEVICE_CONFIG = {
     showedCL7_0: false,
     showedCL8_0: false,
     showedCL8_1: false,
+    showedCL9_0: false,
     changelogVersionShown: null
 };
 
@@ -10279,7 +10280,7 @@ const TUTORIAL_STEPS = [
     },
     {
         title: "Focus mode & music",
-        body: "Open a block in focus mode to run a timer and micro-steps. The music page lets you play local or free tracks. While music plays, the now-playing bar stays on top of every page — drag it wherever you like.",
+        body: "Open a block in focus mode to run a timer and micro-steps. The music page lets you play local or free tracks. While music plays, the now-playing bar stays on top of every page. Use Day Flex when you fall behind to reshape the rest of today.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
   <rect width="360" height="160" rx="16" fill="#0d0a14"/>
   <g class="tut-anim tut-pulse">
@@ -10371,6 +10372,14 @@ const CHANGELOG_8_1 = [
     "System tray on startup, open-at-login option, volume mixer, editable system prompt"
 ];
 
+const CHANGELOG_9_0 = [
+    "Day Flex: reshape the rest of today around remaining blocks (anchors like school stay fixed)",
+    "Voice control: mic → silent Momento AI → actions + spoken reply",
+    "Whisper transcription when a personal API key is set (works in Electron)",
+    "Voice / TTS volume in the volume mixer; smoother system speech",
+    "Now-playing bar no longer draggable; stays put while you work"
+];
+
 let _tutorialIndex = 0;
 
 function renderTutorialStep() {
@@ -10430,7 +10439,8 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        body.innerHTML = "<ul>" + (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0).map(x => `<li>${x}</li>`).join("") + "</ul>";
+        const cl = (typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0);
+        body.innerHTML = "<ul>" + cl.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
         el.classList.remove("hidden");
@@ -10960,6 +10970,9 @@ const DEFAULT_APP_SETTINGS = {
     runInBackground: false,
     openAtLogin: false,
     clockFormat: "12",
+    ttsVoiceURI: "",
+    ttsRate: 1.15,
+    ttsEngine: "auto",
     personalApiKey: "",
     personalApiUrl: "",
     personalApiModel: "",
@@ -10972,7 +10985,8 @@ const DEFAULT_APP_SETTINGS = {
         down: 100,
         transition: 100,
         crate: 100,
-        music: 100
+        music: 100,
+        voice: 100
     }
 };
 
@@ -11018,6 +11032,9 @@ function readSettingsFromUi() {
         runInBackground: !!(document.getElementById("set-run-background") || {}).checked,
         openAtLogin: !!(document.getElementById("set-open-at-login") || {}).checked,
         clockFormat: (document.getElementById("set-clock-format") || {}).value === "24" ? "24" : "12",
+        ttsVoiceURI: (document.getElementById("set-tts-voice") || {}).value || "",
+        ttsRate: parseFloat((document.getElementById("set-tts-rate") || {}).value) || 1.15,
+        ttsEngine: (document.getElementById("set-tts-engine") || {}).value || "auto",
         personalApiKey: ((document.getElementById("set-personal-key") || {}).value || "").trim(),
         personalApiUrl: ((document.getElementById("set-personal-url") || {}).value || "").trim().replace(/\/$/, ""),
         personalApiModel: ((document.getElementById("set-personal-model") || {}).value || "").trim(),
@@ -11030,7 +11047,8 @@ function readSettingsFromUi() {
             down: vol("vol-down"),
             transition: vol("vol-transition"),
             crate: vol("vol-crate"),
-            music: vol("vol-music")
+            music: vol("vol-music"),
+            voice: vol("vol-voice")
         }
     };
 }
@@ -11064,6 +11082,11 @@ function bindSettingsDirtyListeners() {
 }
 
 function applyVolumesToRuntime(s) {
+    try {
+        const v = (s && s.volumes) || {};
+        window._voiceVolume = Math.max(0, Math.min(1, (Number(v.voice) || 100) / 100));
+    } catch (e) { window._voiceVolume = 1; }
+
     try {
         const musicPct = (s.volumes && s.volumes.music != null) ? Number(s.volumes.music) : 100;
         // music slider is relative to base 0.4 at 100%
@@ -11145,6 +11168,15 @@ function populateAppSettingsUi() {
     if (cf) {
         const acc = (typeof data === "object" && data && data.clockFormat) ? data.clockFormat : s.clockFormat;
         cf.value = acc === "24" ? "24" : "12";
+    }
+    try { fillTtsVoiceSelect(s); } catch (e) {}
+    const eng = document.getElementById("set-tts-engine");
+    if (eng) eng.value = s.ttsEngine || "auto";
+    const rateEl = document.getElementById("set-tts-rate");
+    if (rateEl) {
+        const r = String(s.ttsRate || 1.15);
+        if ([...rateEl.options].some(o => o.value === r)) rateEl.value = r;
+        else rateEl.value = "1.15";
     }
     if (url) url.value = s.personalApiUrl || "";
     if (key) key.value = s.personalApiKey || "";
@@ -11239,7 +11271,12 @@ function shouldUseLocalScheduleNlp() {
 }
 
 function initNpDrag() {
+    // Dragging removed — bar stays in fixed position
     const bar = document.getElementById("now-playing-bar");
+    if (!bar) return;
+    bar.style.cursor = "default";
+    bar.classList.remove("dragging");
+    return;
     if (!bar || bar.dataset.dragBound === "1") return;
     bar.dataset.dragBound = "1";
     let dragging = false, ox = 0, oy = 0;
@@ -11705,3 +11742,615 @@ setTimeout(bindMusicBetaTooltip, 800);
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
     else bind();
 })();
+
+
+/* ============================================================
+   VOICE CONTROL + DAY ECHO
+   ============================================================ */
+
+
+let _voiceRec = null;
+let _voiceListening = false;
+let _lastVoiceTranscript = "";
+let _voiceMediaStream = null;
+let _voiceRecorder = null;
+let _voiceChunks = [];
+let _voiceRecordTimer = null;
+
+function _voiceSupported() {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ||
+        !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+function _isElectronApp() {
+    try { return !!(window.electronAPI && window.electronAPI.isDesktop); } catch (e) { return false; }
+}
+
+function _personalApiCreds() {
+    try {
+        const s = (typeof getAppSettings === "function") ? getAppSettings() : {};
+        const key = (s.personalApiKey || "").trim();
+        let base = (s.personalApiUrl || "").trim().replace(/\/$/, "");
+        if (!key) return null;
+        if (!base) base = "https://openrouter.ai/api/v1";
+        return { key, base, model: (s.personalApiModel || "").trim() };
+    } catch (e) { return null; }
+}
+
+async function transcribeWithWhisper(blob) {
+    const creds = _personalApiCreds();
+    if (!creds) throw new Error("no-api");
+    const form = new FormData();
+    const ext = (blob.type || "").includes("ogg") ? "ogg" : "webm";
+    form.append("file", blob, "momento-voice." + ext);
+    // Groq / OpenAI style models
+    const baseLow = creds.base.toLowerCase();
+    let model = "whisper-1";
+    if (baseLow.includes("groq")) model = "whisper-large-v3";
+    form.append("model", model);
+    form.append("response_format", "json");
+    const headers = { Authorization: "Bearer " + creds.key };
+    if (baseLow.includes("openrouter")) {
+        headers["HTTP-Referer"] = "https://momento-silk.vercel.app";
+        headers["X-Title"] = "Momento";
+    }
+    const res = await fetch(creds.base + "/audio/transcriptions", {
+        method: "POST",
+        headers,
+        body: form
+    });
+    if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error("transcribe " + res.status + " " + t.slice(0, 120));
+    }
+    const j = await res.json();
+    return String(j.text || j.transcript || "").trim();
+}
+
+async function speakCloudTts(text) {
+    const creds = _personalApiCreds();
+    if (!creds) return false;
+    const s = (typeof getAppSettings === "function") ? getAppSettings() : {};
+    if (s.ttsEngine === "system") return false;
+    try {
+        const res = await fetch(creds.base + "/audio/speech", {
+            method: "POST",
+            headers: {
+                Authorization: "Bearer " + creds.key,
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://momento-silk.vercel.app",
+                "X-Title": "Momento"
+            },
+            body: JSON.stringify({
+                model: "tts-1",
+                voice: "nova",
+                input: String(text || "").slice(0, 900)
+            })
+        });
+        if (!res.ok) return false;
+        const buf = await res.arrayBuffer();
+        const url = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+        const audio = new Audio(url);
+        audio.volume = Math.max(0, Math.min(1, window._voiceVolume != null ? window._voiceVolume : 1));
+        audio.onended = function () { try { URL.revokeObjectURL(url); } catch (e) {} };
+        await audio.play();
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+
+function getPreferredTtsVoice() {
+    try {
+        const s = (typeof getAppSettings === "function") ? getAppSettings() : {};
+        const uri = s.ttsVoiceURI || "";
+        const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+        if (!voices || !voices.length) return null;
+        if (uri) {
+            const hit = voices.find(v => v.voiceURI === uri || v.name === uri);
+            if (hit) return hit;
+        }
+        // Prefer natural English system voices
+        const rank = (v) => {
+            const n = (v.name || "").toLowerCase();
+            const lang = (v.lang || "").toLowerCase();
+            let score = 0;
+            if (lang.startsWith("en")) score += 5;
+            if (/natural|neural|premium|enhanced|online/.test(n)) score += 4;
+            if (/google|microsoft|samantha|aria|guy|jenny|davis|zira|mark|susan/.test(n)) score += 3;
+            if (v.localService) score += 1;
+            return score;
+        };
+        return voices.slice().sort((a, b) => rank(b) - rank(a))[0] || voices[0];
+    } catch (e) { return null; }
+}
+
+function fillTtsVoiceSelect(settings) {
+    const sel = document.getElementById("set-tts-voice");
+    if (!sel || !window.speechSynthesis) return;
+    const s = settings || ((typeof getAppSettings === "function") ? getAppSettings() : {});
+    const cur = s.ttsVoiceURI || "";
+    const voices = window.speechSynthesis.getVoices() || [];
+    const en = voices.filter(v => /^en/i.test(v.lang || "")).concat(voices.filter(v => !/^en/i.test(v.lang || "")));
+    const list = en.length ? en : voices;
+    sel.innerHTML = '<option value="">Auto (best available)</option>' + list.map(v => {
+        const label = (v.name || "Voice") + (v.lang ? " (" + v.lang + ")" : "");
+        const val = v.voiceURI || v.name;
+        const selAttr = (cur && (cur === v.voiceURI || cur === v.name)) ? " selected" : "";
+        return '<option value="' + String(val).replace(/"/g, "&quot;") + '"' + selAttr + ">" + label.replace(/</g, "") + "</option>";
+    }).join("");
+}
+
+function previewTtsVoice() {
+    // pull current dropdown without requiring Save
+    try {
+        const uri = (document.getElementById("set-tts-voice") || {}).value || "";
+        const rate = parseFloat((document.getElementById("set-tts-rate") || {}).value) || 1.15;
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance("Hi, this is how Momento will sound when it talks back.");
+        u.rate = rate;
+        const voices = window.speechSynthesis.getVoices() || [];
+        const hit = voices.find(v => v.voiceURI === uri || v.name === uri);
+        if (hit) u.voice = hit;
+        else {
+            const auto = getPreferredTtsVoice();
+            if (auto) u.voice = auto;
+        }
+        window.speechSynthesis.speak(u);
+    } catch (e) {}
+}
+
+async function _speak(text) {
+    const s = (typeof getAppSettings === "function") ? getAppSettings() : {};
+    const engine = s.ttsEngine || "auto";
+    if (engine === "cloud" || engine === "auto") {
+        const ok = await speakCloudTts(text);
+        if (ok) return;
+        if (engine === "cloud" && typeof showToast === "function") {
+            showToast("Cloud TTS unavailable — using system voice.", "info");
+        }
+    }
+    try {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        let t = String(text || "");
+        // Pronunciation helpers (system voices misread these)
+        t = t.replace(/\bXP\b/gi, "experience points");
+        t = t.replace(/\bAPI\b/g, "A P I");
+        t = t.replace(/\bAI\b/g, "A I");
+        t = t.replace(/\bTTS\b/g, "voice");
+        t = t.replace(/(\d{1,2}):(\d{2})/g, function (_, h, m) {
+            return Number(h) + " " + (m === "00" ? "o'clock" : Number(m));
+        });
+        t = t.replace(/\s+/g, " ").trim();
+        if (!t) return;
+        const u = new SpeechSynthesisUtterance(t);
+        // Slightly steadier than default; avoid very high rates (causes choppiness)
+        let rate = Number(s.ttsRate) || 1.05;
+        if (rate > 1.2) rate = 1.15;
+        u.rate = rate;
+        u.pitch = 1.0;
+        u.volume = Math.max(0, Math.min(1, window._voiceVolume != null ? window._voiceVolume : 1));
+        const voice = getPreferredTtsVoice();
+        if (voice) u.voice = voice;
+        // One utterance = fewer gaps than sentence chaining
+        window.speechSynthesis.speak(u);
+    } catch (e) {}
+}
+
+// Voices often load async on Windows
+try {
+    if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = function () {
+            try { fillTtsVoiceSelect(); } catch (e) {}
+        };
+    }
+} catch (e) {}
+
+
+function _setVoiceHud(on, text) {
+    const hud = document.getElementById("voice-hud");
+    const fab = document.getElementById("voice-fab");
+    const label = document.getElementById("voice-hud-text");
+    if (hud) hud.classList.toggle("hidden", !on);
+    if (fab) fab.classList.toggle("listening", !!on);
+    if (label && text) label.textContent = text;
+}
+
+function toggleVoiceListen() {
+    if (_voiceListening) {
+        stopVoiceListen(true);
+        return;
+    }
+    startVoiceListen();
+}
+
+function stopVoiceListen(finalizeRecord) {
+    _voiceListening = false;
+    try { if (_voiceRecordTimer) { clearTimeout(_voiceRecordTimer); _voiceRecordTimer = null; } } catch (e) {}
+    try { if (_voiceRec) _voiceRec.stop(); } catch (e) {}
+    if (finalizeRecord && _voiceRecorder && _voiceRecorder.state === "recording") {
+        try { _voiceRecorder.stop(); } catch (e) {}
+        // onstop will transcribe
+        return;
+    }
+    try {
+        if (_voiceMediaStream) {
+            _voiceMediaStream.getTracks().forEach(t => t.stop());
+            _voiceMediaStream = null;
+        }
+    } catch (e) {}
+    _setVoiceHud(false, "");
+}
+
+async function startVoiceListen() {
+    // Prefer MediaRecorder + Whisper when personal API is configured (works in Electron)
+    const creds = _personalApiCreds();
+    if (creds && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+            _voiceChunks = [];
+            _voiceMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+                ? "audio/webm;codecs=opus"
+                : (MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "");
+            _voiceRecorder = mime ? new MediaRecorder(_voiceMediaStream, { mimeType: mime }) : new MediaRecorder(_voiceMediaStream);
+            _voiceRecorder.ondataavailable = function (e) {
+                if (e.data && e.data.size > 0) _voiceChunks.push(e.data);
+            };
+            _voiceRecorder.onstop = async function () {
+                try {
+                    const blob = new Blob(_voiceChunks, { type: _voiceRecorder.mimeType || "audio/webm" });
+                    _setVoiceHud(true, "Transcribing…");
+                    const text = await transcribeWithWhisper(blob);
+                    stopVoiceListen(false);
+                    if (text) {
+                        _lastVoiceTranscript = text;
+                        handleVoiceCommand(text);
+                    } else if (typeof showToast === "function") {
+                        showToast("Didn’t catch any speech.", "info");
+                    }
+                } catch (err) {
+                    stopVoiceListen(false);
+                    console.warn(err);
+                    if (typeof showToast === "function") {
+                        showToast("Transcription failed. Check personal API key / URL supports Whisper.", "error");
+                    }
+                }
+            };
+            _voiceListening = true;
+            _voiceRecorder.start();
+            _setVoiceHud(true, "Recording… click mic again when done (max 8s)");
+            _voiceRecordTimer = setTimeout(function () {
+                if (_voiceRecorder && _voiceRecorder.state === "recording") {
+                    try { _voiceRecorder.stop(); } catch (e) {}
+                }
+            }, 8000);
+            return;
+        } catch (e) {
+            console.warn(e);
+            if (e && e.name === "NotAllowedError") {
+                if (typeof showToast === "function") showToast("Mic blocked. Allow microphone for Momento.", "error");
+                return;
+            }
+            // fall through to Web Speech
+        }
+    }
+
+    // Web Speech API (works in Chrome browser; often broken in Electron → network error)
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+        if (typeof showToast === "function") {
+            showToast(
+                _isElectronApp()
+                    ? "In the desktop app, set a personal API key (Settings) so mic can use Whisper."
+                    : "Speech recognition not supported in this browser.",
+                "warn"
+            );
+        }
+        return;
+    }
+    try { if (_voiceRec) _voiceRec.abort(); } catch (e) {}
+    _voiceRec = new SR();
+    _voiceRec.lang = "en-US";
+    _voiceRec.interimResults = true;
+    _voiceRec.continuous = false;
+    _voiceListening = true;
+    _setVoiceHud(true, "Listening… try “what’s next” or “complete this”");
+
+    _voiceRec.onresult = function (ev) {
+        let final = "";
+        let interim = "";
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+            const t = ev.results[i][0].transcript;
+            if (ev.results[i].isFinal) final += t;
+            else interim += t;
+        }
+        if (interim) _setVoiceHud(true, interim);
+        if (final) {
+            _lastVoiceTranscript = final.trim();
+            _setVoiceHud(true, final.trim());
+            handleVoiceCommand(final.trim());
+        }
+    };
+    _voiceRec.onerror = function (ev) {
+        const err = (ev && ev.error) || "error";
+        stopVoiceListen(false);
+        if (err === "not-allowed") {
+            if (typeof showToast === "function") showToast("Mic blocked. Allow microphone for Momento.", "error");
+        } else if (err === "network") {
+            if (typeof showToast === "function") {
+                showToast(
+                    _isElectronApp()
+                        ? "Electron can’t use Chrome’s free speech API. Set a personal API key in Settings (Whisper), then try again."
+                        : "Speech service failed. Check connection or try Chrome.",
+                    "warn"
+                );
+            }
+        } else if (err === "no-speech") {
+            if (typeof showToast === "function") showToast("Didn’t catch that — try again.", "info");
+        } else if (err !== "aborted") {
+            if (typeof showToast === "function") showToast("Voice error: " + err, "warn");
+        }
+    };
+    _voiceRec.onend = function () {
+        _voiceListening = false;
+        _setVoiceHud(false, "");
+    };
+    try {
+        _voiceRec.start();
+    } catch (e) {
+        stopVoiceListen(false);
+        if (typeof showToast === "function") showToast("Could not start mic", "error");
+    }
+}
+
+function _voiceNorm(s) {
+    return String(s || "").toLowerCase().replace(/[^\w\s']/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function voiceCompleteCurrentOrNext() {
+    const day = DAYS[getTodayIndex()];
+    const tasks = (data.schedules[day] || []).filter(t => !t.isSleep);
+    const now = new Date().getHours() * 60 + new Date().getMinutes();
+    let target = tasks.find(t => !t.completed && now >= timeToMinutes(t.start) && now < timeToMinutes(t.end));
+    if (!target) target = tasks.find(t => !t.completed && timeToMinutes(t.start) >= now);
+    if (!target) target = tasks.filter(t => !t.completed).slice(-1)[0];
+    if (!target) return { ok: false, msg: "Nothing left to complete today." };
+
+    // Prefer clicking the matching checkbox so XP path runs the same as UI
+    const rows = document.querySelectorAll(".task-row");
+    const today = getTodayIndex();
+    if (data.currentDay !== today) {
+        data.currentDay = today;
+        try { if (typeof renderApp === "function") renderApp(); else if (typeof renderSchedule === "function") renderSchedule(); } catch (e) {}
+    }
+    let clicked = false;
+    document.querySelectorAll(".task-row").forEach((row) => {
+        if (clicked) return;
+        const name = (row.querySelector(".task-name, .task-title, .activity-name") || row).textContent || "";
+        if (name.toLowerCase().includes(String(target.task || "").toLowerCase().slice(0, 18))) {
+            const cb = row.querySelector('input[type="checkbox"]');
+            if (cb && !cb.checked) {
+                cb.click();
+                clicked = true;
+            }
+        }
+    });
+    if (!clicked && !target.completed) {
+        target.completed = true;
+        try { if (typeof saveData === "function") saveData(); } catch (e) {}
+        try { if (typeof renderSchedule === "function") renderSchedule(); } catch (e) {}
+    }
+    return { ok: true, msg: "Completed " + (target.task || "block") };
+}
+
+function voiceWhatsNext() {
+    const day = DAYS[getTodayIndex()];
+    const tasks = [...(data.schedules[day] || [])].filter(t => !t.completed && !t.isSleep)
+        .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+    const now = new Date().getHours() * 60 + new Date().getMinutes();
+    const active = tasks.find(t => now >= timeToMinutes(t.start) && now < timeToMinutes(t.end));
+    const next = tasks.find(t => timeToMinutes(t.start) > now);
+    if (active) return "Right now: " + active.task + " until " + active.end;
+    if (next) return "Next up: " + next.task + " at " + next.start;
+    return "No more blocks left today. Nice work.";
+}
+
+function handleVoiceCommand(raw) {
+    const text = String(raw || "").trim();
+    if (!text) return;
+    try { stopVoiceListen(false); } catch (e) {}
+
+    // Always: silent AI pipeline — no chat UI, no "sent to AI" toast
+    (async function () {
+        let reply = "";
+        try {
+            if (typeof processVoiceThroughAI === "function") {
+                reply = await processVoiceThroughAI(text);
+            } else if (typeof processNLPIntentSilent === "function") {
+                reply = await processNLPIntentSilent(text);
+            } else if (typeof processNLPIntent === "function") {
+                // last resort (may touch UI — avoid if possible)
+                processNLPIntent(text);
+                reply = "";
+            }
+        } catch (e) {
+            console.warn(e);
+            reply = "Sorry, something went wrong.";
+        }
+        const spoken = (typeof speechFriendlyText === "function")
+            ? speechFriendlyText(reply)
+            : String(reply || "").replace(/[*_`#]/g, " ").trim();
+        if (spoken) {
+            try { await _speak(spoken); } catch (e2) {
+                try { _speak(spoken); } catch (e3) {}
+            }
+        }
+    })();
+}
+
+
+/* Day Echo removed in v9 */
+
+
+function setBodyModalLock(on) {
+    try {
+        document.body.classList.toggle("modal-open", !!on);
+    } catch (e) {}
+}
+
+// Patch common open/close modal patterns: observe overlays
+(function watchModalScrollLock() {
+    function sync() {
+        const open = !!document.querySelector(".modal-overlay:not(.hidden)");
+        setBodyModalLock(open);
+    }
+    const obs = new MutationObserver(sync);
+    if (document.body) {
+        obs.observe(document.body, { attributes: true, subtree: true, attributeFilter: ["class"] });
+        sync();
+    } else {
+        document.addEventListener("DOMContentLoaded", function () {
+            obs.observe(document.body, { attributes: true, subtree: true, attributeFilter: ["class"] });
+            sync();
+        });
+    }
+})();
+
+
+
+/* ============================================================
+   DAY FLEX (v9) — reshape the rest of today around what is left
+   ============================================================ */
+
+function minutesToTime(mins) {
+    mins = Math.max(0, Math.min(24 * 60 - 1, Math.round(mins)));
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+}
+
+function isAnchorBlock(t) {
+    if (!t) return false;
+    if (t.isSleep || t.anchor || t.isFixed || t.fixed) return true;
+    const name = String(t.task || "").toLowerCase();
+    // Treat school / class / work shifts as immovable by default
+    if (/\b(school|class|lecture|lab|work|shift|exam|college|university)\b/.test(name)) return true;
+    return false;
+}
+
+/** Shift incomplete non-anchor blocks of the current/today day to fit from "now". */
+function runDayFlex(opts) {
+    opts = opts || {};
+    const dayIdx = (opts.dayIndex != null) ? opts.dayIndex : (typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay);
+    const day = DAYS[dayIdx];
+    if (!day) return { ok: false, message: "No day." };
+
+    const now = new Date();
+    const nowM = (opts.fromMinutes != null) ? opts.fromMinutes : (now.getHours() * 60 + now.getMinutes());
+    const list = Array.isArray(data.schedules[day]) ? data.schedules[day].slice() : [];
+    if (!list.length) {
+        if (typeof showToast === "function") showToast("Nothing scheduled to flex.", "info");
+        return { ok: false, message: "Nothing to flex." };
+    }
+
+    // Sort by start
+    list.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+    const keptDone = [];
+    const anchors = [];
+    const flexible = [];
+
+    list.forEach((t) => {
+        if (t.completed) {
+            keptDone.push(t);
+            return;
+        }
+        const end = timeToMinutes(t.end);
+        // Missed non-anchor blocks get rescheduled; anchors that already ended stay as historical
+        if (isAnchorBlock(t)) {
+            anchors.push(t);
+            return;
+        }
+        if (end <= nowM && !opts.includePastFlexible) {
+            // drop pure-past flexible blocks from the active plan (still show as skipped by not keeping)
+            return;
+        }
+        flexible.push(Object.assign({}, t));
+    });
+
+    if (!flexible.length) {
+        if (typeof showToast === "function") showToast("No flexible blocks left to reshape.", "info");
+        return { ok: false, message: "No flexible blocks left." };
+    }
+
+    // Build occupied ranges from anchors that still matter (end after now, or all anchors for conflict check)
+    const occupied = anchors
+        .map(t => ({ start: timeToMinutes(t.start), end: timeToMinutes(t.end), t }))
+        .filter(r => r.end > r.start);
+
+    function collides(start, end) {
+        for (const o of occupied) {
+            if (start < o.end && end > o.start) return o;
+        }
+        return null;
+    }
+
+    let cursor = nowM;
+    // Small breathing room so flex doesn't start mid-second
+    if (cursor % 5 !== 0) cursor = cursor + (5 - (cursor % 5));
+
+    const placed = [];
+    const dayEnd = 23 * 60 + 45;
+
+    flexible.forEach((t) => {
+        const dur = Math.max(10, timeToMinutes(t.end) - timeToMinutes(t.start));
+        let start = Math.max(cursor, nowM);
+        let end = start + dur;
+        // Push past anchors
+        let guard = 0;
+        while (guard++ < 30) {
+            const hit = collides(start, end);
+            if (!hit) break;
+            start = hit.end + 5;
+            end = start + dur;
+        }
+        if (end > dayEnd) {
+            // compress to fit
+            end = dayEnd;
+            start = Math.max(nowM, end - dur);
+            const hit = collides(start, end);
+            if (hit) {
+                start = hit.end + 5;
+                end = Math.min(dayEnd, start + dur);
+            }
+        }
+        if (end <= start) return;
+        t.start = minutesToTime(start);
+        t.end = minutesToTime(end);
+        t.completed = false;
+        placed.push(t);
+        occupied.push({ start, end, t });
+        cursor = end + 5;
+    });
+
+    // Rebuild day: done + anchors + placed flex, sorted
+    const next = keptDone.concat(anchors).concat(placed);
+    next.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+    data.schedules[day] = next;
+    try { if (typeof saveData === "function") saveData(); } catch (e) {}
+    try {
+        if (data.currentDay !== dayIdx) data.currentDay = dayIdx;
+        if (typeof renderCurrentDay === "function") renderCurrentDay();
+        else if (typeof renderSchedule === "function") renderSchedule();
+        if (typeof updateNextTask === "function") updateNextTask();
+    } catch (e) {}
+
+    const msg = "Day Flex: reshaped " + placed.length + " block" + (placed.length === 1 ? "" : "s") + " from now, anchors kept.";
+    if (typeof showToast === "function") showToast(msg, "success");
+    return { ok: true, message: msg, count: placed.length };
+}
+
+window.runDayFlex = runDayFlex;
