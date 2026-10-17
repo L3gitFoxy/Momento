@@ -1,5 +1,10 @@
 # Momento v9.0.0
 ## Changelog
+* Fixed app-crashing bugs
+# `HAPPY PLANNING`
+
+# Momento v9.0.0
+## Changelog
 * Day Flex: reshape the rest of today around remaining blocks (school/work anchors stay fixed)
 * Voice control: mic runs Momento AI silently, then speaks the reply
 * Whisper transcription when a personal API key is set (works in the desktop app)

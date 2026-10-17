@@ -19,6 +19,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   quitAndInstallUpdate: async () => {
     try { return await ipcRenderer.invoke('momento-quit-and-install'); } catch (e) { return false; }
   },
+  downloadUpdate: async () => {
+    try { return await ipcRenderer.invoke('momento-download-update'); } catch (e) { return { ok: false }; }
+  },
+  clearUpdateCache: async () => {
+    try { return await ipcRenderer.invoke('momento-clear-update-cache'); } catch (e) { return false; }
+  },
   getAppVersion: async () => {
     try { return await ipcRenderer.invoke('momento-get-app-version'); } catch (e) { return null; }
   },

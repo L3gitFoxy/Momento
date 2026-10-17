@@ -272,14 +272,49 @@ function sendToRenderer(channel, payload) {
   } catch (e) {}
 }
 
+function clearPendingUpdateCache() {
+  // Broken / cancelled downloads can crash the next launch — wipe them first.
+  try {
+    const fs = require('fs');
+    const os = require('os');
+    const candidates = [];
+    try {
+      candidates.push(path.join(app.getPath('userData'), 'pending'));
+    } catch (e) {}
+    try {
+      candidates.push(path.join(app.getPath('userData'), 'updater'));
+    } catch (e) {}
+    try {
+      const local = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+      candidates.push(path.join(local, 'momento-updater'));
+      candidates.push(path.join(local, 'Momento-updater'));
+      candidates.push(path.join(local, 'momento-updater', 'pending'));
+    } catch (e) {}
+    for (const dir of candidates) {
+      try {
+        if (dir && fs.existsSync(dir)) {
+          fs.rmSync(dir, { recursive: true, force: true });
+          console.log('[Momento] cleared update cache:', dir);
+        }
+      } catch (e) {}
+    }
+  } catch (e) {
+    console.warn('[Momento] clearPendingUpdateCache', e && e.message);
+  }
+}
+
 function setupAutoUpdater() {
   if (!autoUpdater || !app.isPackaged) {
     console.log('[Momento] Auto-update skipped (dev or updater missing)');
     return;
   }
   try {
-    autoUpdater.autoDownload = true;
-    autoUpdater.autoInstallOnAppQuit = true;
+    // Never auto-download / auto-install — partial files after Cancel were crashing relaunch.
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
+    autoUpdater.allowDowngrade = false;
+
+    try { clearPendingUpdateCache(); } catch (e) {}
 
     autoUpdater.on('checking-for-update', () => {
       sendToRenderer('momento-update-status', { status: 'checking' });
@@ -312,17 +347,25 @@ function setupAutoUpdater() {
     });
     autoUpdater.on('error', (err) => {
       console.warn('[Momento] updater error', err && err.message);
+      try { clearPendingUpdateCache(); } catch (e) {}
       sendToRenderer('momento-update-status', {
         status: 'error',
         message: (err && err.message) || String(err)
       });
     });
 
+    // Delayed check — never blocks window create / sign-in
     setTimeout(() => {
-      autoUpdater.checkForUpdates().catch((e) => console.warn('[Momento] checkForUpdates', e && e.message));
-    }, 8000);
+      try {
+        autoUpdater.checkForUpdates().catch((e) => console.warn('[Momento] checkForUpdates', e && e.message));
+      } catch (e) {
+        console.warn('[Momento] checkForUpdates throw', e && e.message);
+      }
+    }, 12000);
     setInterval(() => {
-      autoUpdater.checkForUpdates().catch(() => {});
+      try {
+        autoUpdater.checkForUpdates().catch(() => {});
+      } catch (e) {}
     }, 4 * 60 * 60 * 1000);
   } catch (e) {
     console.warn('[Momento] setupAutoUpdater failed', e);
@@ -341,13 +384,35 @@ ipcMain.handle('momento-check-for-updates', async () => {
   }
 });
 
+ipcMain.handle('momento-download-update', async () => {
+  if (!autoUpdater || !app.isPackaged) return { ok: false };
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ok: true };
+  } catch (e) {
+    try { clearPendingUpdateCache(); } catch (e2) {}
+    return { ok: false, reason: (e && e.message) || String(e) };
+  }
+});
+
 ipcMain.handle('momento-quit-and-install', () => {
   if (!autoUpdater || !app.isPackaged) return false;
   try {
+    // Only install when user explicitly confirms
     autoUpdater.quitAndInstall(false, true);
     return true;
   } catch (e) {
     console.warn('[Momento] quitAndInstall', e);
+    try { clearPendingUpdateCache(); } catch (e2) {}
+    return false;
+  }
+});
+
+ipcMain.handle('momento-clear-update-cache', () => {
+  try {
+    clearPendingUpdateCache();
+    return true;
+  } catch (e) {
     return false;
   }
 });
@@ -357,6 +422,7 @@ ipcMain.handle('momento-get-app-version', () => {
 });
 
 app.whenReady().then(async () => {
+  try { clearPendingUpdateCache(); } catch (e) {}
   await createWindow();
   setupAutoUpdater();
 });
