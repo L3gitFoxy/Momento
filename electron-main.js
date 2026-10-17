@@ -2,6 +2,14 @@ const { app, BrowserWindow, shell, Tray, Menu, ipcMain, nativeImage } = require(
 const path = require('path');
 const { startMusicServer } = require('./music-server/server');
 
+let autoUpdater = null;
+try {
+  autoUpdater = require('electron-updater').autoUpdater;
+} catch (err) {
+  console.warn('[Momento] electron-updater not installed yet:', err && err.message);
+}
+
+
 let mainWindow = null;
 let musicServer = null;
 let tray = null;
@@ -255,7 +263,104 @@ ipcMain.on("momento-apply-startup-prefs", (_evt, prefs) => {
   }
 });
 
-app.whenReady().then(createWindow);
+
+function sendToRenderer(channel, payload) {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(channel, payload);
+    }
+  } catch (e) {}
+}
+
+function setupAutoUpdater() {
+  if (!autoUpdater || !app.isPackaged) {
+    console.log('[Momento] Auto-update skipped (dev or updater missing)');
+    return;
+  }
+  try {
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    autoUpdater.on('checking-for-update', () => {
+      sendToRenderer('momento-update-status', { status: 'checking' });
+    });
+    autoUpdater.on('update-available', (info) => {
+      sendToRenderer('momento-update-status', {
+        status: 'available',
+        version: info && info.version
+      });
+    });
+    autoUpdater.on('update-not-available', (info) => {
+      sendToRenderer('momento-update-status', {
+        status: 'none',
+        version: info && info.version
+      });
+    });
+    autoUpdater.on('download-progress', (p) => {
+      sendToRenderer('momento-update-status', {
+        status: 'downloading',
+        percent: p && p.percent,
+        transferred: p && p.transferred,
+        total: p && p.total
+      });
+    });
+    autoUpdater.on('update-downloaded', (info) => {
+      sendToRenderer('momento-update-status', {
+        status: 'ready',
+        version: info && info.version
+      });
+    });
+    autoUpdater.on('error', (err) => {
+      console.warn('[Momento] updater error', err && err.message);
+      sendToRenderer('momento-update-status', {
+        status: 'error',
+        message: (err && err.message) || String(err)
+      });
+    });
+
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch((e) => console.warn('[Momento] checkForUpdates', e && e.message));
+    }, 8000);
+    setInterval(() => {
+      autoUpdater.checkForUpdates().catch(() => {});
+    }, 4 * 60 * 60 * 1000);
+  } catch (e) {
+    console.warn('[Momento] setupAutoUpdater failed', e);
+  }
+}
+
+ipcMain.handle('momento-check-for-updates', async () => {
+  if (!autoUpdater || !app.isPackaged) {
+    return { ok: false, reason: 'dev-or-missing' };
+  }
+  try {
+    const r = await autoUpdater.checkForUpdates();
+    return { ok: true, version: r && r.updateInfo && r.updateInfo.version };
+  } catch (e) {
+    return { ok: false, reason: (e && e.message) || String(e) };
+  }
+});
+
+ipcMain.handle('momento-quit-and-install', () => {
+  if (!autoUpdater || !app.isPackaged) return false;
+  try {
+    autoUpdater.quitAndInstall(false, true);
+    return true;
+  } catch (e) {
+    console.warn('[Momento] quitAndInstall', e);
+    return false;
+  }
+});
+
+ipcMain.handle('momento-get-app-version', () => {
+  try { return app.getVersion(); } catch (e) { return null; }
+});
+
+app.whenReady().then(async () => {
+  await createWindow();
+  setupAutoUpdater();
+});
+
 
 app.on("before-quit", () => {
   app.isQuitting = true;

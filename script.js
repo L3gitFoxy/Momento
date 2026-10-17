@@ -11657,3 +11657,51 @@ function bindMusicBetaTooltip() {
 }
 try { document.addEventListener("DOMContentLoaded", bindMusicBetaTooltip); } catch (e) {}
 setTimeout(bindMusicBetaTooltip, 800);
+
+
+/* ===== Desktop auto-update UI ===== */
+(function setupDesktopUpdaterUi() {
+    function bind() {
+        try {
+            if (!window.electronAPI || typeof window.electronAPI.onUpdateStatus !== "function") return;
+            window.electronAPI.onUpdateStatus(function (payload) {
+                if (!payload || !payload.status) return;
+                if (payload.status === "available") {
+                    if (typeof showToast === "function") {
+                        showToast("Update " + (payload.version || "") + " found — downloading…", "info");
+                    }
+                } else if (payload.status === "downloading") {
+                    const pct = Math.round(Number(payload.percent) || 0);
+                    if (pct === 25 || pct === 50 || pct === 75) {
+                        if (typeof showToast === "function") showToast("Downloading update… " + pct + "%", "info");
+                    }
+                } else if (payload.status === "ready") {
+                    if (typeof showToast === "function") {
+                        showToast(
+                            "Update ready" + (payload.version ? (" (v" + payload.version + ")") : "") +
+                            ". Restart to install?",
+                            "success"
+                        );
+                    }
+                    try {
+                        if (window._momentoUpdatePrompted) return;
+                        window._momentoUpdatePrompted = true;
+                        setTimeout(function () {
+                            const ok = confirm(
+                                "Momento v" + (payload.version || "") +
+                                " is downloaded.\n\nRestart now to install the update?"
+                            );
+                            if (ok && window.electronAPI && window.electronAPI.quitAndInstallUpdate) {
+                                window.electronAPI.quitAndInstallUpdate();
+                            }
+                        }, 600);
+                    } catch (e) {}
+                } else if (payload.status === "error") {
+                    console.warn("[Momento] update:", payload.message);
+                }
+            });
+        } catch (e) {}
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
+    else bind();
+})();

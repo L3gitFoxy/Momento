@@ -4,7 +4,13 @@
   "description": "Momento \u2014 offline-first gamified schedule app with optional google sync",
   "main": "electron-main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "build:mac": "electron-builder --mac",
+    "release": "electron-builder --win --publish always",
+    "release:all": "electron-builder -mwl --publish always"
   },
   "build": {
     "appId": "com.momento.app",
@@ -12,14 +18,60 @@
     "icon": "assets/icon.ico",
     "files": [
       "**/*",
+      "!dist/**",
       "music-server/**/*"
     ],
+    "directories": {
+      "output": "dist"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "l3gitfoxy",
+        "repo": "momento",
+        "releaseType": "release"
+      }
+    ],
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Momento-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
     }
   },
   "author": "Momento",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/l3gitfoxy/momento.git"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
   "devDependencies": {
     "electron": "^43.4.1",
     "electron-builder": "^26.15.3"
