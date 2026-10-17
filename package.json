@@ -1,22 +1,22 @@
 {
   "name": "momento",
-  "version": "9.1.0",
+  "version": "9.1.1",
   "description": "Momento \u2014 offline-first gamified schedule app with optional google sync",
   "main": "electron-main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win",
-    "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux",
-    "build:mac": "electron-builder --mac",
+    "build": "node -e \"console.log('Vercel/web build: static files, skip electron-builder')\"",
+    "build:win": "electron-builder --win --publish never",
+    "build:linux": "electron-builder --linux --publish never",
+    "build:mac": "electron-builder --mac --publish never",
     "release": "node scripts/prepare-release-notes.js && electron-builder --win --publish never",
-    "release:all": "electron-builder -mwl --publish always",
-    "prepare-release-notes": "node scripts/prepare-release-notes.js",
-    "release:publish": "node scripts/prepare-release-notes.js && electron-builder --win --publish always"
+    "release:publish": "node scripts/prepare-release-notes.js && electron-builder --win --publish always",
+    "prepare-release-notes": "node scripts/prepare-release-notes.js"
   },
   "build": {
     "appId": "com.momento.app",
     "productName": "Momento",
+    "copyright": "Copyright \u00a9 Momento",
     "icon": "assets/icon.ico",
     "compression": "maximum",
     "files": [
@@ -40,7 +40,9 @@
       "!.github/**",
       "!supabase/**",
       "!**/*.md",
-      "!AUTO_UPDATE.md"
+      "!AUTO_UPDATE.md",
+      "!scripts/**",
+      "!release-notes-current.md"
     ],
     "asar": true,
     "asarUnpack": [
@@ -66,14 +68,22 @@
           ]
         }
       ],
-      "artifactName": "Momento-Setup-${version}.${ext}"
+      "artifactName": "Momento-Setup-${version}.${ext}",
+      "executableName": "Momento"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "deleteAppDataOnUninstall": false,
-      "differentialPackage": true
+      "differentialPackage": true,
+      "guid": "a8f3c2e1-9b4d-4e6a-8c1f-2d7e5b0a9f3c",
+      "uninstallDisplayName": "Momento",
+      "shortcutName": "Momento",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "menuCategory": false,
+      "runAfterFinish": true
     },
     "electronLanguages": [
       "en-US"
@@ -99,7 +109,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/l3gitfoxy/momento.git"
+    "url": "https://github.com/L3gitFoxy/Momento.git"
   },
   "dependencies": {
     "electron-updater": "^6.6.2"

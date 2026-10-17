@@ -10130,7 +10130,7 @@ window.activateCrateCosmetic = activateCrateCosmetic;
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "9.0.0";
+const CHANGELOG_VERSION = "9.1.1";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -10380,6 +10380,13 @@ const CHANGELOG_9_0 = [
     "Now-playing bar no longer draggable; stays put while you work"
 ];
 
+const CHANGELOG_9_1_1 = [
+    "Vercel web deploy no longer tries to build the Windows installer",
+    "Installer updates overwrite the same Momento (fixed NSIS identity)",
+    "Safer auto-update after cancelling a download",
+    "v9.1.0: general bug fixes"
+];
+
 let _tutorialIndex = 0;
 
 function renderTutorialStep() {
@@ -10439,7 +10446,7 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        const cl = (typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0);
+        const cl = (typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0));
         body.innerHTML = "<ul>" + cl.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {

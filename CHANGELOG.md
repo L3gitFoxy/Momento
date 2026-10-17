@@ -1,4 +1,11 @@
-# Momento v9.0.0
+# Momento v9.1.1
+## Changelog
+* Vercel deploy no longer runs electron-builder (web build is static-only)
+* Windows installer uses a fixed NSIS GUID so updates overwrite the same Momento install (no second pinned app)
+* Safer auto-update: no silent download after cancel; clears broken update cache on launch
+# `HAPPY PLANNING`
+
+# Momento v9.1.0
 ## Changelog
 * Fixed app-crashing bugs
 # `HAPPY PLANNING`
