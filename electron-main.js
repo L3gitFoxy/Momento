@@ -159,27 +159,69 @@ ipcMain.on("momento-set-run-in-background", (_evt, enabled) => {
 });
 
 
+function isElectronDevBinary(exePath) {
+  const p = String(exePath || "").toLowerCase().replace(/\\/g, "/");
+  return p.endsWith("/electron.exe") || p.endsWith("/electron") || p.includes("/node_modules/electron/");
+}
+
+function clearStaleLoginItems() {
+  // Remove leftover dev "Electron" startup entries so only Momento opens
+  const candidates = [];
+  try { candidates.push(process.execPath); } catch (e) {}
+  // Common places Electron ends up when registered from npm start
+  if (process.platform === "win32") {
+    const local = process.env.LOCALAPPDATA || "";
+    const appdata = process.env.APPDATA || "";
+    if (local) {
+      candidates.push(path.join(local, "Programs", "electron", "Electron.exe"));
+    }
+    // node_modules electron binary from a previous project path cannot be fully enumerated;
+    // disabling by current execPath when it is electron still helps.
+  }
+  candidates.forEach((exe) => {
+    if (!exe) return;
+    try {
+      if (isElectronDevBinary(exe) || !app.isPackaged) {
+        app.setLoginItemSettings({
+          openAtLogin: false,
+          path: exe,
+          args: []
+        });
+        // also clear any entry that included the project dir as arg
+        try {
+          app.setLoginItemSettings({
+            openAtLogin: false,
+            path: exe,
+            args: [path.resolve(__dirname)]
+          });
+        } catch (e2) {}
+      }
+    } catch (e) {}
+  });
+}
+
 function setOpenAtLoginEnabled(enabled) {
   enabled = !!enabled;
   try {
-    if (app.isPackaged) {
-      // Installed build: register THIS app executable (Momento.exe), not a bare Electron
-      app.setLoginItemSettings({
-        openAtLogin: enabled,
-        openAsHidden: false,
-        path: process.execPath,
-        args: []
-      });
-    } else {
-      // Dev (npm start): electron.exe needs the app directory as arg or login launches empty Electron
-      app.setLoginItemSettings({
-        openAtLogin: enabled,
-        openAsHidden: false,
-        path: process.execPath,
-        args: [path.resolve(__dirname)]
-      });
+    // Always try to drop stale Electron startup rows first
+    clearStaleLoginItems();
+
+    if (!app.isPackaged) {
+      // Never register bare Electron for OS startup in dev — that opens the empty Electron shell
+      app.setLoginItemSettings({ openAtLogin: false });
+      console.log("[Momento] openAtLogin ignored in dev (not packaged). Use the installed Momento build.");
+      return;
     }
-    console.log("[Momento] openAtLogin=", enabled, "packaged=", app.isPackaged, "exe=", process.execPath);
+
+    // Packaged Momento only
+    app.setLoginItemSettings({ openAtLogin: false, path: process.execPath, args: [] });
+    app.setLoginItemSettings({
+      openAtLogin: enabled,
+      openAsHidden: false,
+      path: process.execPath,
+      args: []
+    });
+    console.log("[Momento] openAtLogin=", enabled, "exe=", process.execPath);
   } catch (err) {
     console.warn("[Momento] openAtLogin failed", err);
   }
