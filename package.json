@@ -9,9 +9,10 @@
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux",
     "build:mac": "electron-builder --mac",
-    "release": "node scripts/prepare-release-notes.js && electron-builder --win --publish always",
+    "release": "node scripts/prepare-release-notes.js && electron-builder --win --publish never",
     "release:all": "electron-builder -mwl --publish always",
-    "prepare-release-notes": "node scripts/prepare-release-notes.js"
+    "prepare-release-notes": "node scripts/prepare-release-notes.js",
+    "release:publish": "node scripts/prepare-release-notes.js && electron-builder --win --publish always"
   },
   "build": {
     "appId": "com.momento.app",
