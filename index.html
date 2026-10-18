@@ -909,7 +909,7 @@
 
             <hr class="app-settings-hr" />
             <label class="app-settings-label">Personal model (optional)</label>
-            <p class="app-settings-hint">Your key stays in this browser / device only. Not uploaded to Momento servers.</p>
+            <p class="app-settings-hint">Saved with your account so it follows you to every device. It is only sent to the AI provider you enter below, never shared with anyone else.</p>
             <input type="url" id="set-personal-url" class="app-settings-input" data-settings-field placeholder="API base URL e.g. https://api.groq.com/openai/v1" />
             <input type="password" id="set-personal-key" class="app-settings-input" data-settings-field placeholder="API key" autocomplete="off" />
             <input type="text" id="set-personal-model" class="app-settings-input" data-settings-field placeholder="Model id e.g. llama-3.3-70b-versatile" />
@@ -981,6 +981,11 @@
                     <option value="200"></option><option value="300"></option><option value="500"></option>
                 </datalist>
                 <p class="app-settings-hint">Ticks: 0 · 25 · 50 · 75 · 100 · 150 · 200 · 300 · 500%. Default 100%.</p>
+            </div>
+
+            <div id="update-settings-row" class="app-settings-update hidden">
+                <button type="button" class="app-settings-update-btn" onclick="momentoCheckForUpdates(true)">Check for updates</button>
+                <span id="update-settings-version" class="app-settings-hint"></span>
             </div>
 
             <button type="button" class="btn-save-final app-settings-save" onclick="saveAppSettings()">Save settings</button>

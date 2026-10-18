@@ -1,3 +1,9 @@
+# Momento v9.2.0
+## Changelog
+* Resolved an error regarding offline mode
+* Changed how the in-app settings are saved
+# `HAPPY PLANNING`
+
 # Momento v9.1.1
 ## Changelog
 * Vercel deploy no longer runs electron-builder (web build is static-only)

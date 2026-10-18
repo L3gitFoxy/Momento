@@ -6859,3 +6859,20 @@ body.modal-open {
 #now-playing-bar.dragging {
   cursor: default !important;
 }
+
+
+/* ===== Desktop auto-update card ===== */
+.update-card{position:fixed;right:18px;bottom:18px;z-index:2147483645;width:min(340px,calc(100vw - 36px));
+  background:var(--card,#1a1528);color:var(--text,#e2def8);border:1px solid var(--border,#2d2250);
+  border-radius:14px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.45);font-size:.9rem}
+.update-card.hidden{display:none}
+.update-card-title{font-weight:700;margin-bottom:4px}
+.update-card-sub{color:var(--muted,#6e6a8a);margin-bottom:10px;line-height:1.35}
+.update-card-bar{height:8px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:10px}
+.update-card-bar>div{height:100%;width:0;background:var(--accent,#6c5ce7);transition:width .25s ease}
+.update-card-actions{display:flex;gap:8px;justify-content:flex-end}
+.update-card-actions button,.app-settings-update-btn{border:0;border-radius:10px;padding:7px 14px;cursor:pointer;font:inherit;
+  background:var(--accent,#6c5ce7);color:#fff}
+.update-card-actions button.secondary{background:transparent;color:var(--muted,#9a96b8);border:1px solid var(--border,#2d2250)}
+.app-settings-update{display:flex;align-items:center;gap:12px;margin:14px 0}
+.app-settings-update.hidden{display:none}

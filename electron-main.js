@@ -384,22 +384,32 @@ ipcMain.handle('momento-check-for-updates', async () => {
   }
 });
 
+let downloadingUpdate = false;
 ipcMain.handle('momento-download-update', async () => {
   if (!autoUpdater || !app.isPackaged) return { ok: false };
+  if (downloadingUpdate) return { ok: true, alreadyRunning: true };
+  downloadingUpdate = true;
   try {
     await autoUpdater.downloadUpdate();
     return { ok: true };
   } catch (e) {
     try { clearPendingUpdateCache(); } catch (e2) {}
     return { ok: false, reason: (e && e.message) || String(e) };
+  } finally {
+    downloadingUpdate = false;
   }
 });
 
 ipcMain.handle('momento-quit-and-install', () => {
   if (!autoUpdater || !app.isPackaged) return false;
   try {
-    // Only install when user explicitly confirms
-    autoUpdater.quitAndInstall(false, true);
+    // Only install when user explicitly confirms.
+    // Make sure the "keep running in tray" close-handler can't swallow the quit.
+    runInBackground = false;
+    app.isQuitting = true;
+    destroyTray();
+    if (musicServer) { try { musicServer.close(); } catch (e) {} musicServer = null; }
+    setImmediate(() => autoUpdater.quitAndInstall(true, true));
     return true;
   } catch (e) {
     console.warn('[Momento] quitAndInstall', e);

@@ -106,7 +106,12 @@ function setupAuthStateListener() {
                     }
                 } else if (fetchError) {
                     console.error('[Auth] Error fetching profile:', fetchError.message);
-                    showToast(`Error loading profile: ${fetchError.message}`, 'error');
+                    if (isNetworkErrorLike(fetchError) || !navigator.onLine) {
+                        // Offline: use the last saved copy silently
+                        try { tryOfflineCloudProfile(true); } catch (e) {}
+                    } else {
+                        showToast(`Error loading profile: ${fetchError.message}`, 'error');
+                    }
                 } else if (profileData) {
                     applyProfileData(profileData.app_data);
                     console.log('[Auth] User profile loaded.');
@@ -118,7 +123,11 @@ function setupAuthStateListener() {
                 }
             } catch (err) {
                 console.error('[Auth] Unexpected error fetching profile:', err);
-                showToast('An unexpected error occurred while loading your data.', 'error');
+                if (isNetworkErrorLike(err) || !navigator.onLine) {
+                    try { tryOfflineCloudProfile(true); } catch (e) {}
+                } else {
+                    showToast('An unexpected error occurred while loading your data.', 'error');
+                }
             }
         } else if (event === 'SIGNED_IN') {
             
@@ -225,7 +234,7 @@ async function supabaseSignOut() {
         }
         
         currentUser = null;
-        
+        try { clearLocalAppSettingsCache(); } catch (e) {}
         
         data = getDefaultAppData();
         showAuthScreen();
@@ -243,6 +252,7 @@ async function supabaseSignOut() {
 
 function getDefaultAppData() {
     return {
+        appSettings: null,
         schedules: {},
         notes: {},
         presets: {},
@@ -1631,6 +1641,7 @@ function logout() {
             localStorage.removeItem(AUTH_SESSION_KEY);
         } catch (e) {}
         
+        try { clearLocalAppSettingsCache(); } catch (e) {}
         if (typeof resetToDefaultAppData === "function") resetToDefaultAppData();
         showAuthScreen();
         const chip = document.getElementById("profile-chip");
@@ -1784,7 +1795,12 @@ async function bootstrapAuth() {
                     applyProfileData(defaultAppData);
                 } else if (fetchError) {
                     console.error("[Bootstrap] Error fetching profile:", fetchError.message);
-                    showToast("Error loading profile: " + fetchError.message, "error");
+                    if (isNetworkErrorLike(fetchError) || !navigator.onLine) {
+                        // Offline with a saved session: fall through to the cached profile (no toast)
+                        if (tryOfflineCloudProfile(true)) return true;
+                    } else {
+                        showToast("Error loading profile: " + fetchError.message, "error");
+                    }
                     showAuthScreen();
                     return false;
                 } else if (profileData) {
@@ -2135,6 +2151,7 @@ function applyAppDataObject(parsed) {
             localStorage.setItem("MOMENTO_PERSONALIZATION_STATUS", data.personalization.status);
         }
     } catch (e) {}
+    try { adoptAccountAppSettings(parsed.appSettings); } catch (e) { console.warn("[settings] adopt failed", e); }
 }
 
 function resetToDefaultAppData() {
@@ -2235,13 +2252,25 @@ async function saveData() {
                 .eq("id", currentUser);
 
             if (supabaseError) {
+                if (isNetworkErrorLike(supabaseError) || navigator.onLine === false) {
+                    // Offline / unreachable: data is already safe in localStorage. Retry on reconnect.
+                    window._cloudSyncPending = true;
+                    console.warn("[saveData] offline, cloud sync deferred");
+                    return;
+                }
                 console.error("[saveData] Supabase update error:", supabaseError.message);
                 showToast("Failed to sync to cloud: " + supabaseError.message, "error");
                 return;
             }
+            window._cloudSyncPending = false;
             console.log("[saveData] Data synced to Supabase successfully.");
         }
     } catch (error) {
+        if (isNetworkErrorLike(error) || navigator.onLine === false) {
+            window._cloudSyncPending = true;
+            console.warn("[saveData] offline, cloud sync deferred", error && error.message);
+            return;
+        }
         console.error("[saveData] Could not save Momento data:", error);
         showToast("Failed to save data.", "error");
     }
@@ -4292,8 +4321,26 @@ function showWelcomeBack() {
     showToast(buildWelcomeBackMessage(), "info");
 }
 
+const _NETWORK_ERR_RE = /failed to fetch|networkerror|network request failed|load failed|fetch failed|err_internet_disconnected|err_network|authretryablefetcherror/i;
+
+function isNetworkErrorLike(x) {
+    try {
+        if (!x) return false;
+        const msg = typeof x === "string" ? x : ((x.name || "") + " " + (x.message || "") + " " + String(x));
+        return _NETWORK_ERR_RE.test(msg);
+    } catch (e) { return false; }
+}
+
 function showToast(msg, kind) {
-    
+    // Raw browser network errors ("TypeError: Failed to fetch") are noise and misleading.
+    // Offline: the dedicated "You're offline" notice already covers it, so stay silent.
+    // Online: show a friendly line instead of the raw error.
+    if (isNetworkErrorLike(msg)) {
+        console.warn("[toast suppressed]", msg);
+        if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+        msg = "Couldn't reach the server right now. Your changes are saved on this device.";
+        kind = "info";
+    }
     document.querySelectorAll(".sync-toast").forEach(t => {
         t.classList.remove("show");
         try { t.remove(); } catch (e) {}
@@ -10921,9 +10968,9 @@ function bindOnboardingUi() {
 }
 
 
-function tryOfflineCloudProfile() {
+function tryOfflineCloudProfile(force) {
     try {
-        if (navigator.onLine) return false;
+        if (navigator.onLine && !force) return false;
         const uid = localStorage.getItem("momento_last_cloud_user");
         if (!uid) return false;
         const raw = localStorage.getItem("momento_user_data_" + uid) || localStorage.getItem(profileStorageKey(uid));
@@ -10935,7 +10982,7 @@ function tryOfflineCloudProfile() {
         try { _authProfileHydrated = true; _authHydratedUserId = uid; } catch (e) {}
         if (typeof hideAuthScreen === "function") hideAuthScreen();
         if (typeof finishAuth === "function") finishAuth();
-        if (typeof showToast === "function") showToast("Offline — loaded your last saved profile. Changes sync when you are back online.", "info");
+        console.log("[offline profile] loaded last saved profile");
         return true;
     } catch (e) {
         console.warn("[offline profile]", e);
@@ -10946,7 +10993,6 @@ function tryOfflineCloudProfile() {
 window.addEventListener("online", () => {
     try {
         if (currentUser && typeof saveData === "function") saveData();
-        if (typeof showToast === "function") showToast("Back online — syncing your profile", "info");
     } catch (e) {}
 });
 
@@ -11112,6 +11158,72 @@ function applyVolumesToRuntime(s) {
     } catch (e) {}
 }
 
+/* ---- Account-synced settings -------------------------------------------
+   Settings (incl. personal AI key/url/model) live inside the account's app_data
+   (data.appSettings -> Supabase profiles.app_data, or the local-account file).
+   localStorage is only a fast cache so the app works offline. */
+const _SETTINGS_SECRET_FIELDS = ["personalApiKey", "personalApiUrl", "personalApiModel"];
+
+function _cloneSettings(o) {
+    const m = Object.assign({}, DEFAULT_APP_SETTINGS, o || {});
+    m.volumes = Object.assign({}, DEFAULT_APP_SETTINGS.volumes, (o && o.volumes) || {});
+    return m;
+}
+
+function _hasSavedLocalSettings() {
+    try { return !!localStorage.getItem(APP_SETTINGS_KEY); } catch (e) { return false; }
+}
+
+function adoptAccountAppSettings(cloud) {
+    const hasCloud = !!(cloud && typeof cloud === "object" && Object.keys(cloud).length);
+    const localRaw = _hasSavedLocalSettings() ? loadAppSettings() : null;
+    let merged;
+    if (hasCloud) {
+        merged = _cloneSettings(cloud);
+        // Never lose an API key that only exists on this device
+        if (localRaw) {
+            _SETTINGS_SECRET_FIELDS.forEach((f) => {
+                if (!merged[f] && localRaw[f]) merged[f] = localRaw[f];
+            });
+        }
+    } else if (localRaw) {
+        // First sign-in after this feature shipped: migrate this device's settings up to the account
+        merged = _cloneSettings(localRaw);
+    } else {
+        merged = _cloneSettings(null);
+    }
+    // clock format already follows the account via data.clockFormat
+    if (data && (data.clockFormat === "12" || data.clockFormat === "24")) merged.clockFormat = data.clockFormat;
+    if (!(merged.personalApiKey && merged.personalApiUrl && merged.personalApiModel)) {
+        merged.usePersonalForPlan = false;
+        merged.usePersonalForChat = false;
+    }
+    window._appSettings = merged;
+    data.appSettings = merged;
+    try { localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(merged)); } catch (e) {}
+    try { applyVolumesToRuntime(merged); } catch (e) {}
+    try {
+        if (window.electronAPI && typeof window.electronAPI.applyStartupPrefs === "function") {
+            window.electronAPI.applyStartupPrefs({
+                runInBackground: !!merged.runInBackground,
+                openAtLogin: !!merged.openAtLogin
+            });
+        }
+    } catch (e) {}
+    // If the settings panel is open, refresh it so it shows what was just loaded
+    try {
+        const panel = document.getElementById("app-settings-panel");
+        if (panel && !panel.classList.contains("hidden") && !_settingsDirty) populateAppSettingsUi();
+    } catch (e) {}
+    return merged;
+}
+
+function clearLocalAppSettingsCache() {
+    // Called on sign-out so one account's settings/API key never leak into the next account
+    try { localStorage.removeItem(APP_SETTINGS_KEY); } catch (e) {}
+    window._appSettings = null;
+}
+
 function saveAppSettingsFromUi() {
     const s = readSettingsFromUi();
     if (!(s.personalApiKey && s.personalApiUrl && s.personalApiModel)) {
@@ -11120,6 +11232,7 @@ function saveAppSettingsFromUi() {
     }
     localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(s));
     window._appSettings = s;
+    try { if (typeof data === "object" && data) data.appSettings = s; } catch (e) {}
     _settingsDirty = false;
     // Account-synced prefs (follow the user when signed in)
     try {
@@ -11703,47 +11816,167 @@ try { document.addEventListener("DOMContentLoaded", bindMusicBetaTooltip); } cat
 setTimeout(bindMusicBetaTooltip, 800);
 
 
-/* ===== Desktop auto-update UI ===== */
+/* ===== Desktop auto-update UI =====
+   Main process never downloads on its own (a cancelled download used to corrupt the next launch),
+   so the renderer must explicitly ask for the download once the user agrees. */
 (function setupDesktopUpdaterUi() {
+    var card = null, state = { status: "idle", version: "", manual: false, busy: false };
+
+    function api() { return window.electronAPI || null; }
+
+    function ensureCard() {
+        if (card && document.body.contains(card)) return card;
+        card = document.createElement("div");
+        card.id = "momento-update-card";
+        card.className = "update-card hidden";
+        card.innerHTML =
+            '<div class="update-card-title"></div>' +
+            '<div class="update-card-sub"></div>' +
+            '<div class="update-card-bar hidden"><div></div></div>' +
+            '<div class="update-card-actions"></div>';
+        document.body.appendChild(card);
+        return card;
+    }
+
+    function render(title, sub, opts) {
+        opts = opts || {};
+        var c = ensureCard();
+        c.classList.remove("hidden");
+        c.querySelector(".update-card-title").textContent = title;
+        c.querySelector(".update-card-sub").textContent = sub || "";
+        var bar = c.querySelector(".update-card-bar");
+        bar.classList.toggle("hidden", typeof opts.percent !== "number");
+        if (typeof opts.percent === "number") bar.firstChild.style.width = Math.max(2, Math.min(100, opts.percent)) + "%";
+        var act = c.querySelector(".update-card-actions");
+        act.innerHTML = "";
+        (opts.buttons || []).forEach(function (b) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = b.label;
+            if (b.secondary) btn.className = "secondary";
+            btn.onclick = b.onClick;
+            act.appendChild(btn);
+        });
+    }
+
+    function hide() { if (card) card.classList.add("hidden"); }
+
+    function startDownload() {
+        if (state.busy) return;
+        state.busy = true;
+        state.status = "downloading";
+        render("Downloading Momento v" + state.version, "Starting download…", { percent: 2, buttons: [] });
+        api().downloadUpdate().then(function (r) {
+            // 'ready' arrives through onUpdateStatus; this only handles a failed start
+            if (r && r.ok === false) {
+                state.busy = false;
+                render("Update failed", "The download didn't finish. Nothing was changed, you can try again.", {
+                    buttons: [
+                        { label: "Close", secondary: true, onClick: hide },
+                        { label: "Retry", onClick: startDownload }
+                    ]
+                });
+            }
+        }).catch(function () { state.busy = false; });
+    }
+
+    function promptInstall() {
+        render("Update ready", "Momento v" + state.version + " is downloaded. Restart to finish installing.", {
+            buttons: [
+                { label: "Later", secondary: true, onClick: hide },
+                { label: "Restart & install", onClick: function () {
+                    render("Installing…", "Momento will close and reopen on the new version.", { buttons: [] });
+                    api().quitAndInstallUpdate();
+                } }
+            ]
+        });
+    }
+
+    function handle(payload) {
+        if (!payload || !payload.status) return;
+        switch (payload.status) {
+            case "checking":
+                if (state.manual) render("Checking for updates…", "", { buttons: [] });
+                break;
+            case "available":
+                state.version = payload.version || state.version;
+                state.status = "available";
+                if (state.busy) return;
+                render("Update available", "Momento v" + (state.version || "") + " is ready to download.", {
+                    buttons: [
+                        { label: "Not now", secondary: true, onClick: hide },
+                        { label: "Download", onClick: startDownload }
+                    ]
+                });
+                break;
+            case "none":
+                if (state.manual) {
+                    state.manual = false;
+                    render("You're up to date", "You already have the latest version of Momento.", {
+                        buttons: [{ label: "OK", onClick: hide }]
+                    });
+                    setTimeout(hide, 4000);
+                }
+                break;
+            case "downloading": {
+                var pct = Math.round(Number(payload.percent) || 0);
+                var mb = function (n) { return (Number(n || 0) / 1048576).toFixed(1); };
+                state.status = "downloading";
+                render("Downloading Momento v" + (state.version || ""),
+                    pct + "%" + (payload.total ? "  ·  " + mb(payload.transferred) + " / " + mb(payload.total) + " MB" : ""),
+                    { percent: pct, buttons: [] });
+                break;
+            }
+            case "ready":
+                state.busy = false;
+                state.status = "ready";
+                state.version = payload.version || state.version;
+                promptInstall();
+                break;
+            case "error":
+                console.warn("[Momento] update:", payload.message);
+                state.busy = false;
+                if (state.manual || state.status === "downloading") {
+                    state.manual = false;
+                    var offline = (typeof isNetworkErrorLike === "function" && isNetworkErrorLike(payload.message)) || !navigator.onLine;
+                    render("Couldn't update", offline ? "You appear to be offline. Try again when you're connected."
+                                                      : "Something went wrong while updating. Try again in a bit.", {
+                        buttons: [{ label: "OK", onClick: hide }]
+                    });
+                }
+                break;
+        }
+    }
+
+    window.momentoCheckForUpdates = function (manual) {
+        var a = api();
+        if (!a || typeof a.checkForUpdates !== "function") return;
+        state.manual = !!manual;
+        if (manual) render("Checking for updates…", "", { buttons: [] });
+        a.checkForUpdates().then(function (r) {
+            if (r && r.ok === false && manual) {
+                state.manual = false;
+                render("Updates unavailable",
+                    r.reason === "dev-or-missing" ? "Updates only work in the installed app, not in dev mode."
+                                                  : "Couldn't check right now. Try again later.",
+                    { buttons: [{ label: "OK", onClick: hide }] });
+            }
+        });
+    };
+
     function bind() {
         try {
-            if (!window.electronAPI || typeof window.electronAPI.onUpdateStatus !== "function") return;
-            window.electronAPI.onUpdateStatus(function (payload) {
-                if (!payload || !payload.status) return;
-                if (payload.status === "available") {
-                    if (typeof showToast === "function") {
-                        showToast("Update " + (payload.version || "") + " found — downloading…", "info");
-                    }
-                } else if (payload.status === "downloading") {
-                    const pct = Math.round(Number(payload.percent) || 0);
-                    if (pct === 25 || pct === 50 || pct === 75) {
-                        if (typeof showToast === "function") showToast("Downloading update… " + pct + "%", "info");
-                    }
-                } else if (payload.status === "ready") {
-                    if (typeof showToast === "function") {
-                        showToast(
-                            "Update ready" + (payload.version ? (" (v" + payload.version + ")") : "") +
-                            ". Restart to install?",
-                            "success"
-                        );
-                    }
-                    try {
-                        if (window._momentoUpdatePrompted) return;
-                        window._momentoUpdatePrompted = true;
-                        setTimeout(function () {
-                            const ok = confirm(
-                                "Momento v" + (payload.version || "") +
-                                " is downloaded.\n\nRestart now to install the update?"
-                            );
-                            if (ok && window.electronAPI && window.electronAPI.quitAndInstallUpdate) {
-                                window.electronAPI.quitAndInstallUpdate();
-                            }
-                        }, 600);
-                    } catch (e) {}
-                } else if (payload.status === "error") {
-                    console.warn("[Momento] update:", payload.message);
-                }
-            });
+            var a = api();
+            if (!a || typeof a.onUpdateStatus !== "function") return;
+            a.onUpdateStatus(handle);
+            var row = document.getElementById("update-settings-row");
+            if (row) row.classList.remove("hidden");
+            if (typeof a.getAppVersion === "function") {
+                a.getAppVersion().then(function (v) {
+                    var el = document.getElementById("update-settings-version");
+                    if (el && v) el.textContent = "Current version v" + v;
+                });
+            }
         } catch (e) {}
     }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
