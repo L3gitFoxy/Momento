@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a0f2e"/>
+      <stop offset="50%" stop-color="#2d1b4e"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="title" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c4b5fd"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="pill" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6c5ce7"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="420" fill="url(#bg)"/>
+  <circle cx="1100" cy="80" r="180" fill="#6c5ce7" opacity="0.12"/>
+  <circle cx="180" cy="360" r="140" fill="#22d3ee" opacity="0.08"/>
+  <text x="640" y="175" text-anchor="middle" font-family="Segoe UI, system-ui, sans-serif" font-size="72" font-weight="700" fill="url(#title)">Momento</text>
+  <text x="640" y="230" text-anchor="middle" font-family="Segoe UI, system-ui, sans-serif" font-size="26" fill="#c4b5fd" opacity="0.95">Plan the day. Play the day.</text>
+  <rect x="430" y="270" width="420" height="44" rx="22" fill="url(#pill)" opacity="0.95"/>
+  <text x="640" y="299" text-anchor="middle" font-family="Segoe UI, system-ui, sans-serif" font-size="18" font-weight="600" fill="#ffffff">Offline-first · XP · Crates · AI week builder</text>
+</svg>

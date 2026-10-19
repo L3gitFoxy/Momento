@@ -2,7 +2,7 @@
   "name": "momento",
   "version": "9.2.0",
   "description": "Momento \u2014 offline-first gamified schedule app with optional google sync",
-  "main": "electron-main.js",
+  "main": "electron/electron-main.js",
   "scripts": {
     "start": "electron .",
     "build": "node -e \"console.log('Vercel/web build: static files, skip electron-builder')\"",
@@ -20,16 +20,13 @@
     "icon": "assets/icon.ico",
     "compression": "maximum",
     "files": [
-      "electron-main.js",
-      "preload.js",
-      "index.html",
-      "script.js",
-      "style.css",
-      "ai-chatbot.js",
-      "chatbot-nlp.json",
-      "ai-generations-nlp.json",
+      "electron/**/*",
+      "src/**/*",
+      "data/**/*",
+      "server/**/*",
       "assets/**/*",
-      "music-server/**/*",
+      "index.html",
+      "style.css",
       "package.json",
       "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
       "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
@@ -40,13 +37,16 @@
       "!.github/**",
       "!supabase/**",
       "!**/*.md",
-      "!AUTO_UPDATE.md",
+      "!docs/**",
       "!scripts/**",
-      "!release-notes-current.md"
+      "!release-notes-current.md",
+      "!ad_*/**",
+      "!*.mp4",
+      "!Momento*.zip"
     ],
     "asar": true,
     "asarUnpack": [
-      "music-server/**/*"
+      "server/**/*"
     ],
     "directories": {
       "output": "dist"

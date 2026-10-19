@@ -6,13 +6,13 @@ const fs = require("fs");
 const crypto = require("crypto");
 const os = require("os");
 
-/** Load music-server/.env (and parent .env) into process.env without dotenv */
+/** Load server/.env (and parent .env) into process.env without dotenv */
 function loadMomentoEnv() {
   const candidates = [
     path.join(__dirname, ".env"),
     path.join(__dirname, "..", ".env"),
     path.join(process.cwd(), ".env"),
-    path.join(process.cwd(), "music-server", ".env"),
+    path.join(process.cwd(), "server", ".env"),
   ];
   for (const file of candidates) {
     try {

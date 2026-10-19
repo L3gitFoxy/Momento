@@ -1,6 +1,6 @@
 const { app, BrowserWindow, shell, Tray, Menu, ipcMain, nativeImage } = require('electron');
 const path = require('path');
-const { startMusicServer } = require('./music-server/server');
+const { startMusicServer } = require('../server/server');
 
 let autoUpdater = null;
 try {
@@ -18,13 +18,13 @@ const MUSIC_PORT = process.env.PORT || 8787;
 
 function resolveAppIcon() {
   const candidates = [
-    path.join(__dirname, 'assets', 'icon.ico'),
-    path.join(__dirname, 'assets', 'icon.png'),
-    path.join(__dirname, 'assets', 'logo.png'),
-    path.join(__dirname, 'build', 'icon.ico'),
-    path.join(__dirname, 'build', 'icon.png'),
-    path.join(__dirname, 'icon.ico'),
-    path.join(__dirname, 'icon.png'),
+    path.join(__dirname, '..', 'assets', 'icon.ico'),
+    path.join(__dirname, '..', 'assets', 'icon.png'),
+    path.join(__dirname, '..', 'assets', 'logo.png'),
+    path.join(__dirname, '..', 'build', 'icon.ico'),
+    path.join(__dirname, '..', 'build', 'icon.png'),
+    path.join(__dirname, '..', 'icon.ico'),
+    path.join(__dirname, '..', 'icon.png'),
   ];
   for (const p of candidates) {
     try {
@@ -200,7 +200,7 @@ function clearStaleLoginItems() {
           app.setLoginItemSettings({
             openAtLogin: false,
             path: exe,
-            args: [path.resolve(__dirname)]
+            args: [path.resolve(__dirname, '..')]
           });
         } catch (e2) {}
       }

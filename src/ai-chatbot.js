@@ -17,7 +17,7 @@ let _nlpLoading = null;
 function loadNlpCorpus() {
     if (NLP_CORPUS) return Promise.resolve(NLP_CORPUS);
     if (_nlpLoading) return _nlpLoading;
-    _nlpLoading = fetch("./chatbot-nlp.json", { cache: "force-cache" })
+    _nlpLoading = fetch("./data/chatbot-nlp.json", { cache: "force-cache" })
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => {
             NLP_CORPUS = j;
@@ -37,7 +37,7 @@ let _schedNlpLoading = null;
 function loadScheduleNlpCorpus() {
     if (SCHEDULE_NLP) return Promise.resolve(SCHEDULE_NLP);
     if (_schedNlpLoading) return _schedNlpLoading;
-    _schedNlpLoading = fetch("./ai-generations-nlp.json", { cache: "force-cache" })
+    _schedNlpLoading = fetch("./data/ai-generations-nlp.json", { cache: "force-cache" })
         .then((r) => (r.ok ? r.json() : null))
         .then((j) => { SCHEDULE_NLP = j; return j; })
         .catch(() => { SCHEDULE_NLP = null; return null; });

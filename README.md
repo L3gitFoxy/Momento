@@ -1,69 +1,111 @@
-![momento](https://socialify.git.ci/l3gitfoxy/momento/image?custom_language=JavaScript&font=Source+Code+Pro&issues=1&language=1&name=1&pattern=Transparent&pulls=1&stargazers=1&theme=Dark)
+<p align="center">
+  <img src="assets/banner.svg" alt="Momento — Plan the day. Play the day." width="100%" />
+</p>
 
-Weekly time-block planner + daily check-in, runs entirely in the browser. no backend, no accounts, no tracking just localStorage and vanilla JS.
+<p align="center">
+  <strong>Offline-first gamified schedule app</strong> — time blocks, XP, ranks, crates, voice, and an optional AI week builder.
+</p>
 
-![Vanilla JS](https://img.shields.io/badge/JS-vanilla-yellow)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
+<p align="center">
+  <a href="https://momento-silk.vercel.app">Web app</a>
+  ·
+  <a href="https://github.com/L3gitFoxy/Momento/releases/latest">Desktop download</a>
+  ·
+  <a href="docs/CHANGELOG.md">Changelog</a>
+</p>
 
-## Why
-
-most schedule apps either want you to sign up for something or ship 40mb of framework for what's basically a glorified todo list with time labels. Momento is just one file (app), opens instantly, and keeps everything on your machine. No sign-in, log-in or anything of the kind!
+---
 
 ## What is Momento?
 
-Momento turns your week into something you actually want to open. Time blocks feel like game levels, checking them off drops XP, and ranks climb from Starter to Mythic — that little hit of progress is intentional. Streaks, unlockable themes, a focus mode with ambient sound, and a persistent to-do list keep the loop going without feeling like another boring planner. 
+Momento turns a weekly plan into something worth opening every morning. You block your day, check tasks off for XP, climb ranks, open crates for cosmetics and boosters, and optionally let AI fill the gaps around fixed commitments (school, work, gym).
 
-Plan the day, play the day, level up. Built for anyone who gets more done when it feels like a game.
+- **Time-block planner** with day tabs, timeline visualizer, and Day Flex
+- **XP, ranks, streaks** and a Progress & Rewards path toward Mythic
+- **Crates** (Standard → Mythic Vault) for keys, XP, themes, and clocks
+- **Momento AI** for chat, week building, and voice control (optional personal API key)
+- **Desktop app** (Electron) with system tray, open-at-login, and auto-update
+- **Web** build that runs fully in the browser (offline-friendly local data)
 
-## Is it secure?
+## Quick start
 
-Yes, Momento only uses Google OAuth via Supabase, solely to authenticate your account and load your personal task data. We do not store, sell, or share your Google profile data with third parties.
+### Web
 
-## Files
+Open the live site: [momento-silk.vercel.app](https://momento-silk.vercel.app)
 
-```
-index.html   UI/markup
-script.js    data model, presets, rendering, drag/drop, analytics
-style.css    dark theme, sidebar drawer, badges
-ai-chatbot.js integrated ai bot, helps out do things throughout the app
-electron-main.js main electron app logic
-package.json & package-lock.json useful for packing project in single .exe application
-./node_modules helper modules + electron
-./dist contains one file application
-./assets contains icon
-./music-server/server.js controls music servers and hackend
-./music-server/.env  contains required environmental variables
+Or serve locally:
 
-```
-
-
-## Running it
-
-**Just vist the website:**
-https://momento-silk.vercel.app
-
-**Just open it:**
 ```bash
-git clone https://github.com/l3gitfoxy/momento.git
+npx serve .
+# then open http://localhost:3000
+```
+
+### Desktop (dev)
+
+```bash
+npm install
 npm start
 ```
 
-OR
+### Windows installer
 
-```bash
-git clone https://github.com/l3gitfoxy/momento.git
-node music-server/server.js
+Published builds come from GitHub Releases:
+
+```text
+https://github.com/L3gitFoxy/Momento/releases/latest
 ```
 
+Tag a version (`v9.2.0`) to trigger `.github/workflows/release.yml`, which builds the NSIS installer and attaches it to a single release.
 
-**Just install the exe file** (needed if your browser blocks local file access for JS modules):
-- Download the exe setup file from the latest release and watch the magic happen!
+## Repository layout
 
-## contributing
+```text
+Momento/
+├── index.html              # App shell (web + desktop)
+├── style.css
+├── package.json
+├── assets/
+│   ├── banner.svg          # README banner
+│   └── icon.ico            # App / installer icon
+├── src/
+│   ├── script.js           # Core app logic
+│   └── ai-chatbot.js       # Momento AI + NLP loaders
+├── data/
+│   ├── chatbot-nlp.json
+│   └── ai-generations-nlp.json
+├── electron/
+│   ├── electron-main.js    # Electron main process
+│   └── preload.js
+├── server/
+│   └── server.js           # Local music / API helper (desktop)
+├── docs/
+│   └── CHANGELOG.md
+├── scripts/
+│   └── prepare-release-notes.js
+└── .github/workflows/
+    └── release.yml
+```
 
-It's a double-page app, poke around the main files (not inside node_modules or dist), send a PR. issues/feature ideas welcome too.
+## Scripts
 
-## license
+| Command | Purpose |
+|--------|---------|
+| `npm start` | Run Electron against this folder |
+| `npm run build:win` | Build Windows installer (no publish) |
+| `npm run release:publish` | Prepare notes + build (CI uses `--publish never` then `gh release create`) |
+| `npm run prepare-release-notes` | Write `release-notes-current.md` from `docs/CHANGELOG.md` |
 
-[Apache License 2.0](LICENSE)
+## Stack
+
+- HTML / CSS / vanilla JS
+- Electron + electron-updater (desktop)
+- Optional Supabase auth (Google / Discord)
+- Optional personal AI key (Groq / OpenRouter / OpenAI-compatible)
+
+## License
+
+See [LICENSE](LICENSE).
+
+---
+
+**Plan the day. Play the day.**

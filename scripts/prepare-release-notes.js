@@ -14,12 +14,16 @@ if (!version) {
   process.exit(1);
 }
 
-const changelogPath = path.join(root, "CHANGELOG.md");
+const changelogCandidates = [
+  path.join(root, "docs", "CHANGELOG.md"),
+  path.join(root, "CHANGELOG.md"),
+];
 let changelog = "";
-try {
-  changelog = fs.readFileSync(changelogPath, "utf8");
-} catch (e) {
-  changelog = "";
+for (const changelogPath of changelogCandidates) {
+  try {
+    changelog = fs.readFileSync(changelogPath, "utf8");
+    if (changelog) break;
+  } catch (e) {}
 }
 
 function extractSection(md, ver) {
