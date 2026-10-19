@@ -4105,6 +4105,7 @@ function awardXPForTask(task) {
 }
 
 function triggerCompletionFx(levelInfo) {
+    if (typeof isOldManMode === "function" && isOldManMode()) return;
     const tier = (levelInfo && levelInfo.rank) ? String(levelInfo.rank).split(" ")[0].toLowerCase() : "starter";
     document.body.classList.remove("fx-complete");
     void document.body.offsetWidth;
@@ -4113,6 +4114,7 @@ function triggerCompletionFx(levelInfo) {
 }
 
 function spawnXpParticles(count) {
+    if (typeof isOldManMode === "function" && isOldManMode()) return;
     count = count || 12;
     const layer = document.createElement("div");
     layer.className = "xp-particle-layer";
@@ -4131,6 +4133,7 @@ function spawnXpParticles(count) {
 }
 
 function showXPPopup(xpGain, taskName, levelInfo) {
+    if (typeof isOldManMode === "function" && isOldManMode()) return;
     try {
         const existing = document.getElementById("xp-popup");
         if (existing) existing.remove();
@@ -4179,6 +4182,7 @@ function showXPPopup(xpGain, taskName, levelInfo) {
 }
 
 function showLevelUp(rank) {
+    if (typeof isOldManMode === "function" && isOldManMode()) return;
     const el = document.createElement("div");
     el.className = "levelup-toast";
     el.innerHTML = `<div class="levelup-emoji">⬆️</div><div>Level Up!</div><div class="levelup-rank">${rank}</div>`;
@@ -4332,6 +4336,13 @@ function isNetworkErrorLike(x) {
 }
 
 function showToast(msg, kind) {
+    try {
+        if (typeof isOldManMode === "function" && isOldManMode()) {
+            const msg = String(arguments[0] || "");
+            if (/\bXP\b|crate|level\s*up|rank up|booster|streak broken|keys?/i.test(msg)) return;
+        }
+    } catch (e) {}
+
     // Raw browser network errors ("TypeError: Failed to fetch") are noise and misleading.
     // Offline: the dedicated "You're offline" notice already covers it, so stay silent.
     // Online: show a friendly line instead of the raw error.
@@ -4500,6 +4511,7 @@ function getSfxVolumeScale(kind) {
 }
 
 function playRewardSound(kind, forcePreview) {
+    if (typeof isOldManMode === "function" && isOldManMode()) return;
     if (!forcePreview && data.sfxEnabled === false && kind !== "down") return;
     // Complete/levelup always allowed when sfx on (ignore transition-notif toggle)
     if (!forcePreview && kind !== "down" && kind !== "complete" && kind !== "levelup" && !data.notificationsEnabled) return;
@@ -4876,6 +4888,7 @@ function applyRankCosmetics(info) {
 }
 
 function openProgressPanel() {
+    if (typeof isOldManMode === "function" && isOldManMode()) { if (typeof showToast === "function") showToast("Hidden in Old man mode", "info"); return; }
     setTimeout(updateNowPlayingVisibility, 50);
     const panel = document.getElementById("progress-panel");
     if (!panel) return;
@@ -8627,6 +8640,7 @@ window.closeOverdueModal = closeOverdueModal;
 
 /* ---- App Customiser ---- */
 function openAppCustomiser() {
+    if (typeof isOldManMode === "function" && isOldManMode()) { if (typeof showToast === "function") showToast("Hidden in Old man mode", "info"); return; }
     try { renderClockThemePicker(); } catch (e) {}
 
     const panel = document.getElementById("app-customiser-panel");
@@ -9077,6 +9091,7 @@ function clearWidgetInlineStyles(el) {
 }
 
 function openWidgetCustomiser() {
+    if (typeof isOldManMode === "function" && isOldManMode()) { if (typeof showToast === "function") showToast("Hidden in Old man mode", "info"); return; }
     try { closeAppCustomiser(); } catch (e) {}
     stopWidgetDragMode(true);
     const panel = document.getElementById("widget-customiser-panel");
@@ -9712,6 +9727,7 @@ function renderCrateTierCards() {
 let crateSpinning = false;
 
 function openCratesPage() {
+    if (typeof isOldManMode === "function" && isOldManMode()) { if (typeof showToast === "function") showToast("Hidden in Old man mode", "info"); return; }
     ensureCrateData();
     const page = document.getElementById("crates-page");
     if (!page) return;
@@ -9728,6 +9744,7 @@ function closeCratesPage() {
 }
 
 function openBoostersPage() {
+    if (typeof isOldManMode === "function" && isOldManMode()) { if (typeof showToast === "function") showToast("Hidden in Old man mode", "info"); return; }
     ensureCrateData();
     pruneBoosters();
     const page = document.getElementById("boosters-page");
@@ -10177,7 +10194,7 @@ window.activateCrateCosmetic = activateCrateCosmetic;
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "9.2.1";
+const CHANGELOG_VERSION = "9.2.2";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -10446,6 +10463,12 @@ const CHANGELOG_9_2_1 = [
     "Changelog shower for v9.2.1"
 ];
 
+const CHANGELOG_9_2_2 = [
+    "Old man mode — hide all gamification (XP UI, crates, customiser, reward popups); progress still saved",
+    "Version watermark moved so it no longer sits under the settings gear",
+    "Changelog shower for v9.2.2"
+];
+
 let _tutorialIndex = 0;
 
 function renderTutorialStep() {
@@ -10505,7 +10528,7 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        const cl = (typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0))));
+        const cl = (typeof CHANGELOG_9_2_2 !== "undefined") ? CHANGELOG_9_2_2 : ((typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0)))));
         body.innerHTML = "<ul>" + cl.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
@@ -11034,6 +11057,7 @@ const DEFAULT_APP_SETTINGS = {
     aiMode: "online-first",
     runInBackground: false,
     openAtLogin: false,
+    oldManMode: false,
     clockFormat: "12",
     ttsVoiceURI: "",
     ttsRate: 1.15,
@@ -11096,6 +11120,7 @@ function readSettingsFromUi() {
         aiMode: (document.getElementById("set-ai-mode") || {}).value || "online-first",
         runInBackground: !!(document.getElementById("set-run-background") || {}).checked,
         openAtLogin: !!(document.getElementById("set-open-at-login") || {}).checked,
+        oldManMode: !!(document.getElementById("set-old-man-mode") || {}).checked,
         clockFormat: (document.getElementById("set-clock-format") || {}).value === "24" ? "24" : "12",
         ttsVoiceURI: (document.getElementById("set-tts-voice") || {}).value || "",
         ttsRate: parseFloat((document.getElementById("set-tts-rate") || {}).value) || 1.15,
@@ -11236,6 +11261,36 @@ function clearLocalAppSettingsCache() {
     window._appSettings = null;
 }
 
+
+function isOldManMode() {
+    try {
+        return !!(getAppSettings() && getAppSettings().oldManMode);
+    } catch (e) { return false; }
+}
+
+function applyOldManMode(force) {
+    const on = (typeof force === "boolean") ? force : isOldManMode();
+    try {
+        document.body.classList.toggle("old-man-mode", !!on);
+    } catch (e) {}
+    // Close any open gamification UI
+    if (on) {
+        try { if (typeof closeProgressPanel === "function") closeProgressPanel(); } catch (e) {}
+        try { if (typeof closeCratesPage === "function") closeCratesPage(); } catch (e) {}
+        try { if (typeof closeAppCustomiser === "function") closeAppCustomiser(); } catch (e) {}
+        try { if (typeof closeWidgetCustomiser === "function") closeWidgetCustomiser(); } catch (e) {}
+        try {
+            const pop = document.getElementById("xp-popup");
+            if (pop) pop.remove();
+        } catch (e) {}
+        try {
+            document.querySelectorAll(".xp-particle-layer, .level-up-overlay, #level-up-overlay").forEach(function (n) {
+                try { n.remove(); } catch (e2) {}
+            });
+        } catch (e) {}
+    }
+}
+
 function saveAppSettingsFromUi() {
     const s = readSettingsFromUi();
     if (!(s.personalApiKey && s.personalApiUrl && s.personalApiModel)) {
@@ -11259,6 +11314,7 @@ function saveAppSettingsFromUi() {
         if (typeof updateClock === "function") updateClock();
     } catch (e) {}
     applyVolumesToRuntime(s);
+    try { applyOldManMode(!!s.oldManMode); } catch (e) {}
     try {
         if (window.electronAPI) {
             if (typeof window.electronAPI.setRunInBackground === "function") {
@@ -11296,6 +11352,8 @@ function populateAppSettingsUi() {
     if (mode) mode.value = s.aiMode === "offline-first" ? "offline-first" : "online-first";
     if (bg) bg.checked = !!s.runInBackground;
     if (login) login.checked = !!s.openAtLogin;
+    const omm = document.getElementById("set-old-man-mode");
+    if (omm) omm.checked = !!s.oldManMode;
     const cf = document.getElementById("set-clock-format");
     if (cf) {
         const acc = (typeof data === "object" && data && data.clockFormat) ? data.clockFormat : s.clockFormat;
@@ -11468,6 +11526,7 @@ function initNpDrag() {
 try {
     window._appSettings = loadAppSettings();
     applyVolumesToRuntime(window._appSettings);
+    try { applyOldManMode(); } catch (e) {}
     if (window.electronAPI && typeof window.electronAPI.applyStartupPrefs === "function") {
         window.electronAPI.applyStartupPrefs({
             runInBackground: !!window._appSettings.runInBackground,
@@ -11831,7 +11890,7 @@ setTimeout(bindMusicBetaTooltip, 800);
 
 /* ===== Version watermark (package.json / Electron) ===== */
 (function setupVersionWatermark() {
-    var FALLBACK = "9.2.1";
+    var FALLBACK = "9.2.2";
     function setLabel(v) {
         if (!v) return;
         var el = document.getElementById("momento-version-watermark");

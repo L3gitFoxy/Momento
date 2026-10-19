@@ -6901,11 +6901,12 @@ body.modal-open {
 .app-settings-update.hidden{display:none}
 
 
-/* Version watermark — bottom-right, non-interactive */
+/* Version watermark — bottom-left (avoids settings gear on the right) */
 .momento-version-watermark {
     position: fixed;
-    right: 10px;
-    bottom: 8px;
+    left: 12px;
+    right: auto;
+    bottom: 10px;
     z-index: 40;
     pointer-events: none;
     user-select: none;
@@ -6919,8 +6920,9 @@ body.modal-open {
 }
 @media (max-width: 600px) {
     .momento-version-watermark {
-        right: 8px;
-        bottom: 6px;
+        left: 8px;
+        right: auto;
+        bottom: 8px;
         font-size: 0.6rem;
         opacity: 0.45;
     }
@@ -6929,3 +6931,40 @@ body.auth-visible .momento-version-watermark,
 body.auth-locked .momento-version-watermark {
     opacity: 0.35;
 }
+
+/* ===== Old man mode — hide all gamification UI ===== */
+body.old-man-mode #xp-pill,
+body.old-man-mode .xp-pill-fixed,
+body.old-man-mode #progress-panel,
+body.old-man-mode #crates-page,
+body.old-man-mode #crate-spin-overlay,
+body.old-man-mode #crate-result-modal,
+body.old-man-mode #app-customiser-panel,
+body.old-man-mode #widget-customiser-panel,
+body.old-man-mode #boosters-page,
+body.old-man-mode #xp-popup,
+body.old-man-mode .xp-popup,
+body.old-man-mode .level-up-overlay,
+body.old-man-mode .level-up-modal,
+body.old-man-mode #level-up-overlay,
+body.old-man-mode .xp-particle-layer,
+body.old-man-mode .xp-particle,
+body.old-man-mode [data-gamify="1"],
+body.old-man-mode button[onclick*="openCratesPage"],
+body.old-man-mode button[onclick*="openAppCustomiser"],
+body.old-man-mode button[onclick*="openBoostersPage"],
+body.old-man-mode button[onclick*="openProgressPanel"],
+body.old-man-mode button[onclick*="openWidgetCustomiser"],
+body.old-man-mode .vol-row[data-vol-key="levelup"],
+body.old-man-mode .vol-row[data-vol-key="crate"],
+body.old-man-mode .vol-row[data-vol-key="complete"] {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+}
+/* Hide whole card sections that only exist for cosmetics/crates when possible */
+body.old-man-mode .preset-card:has([data-gamify="1"]),
+body.old-man-mode .sidebar-card:has([data-gamify="1"]) {
+    display: none !important;
+}
+

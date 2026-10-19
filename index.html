@@ -169,16 +169,16 @@
 
             
             <div class="sidebar-group">
-                <button type="button" class="preset-btn btn-create-scratch" onclick="openAppCustomiser()" style="width:100%">
+                <button type="button" class="preset-btn btn-create-scratch" onclick="openAppCustomiser()" data-gamify="1" style="width:100%">
                     🎨 App Customiser
                 </button>
                 <p class="theme-hint">Themes, sounds, cosmetics &amp; more</p>
             </div>
             <div class="sidebar-group">
-                <button type="button" class="preset-btn btn-create-scratch" onclick="openCratesPage()" style="width:100%">
+                <button type="button" class="preset-btn btn-create-scratch" onclick="openCratesPage()" data-gamify="1" style="width:100%">
                     📦 Crates
                 </button>
-                <button type="button" class="preset-btn btn-create-scratch" onclick="openBoostersPage()" style="width:100%;margin-top:8px">
+                <button type="button" class="preset-btn btn-create-scratch" onclick="openBoostersPage()" data-gamify="1" style="width:100%;margin-top:8px">
                     ⚡ XP Boosters
                 </button>
                 <p class="theme-hint">Keys from tasks &amp; to-dos · spin for rewards</p>
@@ -909,6 +909,12 @@
                 <input type="checkbox" id="set-open-at-login" data-settings-field />
                 Automatically start when you turn on the computer (desktop)
             </label>
+
+            <label class="app-settings-check" title="Hides XP, crates, customiser, and all reward popups. Planning features stay. Progress is still saved in the background.">
+                <input type="checkbox" id="set-old-man-mode" data-settings-field />
+                Old man mode (no gamification)
+            </label>
+            <p class="app-settings-hint">Hides XP pill, crates, customiser, boosters, and reward popups. Schedules, todos, AI, focus &amp; calendar stay. XP/keys are still stored — just invisible.</p>
 
             <hr class="app-settings-hr" />
             <label class="app-settings-label">Personal model (optional)</label>
