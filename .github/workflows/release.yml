@@ -5,7 +5,6 @@ on:
     tags:
       - "v*"
 
-# Never run two release jobs for the same tag at once
 concurrency:
   group: momento-release-${{ github.ref }}
   cancel-in-progress: true
@@ -23,9 +22,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Configure npm registry
+        shell: bash
+        run: |
+          npm config set registry https://registry.npmjs.org/
+          npm config delete proxy || true
+          npm config delete https-proxy || true
+          npm config get registry
 
       - name: Install dependencies
-        run: npm ci
+        shell: bash
+        env:
+          NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+        run: |
+          npm ci --registry=https://registry.npmjs.org/ || npm install --registry=https://registry.npmjs.org/
 
       - name: Version from tag
         id: ver
@@ -40,8 +52,6 @@ jobs:
         shell: bash
         run: node scripts/prepare-release-notes.js "${{ steps.ver.outputs.version }}"
 
-      # ONLY way we create a Release is `gh release create` below.
-      # electron-builder uses --publish never so it does NOT open a second release.
       - name: Delete any existing release for this tag
         shell: bash
         env:
