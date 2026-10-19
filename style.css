@@ -49,12 +49,25 @@
         --btn-pad-x: 12px;
         --row-gap: 8px;
         --control-h: 32px;
-        --xp-pill-pad: 6px 10px;
-        --xp-pill-rank: 0.78rem;
-        --xp-pill-bar-w: 88px;
-        --xp-pill-bar-h: 8px;
-        --xp-pill-pct: 0.68rem;
+        --xp-pill-pad: 4px 8px;
+        --xp-pill-rank: 0.68rem;
+        --xp-pill-bar-w: 56px;
+        --xp-pill-bar-h: 6px;
+        --xp-pill-pct: 0.6rem;
     }
+    .xp-pill-fixed {
+        gap: 5px !important;
+        border-radius: 16px !important;
+        border-width: 1px !important;
+        max-width: min(100%, 280px);
+    }
+    .xp-pill-fixed .xp-pill-pct {
+        min-width: 0 !important;
+        max-width: 52px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .xp-pill-keys { font-size: 0.65rem !important; }
 }
 
 @media (max-width: 400px) {
@@ -65,8 +78,18 @@
         --title-size: 0.98rem;
         --body-size: 0.85rem;
         --task-font: 0.8rem;
-        --xp-pill-bar-w: 72px;
+        --xp-pill-pad: 3px 6px;
+        --xp-pill-rank: 0.62rem;
+        --xp-pill-bar-w: 44px;
+        --xp-pill-bar-h: 5px;
+        --xp-pill-pct: 0.55rem;
     }
+    .xp-pill-fixed {
+        gap: 4px !important;
+        border-radius: 14px !important;
+    }
+    /* Hide "left" text noise; keep rank + bar */
+    .xp-pill-fixed .xp-pill-pct { display: none !important; }
 }
 
 body {
@@ -6876,3 +6899,33 @@ body.modal-open {
 .update-card-actions button.secondary{background:transparent;color:var(--muted,#9a96b8);border:1px solid var(--border,#2d2250)}
 .app-settings-update{display:flex;align-items:center;gap:12px;margin:14px 0}
 .app-settings-update.hidden{display:none}
+
+
+/* Version watermark — bottom-right, non-interactive */
+.momento-version-watermark {
+    position: fixed;
+    right: 10px;
+    bottom: 8px;
+    z-index: 40;
+    pointer-events: none;
+    user-select: none;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--muted-color, #6e6a8a);
+    opacity: 0.55;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+}
+@media (max-width: 600px) {
+    .momento-version-watermark {
+        right: 8px;
+        bottom: 6px;
+        font-size: 0.6rem;
+        opacity: 0.45;
+    }
+}
+body.auth-visible .momento-version-watermark,
+body.auth-locked .momento-version-watermark {
+    opacity: 0.35;
+}

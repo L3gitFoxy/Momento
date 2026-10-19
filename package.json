@@ -1,6 +1,6 @@
 {
   "name": "momento",
-  "version": "9.2.0",
+  "version": "9.2.1",
   "description": "Momento \u2014 offline-first gamified schedule app with optional google sync",
   "main": "electron/electron-main.js",
   "scripts": {
@@ -117,5 +117,8 @@
   "devDependencies": {
     "electron": "^43.4.1",
     "electron-builder": "^26.15.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

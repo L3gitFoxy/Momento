@@ -10177,7 +10177,7 @@ window.activateCrateCosmetic = activateCrateCosmetic;
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "9.2.0";
+const CHANGELOG_VERSION = "9.2.1";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -10439,6 +10439,13 @@ const CHANGELOG_9_2_0 = [
     "Changed how the in-app settings are saved"
 ];
 
+const CHANGELOG_9_2_1 = [
+    "Version watermark (auto from package.json / desktop version)",
+    "Smaller XP pill on mobile",
+    "Cleaner repo layout (src, electron, server, data, docs)",
+    "Changelog shower for v9.2.1"
+];
+
 let _tutorialIndex = 0;
 
 function renderTutorialStep() {
@@ -10498,7 +10505,7 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        const cl = (typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0)));
+        const cl = (typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0))));
         body.innerHTML = "<ul>" + cl.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
@@ -11820,6 +11827,41 @@ function bindMusicBetaTooltip() {
 try { document.addEventListener("DOMContentLoaded", bindMusicBetaTooltip); } catch (e) {}
 setTimeout(bindMusicBetaTooltip, 800);
 
+
+
+/* ===== Version watermark (package.json / Electron) ===== */
+(function setupVersionWatermark() {
+    var FALLBACK = "9.2.1";
+    function setLabel(v) {
+        if (!v) return;
+        var el = document.getElementById("momento-version-watermark");
+        if (!el) return;
+        var s = String(v).replace(/^v/i, "");
+        el.textContent = "v" + s;
+        el.setAttribute("title", "Momento v" + s);
+    }
+    async function resolve() {
+        try {
+            if (window.electronAPI && typeof window.electronAPI.getAppVersion === "function") {
+                var ev = await window.electronAPI.getAppVersion();
+                if (ev) { setLabel(ev); return; }
+            }
+        } catch (e) {}
+        try {
+            var r = await fetch("./package.json", { cache: "no-store" });
+            if (r.ok) {
+                var j = await r.json();
+                if (j && j.version) { setLabel(j.version); return; }
+            }
+        } catch (e) {}
+        setLabel(FALLBACK);
+    }
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", function () { resolve(); });
+    } else {
+        resolve();
+    }
+})();
 
 /* ===== Desktop auto-update UI =====
    Main process never downloads on its own (a cancelled download used to corrupt the next launch),
