@@ -2066,7 +2066,8 @@ function markSlotClaimed(dayName, slotIndex) {
     } catch (e) {}
 }
 
-function canAwardBlockRewards(dayName, slotIndex) {
+/** Keys only — XP is always handled normally (clawback on schedule re-apply). */
+function canRollCrateKeyForBlock(dayName, slotIndex) {
     if (isDayFullyClaimed(dayName)) return false;
     if (isSlotClaimed(dayName, slotIndex)) return false;
     return true;
@@ -2862,29 +2863,27 @@ function createTaskRow(task, index) {
             }
             task.completed = true;
             if (!task.isSleep) {
-                const allowRewards = (typeof canAwardBlockRewards === "function")
-                    ? canAwardBlockRewards(day, index)
-                    : true;
-                if (allowRewards) {
-                    try { playRewardSound("complete", true); } catch (e) {}
-                    // Always award on first completion; force-clear stale flag if amount missing
-                    if (task.xpAwarded && !task.xpAmount) task.xpAwarded = false;
-                    if (!task.xpAwarded) {
-                        awardXPForTask(task);
-                    } else {
-                        try {
-                            const info = getLevelInfo(data.xp || 0);
-                            showXPPopup(task.xpAmount || calcTaskXP(task), task.task || "Task", info);
-                        } catch (e) {}
-                    }
-                    if (!task.keyGenerated) {
-                        task.keyGenerated = true;
-                        try { tryGrantCrateKey(0.20, "daily block"); } catch (e) {}
-                    }
-                    try { markSlotClaimed(day, index); } catch (e) {}
+                try { playRewardSound("complete", true); } catch (e) {}
+                // XP always works normally (schedule re-apply already claws back XP for today)
+                if (task.xpAwarded && !task.xpAmount) task.xpAwarded = false;
+                if (!task.xpAwarded) {
+                    awardXPForTask(task);
                 } else {
-                    // Already claimed this calendar-day slot (or whole day) — check off only, silent
+                    try {
+                        const info = getLevelInfo(data.xp || 0);
+                        showXPPopup(task.xpAmount || calcTaskXP(task), task.task || "Task", info);
+                    } catch (e) {}
+                }
+                // Crate keys only: one luck roll per calendar-day slot; none if day was fully claimed
+                if (!task.keyGenerated) {
                     task.keyGenerated = true;
+                    const allowKey = (typeof canRollCrateKeyForBlock !== "function")
+                        || canRollCrateKeyForBlock(day, index);
+                    if (allowKey) {
+                        try { tryGrantCrateKey(0.20, "daily block"); } catch (e) {}
+                        try { markSlotClaimed(day, index); } catch (e) {}
+                    }
+                    // else: silent — key luck already used for this slot/day
                 }
             }
         } else if (!checkbox.checked && wasCompleted) {
@@ -10557,8 +10556,8 @@ const CHANGELOG_9_2_2 = [
 
 const CHANGELOG_9_3_0 = [
     "Week apply only claws XP from today — other weekdays keep past progress",
-    "Anti-dupe claim ledger: re-applying a week cannot re-grant XP or crate keys for already-claimed blocks that day",
-    "If a full day was already claimed, extra blocks on re-apply still grant nothing (silent)"
+    "Anti-dupe claim ledger for crate keys only: re-applying a week cannot re-roll keys for already-claimed blocks that day",
+    "If a full day was already key-claimed, extra blocks on re-apply still grant no keys (XP still works; silent)"
 ];
 
 let _tutorialIndex = 0;
