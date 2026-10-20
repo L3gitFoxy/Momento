@@ -275,6 +275,7 @@ function getDefaultAppData() {
         confettiEnabled: true,
         activeCosmetics: [],
         crateKeys: 0,
+        dayClaims: {},
         cratesOpened: 0,
         crateHistory: [],
         boosterInventory: [],
@@ -1564,6 +1565,7 @@ function applyProfileData(parsed) {
         if (parsed.confettiEnabled !== undefined) data.confettiEnabled = !!parsed.confettiEnabled;
         data.activeCosmetics = Array.isArray(parsed.activeCosmetics) ? parsed.activeCosmetics : [];
         data.crateKeys = Number(parsed.crateKeys) || 0;
+        if (!data.dayClaims || typeof data.dayClaims !== "object") data.dayClaims = (parsed.dayClaims && typeof parsed.dayClaims === "object") ? parsed.dayClaims : {};
         data.cratesOpened = Number(parsed.cratesOpened) || 0;
         data.crateHistory = Array.isArray(parsed.crateHistory) ? parsed.crateHistory : [];
         data.boosterInventory = Array.isArray(parsed.boosterInventory) ? parsed.boosterInventory : [];
@@ -2001,6 +2003,75 @@ function getWeekIdentifier() {
     return `${d.getUTCFullYear()}-W${Math.ceil((((d - yearStart) / 86400000) + 1) / 7)}`;
 }
 
+
+/* ===== Day claim ledger (anti-dupe for XP / crate keys) =====
+   Keyed by calendar date (YYYY-MM-DD) for that schedule day in the current week.
+   slots: which block indices already paid out rewards.
+   full: whole day was fully claimed — no further key/XP rolls that calendar day,
+         even if a re-applied week adds extra blocks. Silent — no logs/toasts. */
+function ensureDayClaims() {
+    if (!data.dayClaims || typeof data.dayClaims !== "object") data.dayClaims = {};
+    return data.dayClaims;
+}
+
+function getDateKeyForScheduleDay(dayName) {
+    const dayIdx = DAYS.indexOf(dayName);
+    if (dayIdx < 0) return null;
+    const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : 0;
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() + (dayIdx - todayIdx));
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+}
+
+function getDayClaimRecord(dayName) {
+    const key = getDateKeyForScheduleDay(dayName);
+    if (!key) return null;
+    const store = ensureDayClaims();
+    if (!store[key] || typeof store[key] !== "object") {
+        store[key] = { slots: {}, full: false };
+    }
+    if (!store[key].slots || typeof store[key].slots !== "object") store[key].slots = {};
+    return store[key];
+}
+
+function isDayFullyClaimed(dayName) {
+    const rec = getDayClaimRecord(dayName);
+    return !!(rec && rec.full);
+}
+
+function isSlotClaimed(dayName, slotIndex) {
+    if (isDayFullyClaimed(dayName)) return true;
+    const rec = getDayClaimRecord(dayName);
+    if (!rec) return false;
+    return !!rec.slots[String(slotIndex)];
+}
+
+function markSlotClaimed(dayName, slotIndex) {
+    const rec = getDayClaimRecord(dayName);
+    if (!rec) return;
+    rec.slots[String(slotIndex)] = true;
+    try {
+        const tasks = (data.schedules && data.schedules[dayName]) || [];
+        const rewardable = [];
+        for (let i = 0; i < tasks.length; i++) {
+            if (tasks[i] && !tasks[i].isSleep) rewardable.push(i);
+        }
+        if (rewardable.length > 0 && rewardable.every(function (i) { return !!rec.slots[String(i)]; })) {
+            rec.full = true;
+        }
+    } catch (e) {}
+}
+
+function canAwardBlockRewards(dayName, slotIndex) {
+    if (isDayFullyClaimed(dayName)) return false;
+    if (isSlotClaimed(dayName, slotIndex)) return false;
+    return true;
+}
+
 function detectCategory(taskText) {
     if (!taskText) return "📌 General";
     const lower = taskText.toLowerCase();
@@ -2112,6 +2183,7 @@ function applyAppDataObject(parsed) {
         if (parsed.confettiEnabled !== undefined) data.confettiEnabled = !!parsed.confettiEnabled;
         data.activeCosmetics = Array.isArray(parsed.activeCosmetics) ? parsed.activeCosmetics : [];
         data.crateKeys = Number(parsed.crateKeys) || 0;
+        if (!data.dayClaims || typeof data.dayClaims !== "object") data.dayClaims = (parsed.dayClaims && typeof parsed.dayClaims === "object") ? parsed.dayClaims : {};
         data.cratesOpened = Number(parsed.cratesOpened) || 0;
         data.crateHistory = Array.isArray(parsed.crateHistory) ? parsed.crateHistory : [];
         data.boosterInventory = Array.isArray(parsed.boosterInventory) ? parsed.boosterInventory : [];
@@ -2790,21 +2862,29 @@ function createTaskRow(task, index) {
             }
             task.completed = true;
             if (!task.isSleep) {
-                try { playRewardSound("complete", true); } catch (e) {}
-                // Always award on first completion; force-clear stale flag if amount missing
-                if (task.xpAwarded && !task.xpAmount) task.xpAwarded = false;
-                if (!task.xpAwarded) {
-                    awardXPForTask(task);
+                const allowRewards = (typeof canAwardBlockRewards === "function")
+                    ? canAwardBlockRewards(day, index)
+                    : true;
+                if (allowRewards) {
+                    try { playRewardSound("complete", true); } catch (e) {}
+                    // Always award on first completion; force-clear stale flag if amount missing
+                    if (task.xpAwarded && !task.xpAmount) task.xpAwarded = false;
+                    if (!task.xpAwarded) {
+                        awardXPForTask(task);
+                    } else {
+                        try {
+                            const info = getLevelInfo(data.xp || 0);
+                            showXPPopup(task.xpAmount || calcTaskXP(task), task.task || "Task", info);
+                        } catch (e) {}
+                    }
+                    if (!task.keyGenerated) {
+                        task.keyGenerated = true;
+                        try { tryGrantCrateKey(0.20, "daily block"); } catch (e) {}
+                    }
+                    try { markSlotClaimed(day, index); } catch (e) {}
                 } else {
-                    // Already awarded in data but user is checking again in UI — still show feedback
-                    try {
-                        const info = getLevelInfo(data.xp || 0);
-                        showXPPopup(task.xpAmount || calcTaskXP(task), task.task || "Task", info);
-                    } catch (e) {}
-                }
-                if (!task.keyGenerated) {
+                    // Already claimed this calendar-day slot (or whole day) — check off only, silent
                     task.keyGenerated = true;
-                    try { tryGrantCrateKey(0.20, "daily block"); } catch (e) {}
                 }
             }
         } else if (!checkbox.checked && wasCompleted) {
@@ -3515,7 +3595,11 @@ function applyPreset() {
     DAYS.forEach((day, i) => {
         if (i < todayIdx) return; // past days untouched, XP kept
         daysTouched++;
-        if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true });
+        // Only claw back XP for TODAY. Other upcoming day-slots may still hold
+        // last week's completions under the same day name — never strip those.
+        if (i === todayIdx && typeof clawbackDayXP === "function") {
+            lost += clawbackDayXP(day, { silent: true });
+        }
         data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
             ...t, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false
         }));
@@ -3527,7 +3611,7 @@ function applyPreset() {
     enforceLocksAfterXPChange();
     select.value = "";
     showSavedMessage(lost > 0
-        ? `✓ "${name}" applied to ${daysTouched} day(s) from today onward (−${lost} XP taken back from those days only)`
+        ? `✓ "${name}" applied to ${daysTouched} day(s) from today onward (−${lost} XP taken back from today only)`
         : `✓ "${name}" applied to ${daysTouched} day(s) from today onward.`);
 }
 
@@ -5638,7 +5722,9 @@ function applyNamedPreset(name) {
     DAYS.forEach((day, i) => {
         if (i < todayIdx) return;
         daysTouched++;
-        if (typeof clawbackDayXP === "function") lost += clawbackDayXP(day, { silent: true });
+        if (i === todayIdx && typeof clawbackDayXP === "function") {
+            lost += clawbackDayXP(day, { silent: true });
+        }
         data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
             ...t, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false
         }));
@@ -5653,7 +5739,7 @@ function applyNamedPreset(name) {
     }
     enforceLocksAfterXPChange();
     showSavedMessage(lost > 0
-        ? `✓ "${name}" applied to ${daysTouched} day(s) from today onward (−${lost} XP taken back from those days only)`
+        ? `✓ "${name}" applied to ${daysTouched} day(s) from today onward (−${lost} XP taken back from today only)`
         : `✓ "${name}" applied to ${daysTouched} day(s) from today onward`);
 }
 
@@ -10194,7 +10280,7 @@ window.activateCrateCosmetic = activateCrateCosmetic;
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "9.2.2";
+const CHANGELOG_VERSION = "9.3.0";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -10469,6 +10555,12 @@ const CHANGELOG_9_2_2 = [
     "Changelog shower for v9.2.2"
 ];
 
+const CHANGELOG_9_3_0 = [
+    "Week apply only claws XP from today — other weekdays keep past progress",
+    "Anti-dupe claim ledger: re-applying a week cannot re-grant XP or crate keys for already-claimed blocks that day",
+    "If a full day was already claimed, extra blocks on re-apply still grant nothing (silent)"
+];
+
 let _tutorialIndex = 0;
 
 function renderTutorialStep() {
@@ -10528,7 +10620,7 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        const cl = (typeof CHANGELOG_9_2_2 !== "undefined") ? CHANGELOG_9_2_2 : ((typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0)))));
+        const cl = (typeof CHANGELOG_9_3_0 !== "undefined") ? CHANGELOG_9_3_0 : ((typeof CHANGELOG_9_2_2 !== "undefined") ? CHANGELOG_9_2_2 : ((typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0))))));
         body.innerHTML = "<ul>" + cl.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
@@ -11890,7 +11982,7 @@ setTimeout(bindMusicBetaTooltip, 800);
 
 /* ===== Version watermark (package.json / Electron) ===== */
 (function setupVersionWatermark() {
-    var FALLBACK = "9.2.2";
+    var FALLBACK = "9.3.0";
     function setLabel(v) {
         if (!v) return;
         var el = document.getElementById("momento-version-watermark");
