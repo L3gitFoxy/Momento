@@ -6,7 +6,6 @@ const fs = require("fs");
 const crypto = require("crypto");
 const os = require("os");
 
-/** Load server/.env (and parent .env) into process.env without dotenv */
 function loadMomentoEnv() {
   const candidates = [
     path.join(__dirname, ".env"),
@@ -25,7 +24,7 @@ function loadMomentoEnv() {
         if (eq <= 0) continue;
         let key = trimmed.slice(0, eq).trim();
         let val = trimmed.slice(eq + 1).trim();
-        // Allow "AI API KEY" style by normalizing spaces → underscores
+        
         key = key.replace(/\s+/g, "_");
         if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
           val = val.slice(1, -1);
@@ -38,7 +37,6 @@ function loadMomentoEnv() {
   }
 }
 loadMomentoEnv();
-
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "YOUR_GOOGLE_CLIENT_SECRET";
@@ -101,7 +99,6 @@ function writeDeviceConfig(cfg) {
   fs.writeFileSync(DEVICE_CONFIG_FILE, JSON.stringify(merged, null, 2), "utf8");
   return merged;
 }
-
 
 function readOfflineSync() {
   try {
@@ -286,18 +283,40 @@ function sendJson(res, status, obj) {
   res.end(body);
 }
 
-
-/* ---- AI plan assistant (server-side key, rate limited) ---- */
 const AI_API_KEY = process.env.AI_API_KEY || process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY || process.env.GROQ_KEY || "";
 const AI_API_BASE = (process.env.AI_API_BASE || process.env.OPENAI_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, "");
-const AI_MODEL = process.env.AI_MODEL || process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+
+const DEAD_AI_MODELS = new Set([
+  "google/gemini-2.0-flash-001",
+  "google/gemini-2.0-flash",
+  "openai/gpt-4o",
+  "openai/gpt-4o-2024-05-13",
+  "openai/gpt-4o-2024-08-06",
+  "openai/gpt-4o-2024-11-20",
+  "openai/gpt-4o-mini",
+  "openai/gpt-4o-mini-2024-07-18",
+  "openai/gpt-4.1",
+  "openai/gpt-4.1-mini"
+]);
+function resolveAiModel(raw) {
+  const id = String(raw || "").trim();
+  if (!id || DEAD_AI_MODELS.has(id)) return "google/gemini-2.5-flash";
+  return id;
+}
+const AI_MODEL = resolveAiModel(process.env.AI_MODEL || process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash");
 const AI_RPM_LIMIT = Math.max(5, parseInt(process.env.AI_RPM_LIMIT || "30", 10) || 30);
 if (AI_API_KEY) {
   console.log("[Momento AI] configured, model=" + AI_MODEL + " base=" + AI_API_BASE);
+  if (process.env.AI_MODEL || process.env.OPENROUTER_MODEL) {
+    const envModel = process.env.AI_MODEL || process.env.OPENROUTER_MODEL;
+    if (DEAD_AI_MODELS.has(String(envModel).trim())) {
+      console.warn("[Momento AI] env model " + envModel + " is retired — using " + AI_MODEL + " instead");
+    }
+  }
 } else {
   console.log("[Momento AI] not configured — set AI_API_KEY or OPENROUTER_API_KEY");
 }
-const _aiHits = new Map(); // ip -> timestamps
+const _aiHits = new Map(); 
 
 function aiClientIp(req) {
   return (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "local").toString().split(",")[0].trim();
@@ -342,7 +361,7 @@ function openaiChat(messages, opts) {
       temperature: opts.temperature != null ? opts.temperature : 0.3,
       messages
     };
-    // Prefer max_completion_tokens (Groq newer API); keep max_tokens as fallback field name some proxies expect
+    
     const mt = opts.max_tokens || 2500;
     body.max_completion_tokens = mt;
     body.max_tokens = mt;
@@ -367,7 +386,7 @@ function openaiChat(messages, opts) {
         try {
           const j = JSON.parse(data);
           if (j.error) {
-            // Groq nests failed_generation in a few shapes — surface all of it
+            
             const err = j.error;
             const failed =
               err.failed_generation ||
@@ -376,7 +395,7 @@ function openaiChat(messages, opts) {
               (typeof err === "object" && err.details && err.details.failed_generation) ||
               null;
             const msg = err.message || err.code || JSON.stringify(err);
-            console.error("[Momento AI] Groq error full payload:", data.slice(0, 4000));
+            console.error("[Momento AI] provider error full payload:", data.slice(0, 4000));
             if (failed) console.error("[Momento AI] failed_generation:", String(failed).slice(0, 4000));
             const errObj = new Error(msg);
             errObj.failed_generation = failed ? String(failed) : null;
@@ -431,7 +450,6 @@ EDIT MODE (user is fixing a full week):
 
 Always prefer correct days: "mon-sat" / "every day except Sunday" = Monday through Saturday.`;
 
-
 function createHandler() {
   return async (req, res) => {
     if (req.method === "OPTIONS") {
@@ -443,7 +461,7 @@ function createHandler() {
       res.end();
       return;
     }
-    const u = new URL(req.url, "http://127.0.0.1");
+    const u = new URL(req.url, "http:
 
     if (u.pathname === "/api/device-config" && req.method === "GET") {
       const cfg = readDeviceConfig();
@@ -496,7 +514,6 @@ function createHandler() {
         return sendJson(res, 200, { ok: true });
       }
 
-
       if (u.pathname === "/api/ai/status" && req.method === "GET") {
         return sendJson(res, 200, {
           ok: true,
@@ -530,13 +547,17 @@ function createHandler() {
           ];
           let raw = null;
           let lastErr = null;
-          const modelsTry = [AI_MODEL, "openai/gpt-4o-mini", "google/gemini-2.0-flash-001", "meta-llama/llama-3.3-70b-instruct"].filter((v, i, a) => v && a.indexOf(v) === i);
+          
+          const modelsTry = [AI_MODEL, "google/gemini-2.5-flash", "google/gemini-flash-latest", "openrouter/free"]
+            .map(resolveAiModel)
+            .filter((v, i, a) => v && a.indexOf(v) === i && !DEAD_AI_MODELS.has(v));
+          console.log("[Momento AI] trying models:", modelsTry.join(" → "));
           for (const model of modelsTry) {
             try {
-              const saved = AI_MODEL;
-              // temporarily override via message-level by mutating body in a local call
+              console.log("[Momento AI] requesting", model);
               raw = await openaiChat(messages, { temperature: 0.2, max_tokens: 2500, modelOverride: model });
               lastErr = null;
+              console.log("[Momento AI] success with", model);
               break;
             } catch (e1) {
               lastErr = e1;
@@ -559,7 +580,7 @@ function createHandler() {
           }
           let parsed = extractJsonObject(raw);
           if (!parsed) {
-            // plain-text intermediate turn
+            
             parsed = { reply: String(raw).trim().slice(0, 1000), done: false, askAnythingElse: true, week: null };
           }
           if (parsed.week && typeof parsed.week === "object") {

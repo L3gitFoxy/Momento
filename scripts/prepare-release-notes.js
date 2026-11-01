@@ -1,8 +1,3 @@
-/**
- * Builds release-notes-current.md for electron-builder from CHANGELOG.md
- * Usage: node scripts/prepare-release-notes.js [version]
- * Version defaults to package.json "version" (without v).
- */
 const fs = require("fs");
 const path = require("path");
 

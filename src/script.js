@@ -107,7 +107,7 @@ function setupAuthStateListener() {
                 } else if (fetchError) {
                     console.error('[Auth] Error fetching profile:', fetchError.message);
                     if (isNetworkErrorLike(fetchError) || !navigator.onLine) {
-                        // Offline: use the last saved copy silently
+                        
                         try { tryOfflineCloudProfile(true); } catch (e) {}
                     } else {
                         showToast(`Error loading profile: ${fetchError.message}`, 'error');
@@ -196,7 +196,7 @@ async function supabaseSignInWithProvider(provider) {
                 prompt: "select_account"
             };
         }
-        // Kick OAuth immediately; avoid extra work before redirect
+        
         const { data, error } = await supabaseClient.auth.signInWithOAuth({
             provider,
             options
@@ -222,7 +222,6 @@ async function supabaseSignInWithDiscord() {
 }
 window.supabaseSignInWithGoogle = supabaseSignInWithGoogle;
 window.supabaseSignInWithDiscord = supabaseSignInWithDiscord;
-
 
 async function supabaseSignOut() {
     try {
@@ -1798,7 +1797,7 @@ async function bootstrapAuth() {
                 } else if (fetchError) {
                     console.error("[Bootstrap] Error fetching profile:", fetchError.message);
                     if (isNetworkErrorLike(fetchError) || !navigator.onLine) {
-                        // Offline with a saved session: fall through to the cached profile (no toast)
+                        
                         if (tryOfflineCloudProfile(true)) return true;
                     } else {
                         showToast("Error loading profile: " + fetchError.message, "error");
@@ -2003,12 +2002,6 @@ function getWeekIdentifier() {
     return `${d.getUTCFullYear()}-W${Math.ceil((((d - yearStart) / 86400000) + 1) / 7)}`;
 }
 
-
-/* ===== Day claim ledger (anti-dupe for XP / crate keys) =====
-   Keyed by calendar date (YYYY-MM-DD) for that schedule day in the current week.
-   slots: which block indices already paid out rewards.
-   full: whole day was fully claimed — no further key/XP rolls that calendar day,
-         even if a re-applied week adds extra blocks. Silent — no logs/toasts. */
 function ensureDayClaims() {
     if (!data.dayClaims || typeof data.dayClaims !== "object") data.dayClaims = {};
     return data.dayClaims;
@@ -2066,7 +2059,6 @@ function markSlotClaimed(dayName, slotIndex) {
     } catch (e) {}
 }
 
-/** Keys only — XP is always handled normally (clawback on schedule re-apply). */
 function canRollCrateKeyForBlock(dayName, slotIndex) {
     if (isDayFullyClaimed(dayName)) return false;
     if (isSlotClaimed(dayName, slotIndex)) return false;
@@ -2326,7 +2318,7 @@ async function saveData() {
 
             if (supabaseError) {
                 if (isNetworkErrorLike(supabaseError) || navigator.onLine === false) {
-                    // Offline / unreachable: data is already safe in localStorage. Retry on reconnect.
+                    
                     window._cloudSyncPending = true;
                     console.warn("[saveData] offline, cloud sync deferred");
                     return;
@@ -2864,7 +2856,7 @@ function createTaskRow(task, index) {
             task.completed = true;
             if (!task.isSleep) {
                 try { playRewardSound("complete", true); } catch (e) {}
-                // XP always works normally (schedule re-apply already claws back XP for today)
+                
                 if (task.xpAwarded && !task.xpAmount) task.xpAwarded = false;
                 if (!task.xpAwarded) {
                     awardXPForTask(task);
@@ -2874,7 +2866,7 @@ function createTaskRow(task, index) {
                         showXPPopup(task.xpAmount || calcTaskXP(task), task.task || "Task", info);
                     } catch (e) {}
                 }
-                // Crate keys only: one luck roll per calendar-day slot; none if day was fully claimed
+                
                 if (!task.keyGenerated) {
                     task.keyGenerated = true;
                     const allowKey = (typeof canRollCrateKeyForBlock !== "function")
@@ -2883,7 +2875,7 @@ function createTaskRow(task, index) {
                         try { tryGrantCrateKey(0.20, "daily block"); } catch (e) {}
                         try { markSlotClaimed(day, index); } catch (e) {}
                     }
-                    // else: silent — key luck already used for this slot/day
+                    
                 }
             }
         } else if (!checkbox.checked && wasCompleted) {
@@ -2899,7 +2891,7 @@ function createTaskRow(task, index) {
         renderProgressTracker();
         updateXPDisplay();
         enforceLocksAfterXPChange();
-        // Re-assert popup + sound after list re-render (first-check race)
+        
         if (checkbox.checked && !wasCompleted && !task.isSleep && task.xpAwarded) {
             const existing = document.getElementById("xp-popup");
             if (!existing) {
@@ -3592,10 +3584,10 @@ function applyPreset() {
     let lost = 0;
     let daysTouched = 0;
     DAYS.forEach((day, i) => {
-        if (i < todayIdx) return; // past days untouched, XP kept
+        if (i < todayIdx) return; 
         daysTouched++;
-        // Only claw back XP for TODAY. Other upcoming day-slots may still hold
-        // last week's completions under the same day name — never strip those.
+        
+        
         if (i === todayIdx && typeof clawbackDayXP === "function") {
             lost += clawbackDayXP(day, { silent: true });
         }
@@ -3719,7 +3711,7 @@ function updateClock() {
             const minAngle = (m + s / 60) * 6;
             const secAngle = s * 6;
             const setHand = (id, angle, len) => {
-                // Prefer hand inside this clock (avoid id clashes)
+                
                 let el = clock.querySelector("#" + id) || clock.querySelector("." + id) || document.getElementById(id);
                 if (!el) return;
                 const rad = (angle - 90) * Math.PI / 180;
@@ -3758,7 +3750,7 @@ function updateClock() {
                     '<div class="bin-col" title="M">' + toDots(m, 6) + '</div>';
             }
         } else if (type === "station" || type === "flap" || stamp !== _lastFlapTime) {
-            // flap + station split cells
+            
             const setCell = (key, val) => {
                 const el = clock.querySelector('[data-flap="' + key + '"]');
                 if (!el) {
@@ -4690,7 +4682,6 @@ function playRewardSound(kind, forcePreview) {
     }
 }
 
-
 function updateXPDisplay() {
     const info = getLevelInfo(data.xp || 0);
     const pct = Math.round((info.progress || 0) * 100);
@@ -4720,9 +4711,6 @@ function updateXPDisplay() {
     try { updateCrateKeysBadge(); } catch (e) {}
     applyRankCosmetics(info);
 }
-
-
-
 
 const CLOCK_THEMES = [
     // Rank unlocks — gated so early ranks stay sparse
@@ -4934,7 +4922,6 @@ function renderClockThemePicker() {
 
 function applyRankCosmetics(info) {
 
-
     info = info || getLevelInfo(data.xp || 0);
     const tier = String(info.rank || "Starter").split(" ")[0].toLowerCase().replace(/[^a-z]/g, "") || "starter";
     const tiers = ["starter","beginner","amateur","aboveaveragekid","skilled","expert","exemplar","master","legend","mythic"];
@@ -4952,7 +4939,7 @@ function applyRankCosmetics(info) {
     const clock = document.getElementById("live-clock");
     if (clock) {
         const tid = data.clockTheme || "plain";
-        // restore shell only — do not re-save (avoids wipe races)
+        
         try {
             buildClockShell(tid);
             _lastFlapTime = "";
@@ -5171,7 +5158,7 @@ async function applyAnalyserFix() {
     closeAnalyser();
     if (typeof showToast === "function") showToast("Generating week to match " + label + "…", "info");
 
-    // Snapshot current week as context (no interactive ask)
+    
     const currentWeek = {};
     (typeof DAYS !== "undefined" ? DAYS : []).forEach((d) => {
         currentWeek[d] = JSON.parse(JSON.stringify((data.schedules && data.schedules[d]) || []));
@@ -5196,7 +5183,7 @@ async function applyAnalyserFix() {
     let week = null;
     try {
         if (typeof callAiPlan === "function") {
-            // temporary session so callAiPlan has history context
+            
             if (typeof _planSession !== "undefined") {
                 _planSession = { phase: "editing", history: [], fixedNotes: "analyser regenerate: " + label, gen: Date.now() };
             }
@@ -5238,9 +5225,8 @@ async function applyAnalyserFix() {
     }
 }
 
-
 function setPreviewFooterMode(mode) {
-    // mode: "draft" | "full"
+    
     const keep = document.getElementById("preview-keep-btn");
     const edit = document.getElementById("preview-edit-btn");
     const cancel = document.getElementById("preview-cancel-btn");
@@ -5249,12 +5235,12 @@ function setPreviewFooterMode(mode) {
     if (mode === "full") {
         if (keep) keep.style.display = "";
         if (edit) edit.style.display = "";
-        if (hint) hint.textContent = "Full week ready — accept, request changes, or cancel.";
+        if (hint) hint.textContent = "Review your week, then accept when ready.";
         window._previewReadyToAccept = true;
     } else {
         if (keep) keep.style.display = "none";
         if (edit) edit.style.display = "none";
-        if (hint) hint.textContent = "Collecting fixed commitments — only Cancel for now. Say no when you are done.";
+        if (hint) hint.textContent = "Add fixed times in the chat, or say no to auto-build.";
         window._previewReadyToAccept = false;
     }
 }
@@ -5340,8 +5326,17 @@ function showFullWeekInPreview(week) {
     try { bindPreviewChat(); } catch (e) {}
 }
 
-
 function openPreview() {
+    
+    try {
+        if (typeof closeAiChat === "function") closeAiChat();
+        else {
+            const w = document.getElementById("ai-chat-widget");
+            const win = document.getElementById("ai-chat-window");
+            if (w) w.classList.remove("ai-chat-fullscreen");
+            if (win) win.classList.add("chat-hidden");
+        }
+    } catch (e) {}
     if (window._previewWeek && typeof window._previewWeek === "object") {
         _previewWeek = window._previewWeek;
     }
@@ -5376,9 +5371,14 @@ function appendPreviewChat(msg, who) {
     if (!box) return;
     const div = document.createElement("div");
     div.className = "preview-chat-msg " + (who === "user" ? "user" : "bot");
-    div.innerHTML = String(msg)
-        .replace(/\n/g, "<br>")
-        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    if (who === "thinking") {
+        div.className = "preview-chat-msg bot thinking";
+        div.innerHTML = '<span class="ai-typing-dots" aria-label="Thinking"><span></span><span></span><span></span></span>';
+    } else {
+        div.innerHTML = String(msg)
+            .replace(/\n/g, "<br>")
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    }
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
 }
@@ -5396,14 +5396,13 @@ function syncPreviewFromPlan(week) {
     if (modal) modal.classList.remove("hidden");
 }
 
-
 function closePreview() {
     const modal = document.getElementById("preview-modal");
     if (modal) modal.classList.add("hidden");
     _previewWeek = null;
     window._previewWeek = null;
     window._previewReadyToAccept = false;
-    // Exit AI week-builder session so chat returns to normal rule bot
+    
     try {
         if (typeof _planAborted !== "undefined") _planAborted = true;
         if (typeof _planGenId !== "undefined") _planGenId += 1;
@@ -5415,7 +5414,7 @@ function closePreview() {
     } catch (e) {}
     try {
         if (typeof appendMessage === "function") {
-            appendMessage("assistant", "Week builder closed. Back to normal help — type **help** anytime.");
+            appendMessage("assistant", "Week builder closed. Type help anytime.");
         }
     } catch (e) {}
 }
@@ -5437,7 +5436,7 @@ function renderPreviewDay() {
     const c = document.getElementById("preview-blocks");
     if (!c) return;
     if (!_previewWeek) {
-        c.innerHTML = '<p class="theme-hint">No blocks yet — add fixed times in the chat or use + Add below.</p>';
+        c.innerHTML = '<p class="theme-hint">No blocks yet. Add fixed times in the chat or use + Add below.</p>';
         return;
     }
     if (window._previewWeek && window._previewWeek[_previewDay]) {
@@ -5503,11 +5502,10 @@ function bindPreviewManualAdd() {
     });
 }
 
-
 function keepPreview() {
     if (!_previewWeek) return;
     if (window._previewReadyToAccept === false) {
-        if (typeof showToast === "function") showToast("Finish the week first — say no when done collecting fixed times", "info");
+        if (typeof showToast === "function") showToast("Finish the week first, then accept", "info");
         return;
     }
     // Guard: never wipe the week with an empty draft
@@ -5515,7 +5513,7 @@ function keepPreview() {
     let totalBlocks = 0;
     dayNames.forEach((d) => { totalBlocks += ((_previewWeek[d] || []).length); });
     if (totalBlocks < 3) {
-        if (typeof showToast === "function") showToast("Week looks empty — not applying. Add blocks or finish generation first.", "warn");
+        if (typeof showToast === "function") showToast("Week looks empty. Add blocks or finish generation first.", "warn");
         return;
     }
 
@@ -5581,7 +5579,7 @@ function keepPreview() {
     populatePresetMenus();
     if (typeof updateXPDisplay === "function") updateXPDisplay();
     closePreview();
-    if (typeof showToast === "function") showToast("Week applied — your XP was kept", "success");
+    if (typeof showToast === "function") showToast("Week applied. Your XP was kept", "success");
     else if (typeof showSavedMessage === "function") showSavedMessage("Week applied");
 }
 
@@ -5942,7 +5940,6 @@ function getSession() {
     }
 }
 
-/** True when signed in with local offline account (not Google/Supabase). */
 function isLocalProfile() {
     const s = getSession();
 
@@ -6170,7 +6167,7 @@ async function tryCloudPush(token, payload) {
             body: JSON.stringify({ data: payload })
         });
     } catch {
-        /* offline / no server */
+        
     }
 }
 
@@ -6483,7 +6480,7 @@ function isBlockingOverlayOpen() {
 function updateNowPlayingVisibility() {
     const bar = document.getElementById("now-playing-bar");
     if (!bar) return;
-    // Show on every page (including focus / music / modals) while music is active
+    
     const auth = document.getElementById("auth-screen");
     const onAuth = auth && !auth.classList.contains("hidden");
     if (_npWantVisible && !onAuth) {
@@ -6602,7 +6599,7 @@ function escapeHtml(str) {
 }
 
 const PIPED_INSTANCES = [
-    "https://pipedapi.kavin.rocks",
+    "https:
     "https://pipedapi.syncpundit.io",
     "https://pipedapi.adminforge.de",
     "https://api.piped.private.coffee",
@@ -6663,7 +6660,7 @@ async function searchViaPiped(q) {
                 items = items.concat(batch);
                 if (items.length >= 15) break;
             }
-        } catch (e) { /* try next */ }
+        } catch (e) {  }
     }
     const seen = new Set();
     const mapped = [];
@@ -7718,7 +7715,7 @@ function addDaysLocal(base, n) {
 }
 
 function nextWeekdayLocal(targetDow) {
-    // 0=Sun .. 6=Sat — returns next occurrence (not today)
+    
     const now = new Date();
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     let add = (targetDow - d.getDay() + 7) % 7;
@@ -7804,7 +7801,7 @@ function addTodo(dueOverride) {
         if (dueEl) dueEl.focus();
         return;
     }
-    // Sync date input if quick-pick was used
+    
     if (dueEl && dueOverride) dueEl.value = due;
 
     data.todos = data.todos || [];
@@ -7876,16 +7873,17 @@ function toggleTodo(id) {
         let xpEarned = getTodoXPValue(t.text);
 
         if (t.dueDate) {
-            const due = new Date(t.dueDate + "T23:59:59");
-            const now = new Date();
-            const daysLate = Math.floor((now - due) / 86400000);
+            const dueStr = String(t.dueDate).slice(0, 10);
+            const todayStrIso = new Date().toISOString().slice(0, 10);
+            const dueUtc = Date.parse(dueStr + "T00:00:00Z");
+            const todayUtc = Date.parse(todayStrIso + "T00:00:00Z");
+            const daysLate = Math.round((todayUtc - dueUtc) / 86400000);
             if (daysLate === 1) {
                 xpEarned = Math.round(xpEarned * 0.5);
-                showToast("⏰ 1 day late, half XP", "warn");
+                showToast("1 day late, half XP", "warn");
             } else if (daysLate > 1) {
-
                 xpEarned = Math.max(10, Math.round(xpEarned * 0.25));
-                showToast("⏰ Very late, 25% XP only", "warn");
+                showToast("Very late, 25% XP only", "warn");
             }
         }
         t.xpAwarded = xpEarned;
@@ -7918,7 +7916,22 @@ function toggleTodo(id) {
     }
 }
 
+function todoDeleteLocked(t) {
+    if (!t || !t.dueDate || t.completed) return false;
+    const dueStr = String(t.dueDate).slice(0, 10);
+    const todayStrIso = new Date().toISOString().slice(0, 10);
+    const dueUtc = Date.parse(dueStr + "T00:00:00Z");
+    const todayUtc = Date.parse(todayStrIso + "T00:00:00Z");
+    const daysUntil = Math.round((dueUtc - todayUtc) / 86400000);
+    return daysUntil <= 1;
+}
+
 function removeTodo(id) {
+    const t = (data.todos || []).find(x => x.id === id);
+    if (t && todoDeleteLocked(t)) {
+        if (typeof showToast === "function") showToast("Too close to the due date to remove this to-do", "warn");
+        return;
+    }
     data.todos = (data.todos || []).filter(x => x.id !== id);
     saveData();
     renderTodos();
@@ -7989,13 +8002,17 @@ function renderTodos() {
         } else if (t.dueDate && t.completed) {
             dueHtml = `<span class="todo-due">was ${t.dueDate}</span>`;
         }
+        const lockDelete = todoDeleteLocked(t);
+        const removeBtn = lockDelete
+            ? ""
+            : `<button class="todo-remove" onclick="removeTodo('${t.id}')" title="Remove">✕</button>`;
         return `
         <li class="todo-item ${itemCls.trim()}">
             ${urgentMark}
             <input type="checkbox" ${t.completed ? "checked" : ""} onchange="toggleTodo('${t.id}')">
             <span class="todo-text">${t.text}</span>
             ${dueHtml}
-            <button class="todo-remove" onclick="removeTodo('${t.id}')" title="Remove">✕</button>
+            ${removeBtn}
         </li>`;
     }).join("");
     try {
@@ -8244,10 +8261,10 @@ function runAnalysis() {
     DAYS.forEach((day, dayIdx) => {
         const allTasks = (data.schedules[day] || []).filter(t => t.task);
         if (allTasks.length === 0) return;
-        // Active (non-sleep) tasks for category % — sleep counted separately
+        
         const tasks = allTasks.filter(t => !t.isSleep && !/sleep|zzz|^bed$/i.test(t.task));
 
-        // Explicit sleep blocks (including isSleep)
+        
         const sleepTasks = allTasks.filter(t => t.isSleep || /sleep|zzz|bed/i.test(t.task));
         let sleepHours = 0;
         sleepTasks.forEach((sleepTask) => {
@@ -8255,7 +8272,7 @@ function runAnalysis() {
             const e = timeToMinutes(sleepTask.end);
             sleepHours += e <= s ? (e + 1440 - s) / 60 : (e - s) / 60;
         });
-        // Implicit overnight sleep: gap from last block end today → first block start tomorrow
+        
         if (sleepHours < 0.5 && allTasks.length) {
             const sorted = allTasks.slice().sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
             const last = sorted[sorted.length - 1];
@@ -8265,15 +8282,15 @@ function runAnalysis() {
             if (last && nextTasks.length) {
                 const endM = timeToMinutes(last.end);
                 const startM = timeToMinutes(nextTasks[0].start);
-                // overnight: end evening → start morning
+                
                 let gap = (startM + 1440 - endM);
                 if (gap > 24 * 60) gap = gap % (24 * 60);
-                // only count as sleep if gap is 4h–14h (typical overnight)
+                
                 if (gap >= 4 * 60 && gap <= 14 * 60) {
                     sleepHours = gap / 60;
                 }
             } else if (last) {
-                // no next day blocks: assume sleep from last end to 06:00-ish if evening end
+                
                 const endM = timeToMinutes(last.end);
                 if (endM >= 20 * 60) {
                     sleepHours = (6 * 60 + 1440 - endM) / 60;
@@ -8364,10 +8381,6 @@ function runAnalysis() {
     container.innerHTML = `<div class="analyser-summary" style="border-color:${summaryColor}; color:${summaryColor}">${summaryText}</div>` + html;
     document.getElementById("analyser-footer").style.display = totalIssues > 0 ? "flex" : "none";
 }
-
-/* ============================================================
-   Calendar, overdue todos, app customiser, cosmetics (added)
-   ============================================================ */
 
 let _calYear = new Date().getFullYear();
 let _calMonth = new Date().getMonth();
@@ -10271,15 +10284,12 @@ window.applyCrateTheme = applyCrateTheme;
 window.applyCrateChime = applyCrateChime;
 window.activateCrateCosmetic = activateCrateCosmetic;
 
-
-
-
 /* ============================================================
    DEVICE CONFIG + TUTORIAL + CHANGELOG + KEY SINKS
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "9.3.0";
+const CHANGELOG_VERSION = "9.3.1";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -10298,7 +10308,7 @@ let _deviceConfigReady = false;
 
 function deviceConfigApiBase() {
     try {
-        return localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787";
+        return localStorage.getItem("MOMENTO_MUSIC_API") || "http:
     } catch (e) {
         return "http://127.0.0.1:8787";
     }
@@ -10485,7 +10495,6 @@ const TUTORIAL_STEPS = [
     }
 ];
 
-
 const CHANGELOG_6_2 = [
     "Discord sign-in alongside Google and local accounts",
     "Richer AI chatbot with a large NLP corpus for natural conversation",
@@ -10560,6 +10569,13 @@ const CHANGELOG_9_3_0 = [
     "If a full day was already key-claimed, extra blocks on re-apply still grant no keys (XP still works; silent)"
 ];
 
+const CHANGELOG_9_3_1 = [
+    "To-dos due today or tomorrow can no longer be deleted (finish them for XP)",
+    "Half XP for one-day-late to-dos works reliably again",
+    "Week builder and crate UI feel cleaner while the AI is thinking",
+    "Smarter week planning with your personal AI model when enabled"
+];
+
 let _tutorialIndex = 0;
 
 function renderTutorialStep() {
@@ -10602,7 +10618,7 @@ async function closeTutorial(completed) {
         tutorialCompleted: !!completed,
         tutorialStep: completed ? TUTORIAL_STEPS.length : _tutorialIndex
     });
-    // After tutorial, show changelog once if not yet seen, else personalisation
+    
     try {
         const cfg = _deviceConfig || {};
         if (String(cfg.changelogVersionShown || "") !== String(CHANGELOG_VERSION)) {
@@ -10619,7 +10635,7 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        const cl = (typeof CHANGELOG_9_3_0 !== "undefined") ? CHANGELOG_9_3_0 : ((typeof CHANGELOG_9_2_2 !== "undefined") ? CHANGELOG_9_2_2 : ((typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0))))));
+        const cl = (typeof CHANGELOG_9_3_1 !== "undefined") ? CHANGELOG_9_3_1 : ((typeof CHANGELOG_9_3_0 !== "undefined") ? CHANGELOG_9_3_0 : ((typeof CHANGELOG_9_2_2 !== "undefined") ? CHANGELOG_9_2_2 : ((typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0)))))));
         body.innerHTML = "<ul>" + cl.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
@@ -10646,11 +10662,10 @@ async function closeChangelog() {
     setTimeout(() => { try { maybeShowPersonalization(); } catch (e) {} }, 400);
 }
 
-
 function ensurePersonalizationShape() {
     if (!data || typeof data !== "object") return;
     if (!data.personalization || typeof data.personalization !== "object") {
-        // Prefer local completion flag so we never re-prompt after decline/finish
+        
         let localStatus = null;
         try { localStatus = localStorage.getItem("MOMENTO_PERSONALIZATION_STATUS"); } catch (e) {}
         data.personalization = {
@@ -10826,7 +10841,7 @@ const PERSONALIZE_QUESTIONS = [
     }
 ];
 
-let _personalizeMode = "intro"; // intro | quiz
+let _personalizeMode = "intro"; 
 let _personalizeIndex = 0;
 let _personalizeDraft = {};
 
@@ -10981,7 +10996,7 @@ function maybeShowPersonalization() {
         const cl = document.getElementById("changelog-overlay");
         if (tut && !tut.classList.contains("hidden")) return;
         if (cl && !cl.classList.contains("hidden")) return;
-        _personalizeShownThisSession = true; // only auto-prompt once per session
+        _personalizeShownThisSession = true; 
         openPersonalizeIntro();
     } catch (e) {
         console.warn("[personalize]", e);
@@ -11067,7 +11082,6 @@ function bindPersonalizeUi() {
     console.log("[personalize] UI bound");
 }
 
-
 function bindOnboardingUi() {
     const skip = document.getElementById("tutorial-skip-btn");
     const prev = document.getElementById("tutorial-prev-btn");
@@ -11092,7 +11106,6 @@ function bindOnboardingUi() {
     };
     if (ok) ok.onclick = () => closeChangelog();
 }
-
 
 function tryOfflineCloudProfile(force) {
     try {
@@ -11121,8 +11134,6 @@ window.addEventListener("online", () => {
         if (currentUser && typeof saveData === "function") saveData();
     } catch (e) {}
 });
-
-
 
 const APP_SETTINGS_KEY = "MOMENTO_APP_SETTINGS";
 const DEFAULT_SYSTEM_PROMPT = `You are Momento's in-app assistant (weekly time-block planner with XP, ranks, crates, themes, todos, calendar, focus).
@@ -11270,11 +11281,11 @@ function applyVolumesToRuntime(s) {
 
     try {
         const musicPct = (s.volumes && s.volumes.music != null) ? Number(s.volumes.music) : 100;
-        // music slider is relative to base 0.4 at 100%
+        
         const base = 0.4;
         _musicVolume = Math.max(0, Math.min(1, base * (musicPct / 100)));
         if (typeof setMusicVolume === "function") {
-            // setMusicVolume expects 0-100 absolute UI scale - map carefully
+            
         }
         ["stream-audio", "local-audio"].forEach((id) => {
             const a = document.getElementById(id);
@@ -11286,10 +11297,6 @@ function applyVolumesToRuntime(s) {
     } catch (e) {}
 }
 
-/* ---- Account-synced settings -------------------------------------------
-   Settings (incl. personal AI key/url/model) live inside the account's app_data
-   (data.appSettings -> Supabase profiles.app_data, or the local-account file).
-   localStorage is only a fast cache so the app works offline. */
 const _SETTINGS_SECRET_FIELDS = ["personalApiKey", "personalApiUrl", "personalApiModel"];
 
 function _cloneSettings(o) {
@@ -11308,19 +11315,19 @@ function adoptAccountAppSettings(cloud) {
     let merged;
     if (hasCloud) {
         merged = _cloneSettings(cloud);
-        // Never lose an API key that only exists on this device
+        
         if (localRaw) {
             _SETTINGS_SECRET_FIELDS.forEach((f) => {
                 if (!merged[f] && localRaw[f]) merged[f] = localRaw[f];
             });
         }
     } else if (localRaw) {
-        // First sign-in after this feature shipped: migrate this device's settings up to the account
+        
         merged = _cloneSettings(localRaw);
     } else {
         merged = _cloneSettings(null);
     }
-    // clock format already follows the account via data.clockFormat
+    
     if (data && (data.clockFormat === "12" || data.clockFormat === "24")) merged.clockFormat = data.clockFormat;
     if (!(merged.personalApiKey && merged.personalApiUrl && merged.personalApiModel)) {
         merged.usePersonalForPlan = false;
@@ -11338,7 +11345,7 @@ function adoptAccountAppSettings(cloud) {
             });
         }
     } catch (e) {}
-    // If the settings panel is open, refresh it so it shows what was just loaded
+    
     try {
         const panel = document.getElementById("app-settings-panel");
         if (panel && !panel.classList.contains("hidden") && !_settingsDirty) populateAppSettingsUi();
@@ -11347,11 +11354,10 @@ function adoptAccountAppSettings(cloud) {
 }
 
 function clearLocalAppSettingsCache() {
-    // Called on sign-out so one account's settings/API key never leak into the next account
+    
     try { localStorage.removeItem(APP_SETTINGS_KEY); } catch (e) {}
     window._appSettings = null;
 }
-
 
 function isOldManMode() {
     try {
@@ -11364,7 +11370,7 @@ function applyOldManMode(force) {
     try {
         document.body.classList.toggle("old-man-mode", !!on);
     } catch (e) {}
-    // Close any open gamification UI
+    
     if (on) {
         try { if (typeof closeProgressPanel === "function") closeProgressPanel(); } catch (e) {}
         try { if (typeof closeCratesPage === "function") closeCratesPage(); } catch (e) {}
@@ -11392,7 +11398,7 @@ function saveAppSettingsFromUi() {
     window._appSettings = s;
     try { if (typeof data === "object" && data) data.appSettings = s; } catch (e) {}
     _settingsDirty = false;
-    // Account-synced prefs (follow the user when signed in)
+    
     try {
         if (typeof data === "object" && data) {
             data.clockFormat = s.clockFormat || "12";
@@ -11481,7 +11487,7 @@ function populateAppSettingsUi() {
         }
     });
     updatePersonalModelOptionsState();
-    // collapse sections when opening
+    
     const sp = document.getElementById("sys-prompt-editor");
     const vm = document.getElementById("volume-mixer");
     if (sp) sp.classList.add("hidden");
@@ -11536,7 +11542,7 @@ function toggleAppSettings(force, skipDirtyCheck) {
     } else {
         panel.classList.add("hidden");
         panel.setAttribute("aria-hidden", "true");
-        // collapse mixers
+        
         const sp = document.getElementById("sys-prompt-editor");
         const vm = document.getElementById("volume-mixer");
         if (sp) sp.classList.add("hidden");
@@ -11552,7 +11558,7 @@ function shouldUseLocalScheduleNlp() {
 }
 
 function initNpDrag() {
-    // Dragging removed — bar stays in fixed position
+    
     const bar = document.getElementById("now-playing-bar");
     if (!bar) return;
     bar.style.cursor = "default";
@@ -11613,7 +11619,6 @@ function initNpDrag() {
     } catch (e) {}
 }
 
-// init settings once + push tray/login prefs to electron on load
 try {
     window._appSettings = loadAppSettings();
     applyVolumesToRuntime(window._appSettings);
@@ -11629,10 +11634,8 @@ try {
     setTimeout(initNpDrag, 500);
 } catch (e) {}
 
-
-
 async function runDeviceOnboarding() {
-    try { if (tryOfflineCloudProfile()) { /* offline profile loaded */ } } catch (e) {}
+    try { if (tryOfflineCloudProfile()) {  } } catch (e) {}
     bindOnboardingUi();
     try { bindPersonalizeUi(); } catch (e) { console.warn("bindPersonalizeUi", e); }
     await loadDeviceConfig();
@@ -11650,7 +11653,6 @@ async function runDeviceOnboarding() {
     }
     setTimeout(() => { try { maybeShowPersonalization(); } catch (e) {} }, 500);
 }
-
 
 let _sinkInputResolver = null;
 
@@ -11857,7 +11859,6 @@ function renderCrateSinks() {
 window.purchaseCrateSink = purchaseCrateSink;
 window.renderCrateSinks = renderCrateSinks;
 
-// Theme swatches show nicknames
 (function patchThemeNames() {
     const orig = typeof renderThemeSwatches === "function" ? renderThemeSwatches : null;
     if (!orig) return;
@@ -11877,7 +11878,6 @@ window.renderCrateSinks = renderCrateSinks;
     };
 })();
 
-// Hook customiser open
 (function patchOpenCustomiser() {
     const orig = typeof openAppCustomiser === "function" ? openAppCustomiser : null;
     if (!orig) return;
@@ -11887,7 +11887,6 @@ window.renderCrateSinks = renderCrateSinks;
     };
 })();
 
-// Boot onboarding after UI settles
 (function warmAudioOnGesture() {
     const warm = () => { try { getMomentoAudioCtx(); } catch (e) {} };
     ["pointerdown", "keydown", "touchstart"].forEach((ev) => {
@@ -11900,7 +11899,6 @@ setTimeout(() => {
     try { runDeviceOnboarding(); } catch (e) { console.warn("onboarding", e); }
 }, 900);
 
-/* personalize boot check */
 setTimeout(function() {
     try {
         if (typeof ensurePersonalizationShape === "function") ensurePersonalizationShape();
@@ -11936,7 +11934,7 @@ function closeAiChat() {
     if (win) win.classList.add("chat-hidden");
     const btn = document.getElementById("ai-fullscreen-btn");
     if (btn) { btn.textContent = "⛶"; btn.title = "Full screen"; }
-    // FAB must always remain available when not on auth screen
+    
     const toggle = document.getElementById("ai-chat-toggle");
     if (toggle) toggle.style.display = "";
 }
@@ -11967,7 +11965,7 @@ function bindMusicBetaTooltip() {
             const url = a.href;
             try {
                 if (window.electronAPI && typeof require === "undefined") {
-                    // electron: open external via shell if available
+                    
                 }
             } catch (err) {}
             window.open(url, "_blank", "noopener");
@@ -11977,11 +11975,8 @@ function bindMusicBetaTooltip() {
 try { document.addEventListener("DOMContentLoaded", bindMusicBetaTooltip); } catch (e) {}
 setTimeout(bindMusicBetaTooltip, 800);
 
-
-
-/* ===== Version watermark (package.json / Electron) ===== */
 (function setupVersionWatermark() {
-    var FALLBACK = "9.3.0";
+    var FALLBACK = "9.3.1";
     function setLabel(v) {
         if (!v) return;
         var el = document.getElementById("momento-version-watermark");
@@ -12013,9 +12008,6 @@ setTimeout(bindMusicBetaTooltip, 800);
     }
 })();
 
-/* ===== Desktop auto-update UI =====
-   Main process never downloads on its own (a cancelled download used to corrupt the next launch),
-   so the renderer must explicitly ask for the download once the user agrees. */
 (function setupDesktopUpdaterUi() {
     var card = null, state = { status: "idle", version: "", manual: false, busy: false };
 
@@ -12064,7 +12056,7 @@ setTimeout(bindMusicBetaTooltip, 800);
         state.status = "downloading";
         render("Downloading Momento v" + state.version, "Starting download…", { percent: 2, buttons: [] });
         api().downloadUpdate().then(function (r) {
-            // 'ready' arrives through onUpdateStatus; this only handles a failed start
+            
             if (r && r.ok === false) {
                 state.busy = false;
                 render("Update failed", "The download didn't finish. Nothing was changed, you can try again.", {
@@ -12180,12 +12172,6 @@ setTimeout(bindMusicBetaTooltip, 800);
     else bind();
 })();
 
-
-/* ============================================================
-   VOICE CONTROL + DAY ECHO
-   ============================================================ */
-
-
 let _voiceRec = null;
 let _voiceListening = false;
 let _lastVoiceTranscript = "";
@@ -12220,7 +12206,7 @@ async function transcribeWithWhisper(blob) {
     const form = new FormData();
     const ext = (blob.type || "").includes("ogg") ? "ogg" : "webm";
     form.append("file", blob, "momento-voice." + ext);
-    // Groq / OpenAI style models
+    
     const baseLow = creds.base.toLowerCase();
     let model = "whisper-1";
     if (baseLow.includes("groq")) model = "whisper-large-v3";
@@ -12277,7 +12263,6 @@ async function speakCloudTts(text) {
     }
 }
 
-
 function getPreferredTtsVoice() {
     try {
         const s = (typeof getAppSettings === "function") ? getAppSettings() : {};
@@ -12288,7 +12273,7 @@ function getPreferredTtsVoice() {
             const hit = voices.find(v => v.voiceURI === uri || v.name === uri);
             if (hit) return hit;
         }
-        // Prefer natural English system voices
+        
         const rank = (v) => {
             const n = (v.name || "").toLowerCase();
             const lang = (v.lang || "").toLowerCase();
@@ -12385,7 +12370,6 @@ try {
         };
     }
 } catch (e) {}
-
 
 function _setVoiceHud(on, text) {
     const hud = document.getElementById("voice-hud");
@@ -12628,9 +12612,7 @@ function handleVoiceCommand(raw) {
     })();
 }
 
-
 /* Day Echo removed in v9 */
-
 
 function setBodyModalLock(on) {
     try {
@@ -12655,8 +12637,6 @@ function setBodyModalLock(on) {
         });
     }
 })();
-
-
 
 /* ============================================================
    DAY FLEX (v9) — reshape the rest of today around what is left

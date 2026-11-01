@@ -9,7 +9,6 @@ try {
   console.warn('[Momento] electron-updater not installed yet:', err && err.message);
 }
 
-
 let mainWindow = null;
 let musicServer = null;
 let tray = null;
@@ -166,25 +165,24 @@ ipcMain.on("momento-set-run-in-background", (_evt, enabled) => {
   else destroyTray();
 });
 
-
 function isElectronDevBinary(exePath) {
   const p = String(exePath || "").toLowerCase().replace(/\\/g, "/");
   return p.endsWith("/electron.exe") || p.endsWith("/electron") || p.includes("/node_modules/electron/");
 }
 
 function clearStaleLoginItems() {
-  // Remove leftover dev "Electron" startup entries so only Momento opens
+  
   const candidates = [];
   try { candidates.push(process.execPath); } catch (e) {}
-  // Common places Electron ends up when registered from npm start
+  
   if (process.platform === "win32") {
     const local = process.env.LOCALAPPDATA || "";
     const appdata = process.env.APPDATA || "";
     if (local) {
       candidates.push(path.join(local, "Programs", "electron", "Electron.exe"));
     }
-    // node_modules electron binary from a previous project path cannot be fully enumerated;
-    // disabling by current execPath when it is electron still helps.
+    
+    
   }
   candidates.forEach((exe) => {
     if (!exe) return;
@@ -195,7 +193,7 @@ function clearStaleLoginItems() {
           path: exe,
           args: []
         });
-        // also clear any entry that included the project dir as arg
+        
         try {
           app.setLoginItemSettings({
             openAtLogin: false,
@@ -211,17 +209,17 @@ function clearStaleLoginItems() {
 function setOpenAtLoginEnabled(enabled) {
   enabled = !!enabled;
   try {
-    // Always try to drop stale Electron startup rows first
+    
     clearStaleLoginItems();
 
     if (!app.isPackaged) {
-      // Never register bare Electron for OS startup in dev — that opens the empty Electron shell
+      
       app.setLoginItemSettings({ openAtLogin: false });
       console.log("[Momento] openAtLogin ignored in dev (not packaged). Use the installed Momento build.");
       return;
     }
 
-    // Packaged Momento only
+    
     app.setLoginItemSettings({ openAtLogin: false, path: process.execPath, args: [] });
     app.setLoginItemSettings({
       openAtLogin: enabled,
@@ -248,7 +246,6 @@ ipcMain.on("momento-set-open-at-login", (_evt, enabled) => {
   setOpenAtLoginEnabled(!!enabled);
 });
 
-// Renderer can ask main to apply tray on startup once settings are known
 ipcMain.on("momento-apply-startup-prefs", (_evt, prefs) => {
   try {
     if (prefs && prefs.runInBackground) {
@@ -263,7 +260,6 @@ ipcMain.on("momento-apply-startup-prefs", (_evt, prefs) => {
   }
 });
 
-
 function sendToRenderer(channel, payload) {
   try {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -273,7 +269,7 @@ function sendToRenderer(channel, payload) {
 }
 
 function clearPendingUpdateCache() {
-  // Broken / cancelled downloads can crash the next launch — wipe them first.
+  
   try {
     const fs = require('fs');
     const os = require('os');
@@ -309,7 +305,7 @@ function setupAutoUpdater() {
     return;
   }
   try {
-    // Never auto-download / auto-install — partial files after Cancel were crashing relaunch.
+    
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.allowDowngrade = false;
@@ -354,7 +350,7 @@ function setupAutoUpdater() {
       });
     });
 
-    // Delayed check — never blocks window create / sign-in
+    
     setTimeout(() => {
       try {
         autoUpdater.checkForUpdates().catch((e) => console.warn('[Momento] checkForUpdates', e && e.message));
@@ -403,8 +399,8 @@ ipcMain.handle('momento-download-update', async () => {
 ipcMain.handle('momento-quit-and-install', () => {
   if (!autoUpdater || !app.isPackaged) return false;
   try {
-    // Only install when user explicitly confirms.
-    // Make sure the "keep running in tray" close-handler can't swallow the quit.
+    
+    
     runInBackground = false;
     app.isQuitting = true;
     destroyTray();
@@ -436,7 +432,6 @@ app.whenReady().then(async () => {
   await createWindow();
   setupAutoUpdater();
 });
-
 
 app.on("before-quit", () => {
   app.isQuitting = true;

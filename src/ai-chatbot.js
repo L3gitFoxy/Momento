@@ -10,7 +10,6 @@ function seededRand() {
 function reseed(s) { _seed = s || Math.floor(Math.random() * 1e9); }
 function pick(arr) { return arr[Math.floor(seededRand() * arr.length)]; }
 
-
 let NLP_CORPUS = null;
 let _nlpLoading = null;
 
@@ -54,18 +53,18 @@ function parseTimeTokenLocal(raw) {
 
     function fromHHMM(token) {
         const t = String(token || "");
-        // 1430 / 0630 / 630 / 6
+        
         if (/^\d{4}$/.test(t)) {
             const h = parseInt(t.slice(0, 2), 10);
             const m = parseInt(t.slice(2), 10);
             if (h <= 23 && m <= 59) return { h, m };
         }
         if (/^\d{3}$/.test(t)) {
-            // 630 → 6:30, 930 → 9:30
+            
             const h = parseInt(t.slice(0, 1), 10);
             const m = parseInt(t.slice(1), 10);
             if (h <= 9 && m <= 59) return { h, m };
-            // 1630 style without 4th? treat as HH M incompletely — fail
+            
         }
         if (/^\d{1,2}$/.test(t)) {
             const h = parseInt(t, 10);
@@ -78,7 +77,7 @@ function parseTimeTokenLocal(raw) {
         return null;
     }
 
-    // Strip am/pm and apply later
+    
     let apStart = null, apEnd = null;
     let core = s;
     const ampm = core.match(/^(.*?)(am|pm)?-(.*?)(am|pm)?$/i);
@@ -87,7 +86,7 @@ function parseTimeTokenLocal(raw) {
         apStart = (ampm[2] || "").toLowerCase() || null;
         apEnd = (ampm[4] || "").toLowerCase() || null;
     }
-    // If only end has pm: 5-630pm already handled by regex above when glued
+    
     const pmOnly = s.match(/^(.*?)-(.*?)(am|pm)$/i);
     if (!apEnd && pmOnly) {
         core = pmOnly[1] + "-" + pmOnly[2];
@@ -99,12 +98,12 @@ function parseTimeTokenLocal(raw) {
     let left = parts[0].replace(/(am|pm)/gi, "");
     let right = parts[1].replace(/(am|pm)/gi, "");
 
-    // Prefer compact HHMM-HHMM (630-1430, 0630-1430)
+    
     let a = fromHHMM(left);
     let b = fromHHMM(right);
-    // Also allow 6:30-14:30 already in fromHHMM via colon
+    
     if (!a || !b) {
-        // 6-1430 where left is hour only and right is HHMM
+        
         if (/^\d{1,2}$/.test(left) && /^\d{3,4}$/.test(right)) {
             a = fromHHMM(left);
             b = fromHHMM(right);
@@ -117,7 +116,7 @@ function parseTimeTokenLocal(raw) {
     if (apStart === "am" && h1 === 12) h1 = 0;
     if (apEnd === "pm" && h2 < 12) h2 += 12;
     if (apEnd === "am" && h2 === 12) h2 = 0;
-    // 6-7pm → both pm
+    
     if (!apStart && apEnd === "pm" && h1 < 12 && h1 <= h2) h1 += 12;
 
     if (h1 > 23 || h2 > 23 || m1 > 59 || m2 > 59) return null;
@@ -165,7 +164,7 @@ function resolveDaysFromText(text) {
 
 function resolveTaskFromText(text) {
     const t = String(text || "").toLowerCase();
-    // Specific subjects first — never treat "hindi class" as School
+    
     if (/\bhindi\b/.test(t)) return "Hindi Class";
     if (/science\s*\/?\s*maths|sci\/math|\bpcm\b/.test(t)) return "Science/Maths Class";
     if (/\bdharmik\b|\bdharma\b/.test(t)) return "Dharmik Class";
@@ -176,7 +175,7 @@ function resolveTaskFromText(text) {
     if (/\blab\b|practical/.test(t)) return "Lab";
     if (/\blecture/.test(t)) return "Lecture";
     if (/\bcoding\b|programming/.test(t)) return "Coding";
-    // School only if explicit school/college (not bare "class")
+    
     if (/\bschool\b|\bcollege\b|\buniversity\b|\buni\b/.test(t)) return "School";
     if (/\bwork\b|\bshift\b|\boffice\b/.test(t)) return "Work";
 
@@ -195,7 +194,6 @@ function resolveTaskFromText(text) {
     return null;
 }
 
-/** Parse a user line into fixed blocks without calling the API. */
 function sanitizeWeekTimes(week) {
     if (!week || typeof week !== "object") return week;
     const days = typeof DAYS !== "undefined" ? DAYS : Object.keys(week);
@@ -204,12 +202,12 @@ function sanitizeWeekTimes(week) {
     function fixTok(t) {
         let s = String(t || "").trim();
         if (!s) return "09:00";
-        // already HH:MM
+        
         let m = s.match(/^(\d{1,2}):(\d{2})$/);
         if (m) {
             let h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
             if (h > 23 && mi <= 59) {
-                // classic bug 30:00 from "630" misparse — treat as :30 past hour 6 if we can't know
+                
                 return "06:30";
             }
             if (h > 23) h = h % 24;
@@ -217,7 +215,7 @@ function sanitizeWeekTimes(week) {
             return padH(h) + ":" + pad(mi);
         }
         if (typeof parseTimeTokenLocal === "function") {
-            // single token won't parse as range — try as HHMM
+            
             if (/^\d{3,4}$/.test(s)) {
                 const r = parseTimeTokenLocal(s + "-" + s);
                 if (r) return r.start;
@@ -230,7 +228,7 @@ function sanitizeWeekTimes(week) {
             if (!b) return;
             b.start = fixTok(b.start);
             b.end = fixTok(b.end);
-            // swap if inverted nonsense
+            
             const hs = parseInt(String(b.start).split(":")[0], 10);
             const he = parseInt(String(b.end).split(":")[0], 10);
             if (hs > 23) b.start = "06:30";
@@ -253,7 +251,7 @@ function matchLocalScheduleUtterance(text) {
     loadScheduleNlpCorpus();
     const days = resolveDaysFromText(t);
     const task = resolveTaskFromText(t);
-    // find a time span in the text
+    
     let range = null;
     const candidates = t.match(/\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-–to]+\s*\d{1,2}(?::?\d{2})?\s*(?:am|pm)?/ig)
         || t.match(/\d{1,2}\s*[-–]\s*\d{3,4}/g)
@@ -264,7 +262,7 @@ function matchLocalScheduleUtterance(text) {
             if (range) break;
         }
     }
-    // evening bias for sports/classes with low hours
+    
     if (range && task && /football|gym|class|tuition|hindi|science|math/i.test(task)) {
         let h1 = parseInt(range.start, 10), h2 = parseInt(range.end, 10);
         if (h1 < 12 && h2 < 12 && h1 >= 3 && h1 <= 9) {
@@ -287,7 +285,7 @@ function matchLocalScheduleUtterance(text) {
 function applyLocalUtteranceToFixedWeek(week, utterance) {
     const days = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
     const out = {};
-    // Deep-copy existing blocks — never wipe school when adding hindi
+    
     days.forEach((d) => {
         out[d] = ((week && week[d]) || []).map((b) => ({
             task: b.task,
@@ -302,7 +300,7 @@ function applyLocalUtteranceToFixedWeek(week, utterance) {
     if (!targetDays.length) return out;
     const taskName = String(utterance.task || "Fixed");
     targetDays.forEach((d) => {
-        // Remove only the same activity on that day (re-add at new time), keep School etc.
+        
         out[d] = (out[d] || []).filter((b) => String(b.task).toLowerCase() !== taskName.toLowerCase());
         out[d].push({ task: taskName, start: utterance.start, end: utterance.end, notes: "fixed" });
         out[d].sort((a, b) => String(a.start).localeCompare(String(b.start)));
@@ -311,10 +309,10 @@ function applyLocalUtteranceToFixedWeek(week, utterance) {
 }
 
 function fillGapsInExistingWeek(week) {
-    // Re-run rule filler using current blocks as fixed-ish anchors
+    
     if (typeof fillWeekAroundFixed !== "function") return week;
     const days = typeof DAYS !== "undefined" ? DAYS : Object.keys(week || {});
-    // Treat non-filler blocks as fixed
+    
     const fixed = {};
     const fixedRe = /school|college|class|lecture|lab|football|soccer|gym|work|shift|tuition|hindi|science|math|dharmik|piano|coding|meeting/i;
     days.forEach((d) => {
@@ -323,8 +321,6 @@ function fillGapsInExistingWeek(week) {
     const notes = (_planSession && _planSession.fixedNotes) || "";
     return fillWeekAroundFixed(fixed, notes);
 }
-
-
 
 function fillTemplate(tpl, banks) {
     if (!tpl || !banks) return tpl;
@@ -394,7 +390,7 @@ function generateConversationalReply(input, lower) {
         return out;
     }
 
-    // soft keyword chat without hard intent
+    
     if (/\b(how are you|how's it going|hows it going|hru)\b/.test(lower)) {
         const lines = (NLP_CORPUS.prebuilt && NLP_CORPUS.prebuilt.how_are_you_lines) || banks.positive_feelings || [];
         if (lines.length) return pick(lines);
@@ -421,7 +417,6 @@ function generateConversationalReply(input, lower) {
 
     return null;
 }
-
 
 function parseTimeToMinutes(t) {
     if (!t || typeof t !== "string") return 0;
@@ -1458,7 +1453,7 @@ function toggleChatWindow() {
     if (opening) {
         win.classList.remove("chat-hidden");
     } else {
-        // Closing: always leave fullscreen and keep the robot FAB visible
+        
         if (typeof closeAiChat === "function") closeAiChat();
         else {
             if (w) w.classList.remove("ai-chat-fullscreen");
@@ -1474,18 +1469,27 @@ function sendChatMessage() {
     appendMessage(text, "user-msg");
     if (input) input.value = "";
     setTimeout(async () => {
-        // Personal model for general chat (not mid week-plan session)
+        
         try {
             const settings = (typeof getAppSettings === "function") ? getAppSettings() : {};
             const inPlan = typeof _planSession !== "undefined" && _planSession;
-            if (!inPlan && settings.usePersonalForChat && settings.personalApiKey && settings.personalApiUrl) {
-                const reply = await callPersonalChatbot(text);
-                if (reply) {
-                    appendMessage(reply, "bot-msg");
-                    return;
+            const isWeekIntent = (typeof wantsWeekBuild === "function" && wantsWeekBuild(text)) ||
+                /\b(personalised|personalized|custom week|help me plan|plan my week|study week|generate study)\b/i.test(text);
+            if (!inPlan && !isWeekIntent && settings.usePersonalForChat && settings.personalApiKey && settings.personalApiUrl) {
+                showThinkingIndicator();
+                try {
+                    const reply = await callPersonalChatbot(text);
+                    clearThinkingIndicator();
+                    if (reply) {
+                        appendMessage(reply, "bot-msg");
+                        return;
+                    }
+                } catch (ePers) {
+                    clearThinkingIndicator();
+                    throw ePers;
                 }
             }
-        } catch (e) { console.warn(e); }
+        } catch (e) { console.warn(e); clearThinkingIndicator(); }
         processNLPIntent(text);
     }, 150);
 }
@@ -1512,14 +1516,55 @@ function formatChatMarkdown(text) {
     return s;
 }
 
+function typingDotsHtml() {
+    return '<span class="ai-typing-dots" aria-label="Thinking"><span></span><span></span><span></span></span>';
+}
+
+function showThinkingIndicator() {
+    // Main chatbot
+    try {
+        const container = document.getElementById("chat-messages");
+        if (container) {
+            container.querySelectorAll(".chat-msg.thinking").forEach((el) => el.remove());
+            const div = document.createElement("div");
+            div.className = "chat-msg bot-msg thinking";
+            div.innerHTML = typingDotsHtml();
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+    } catch (e) {}
+    // Week builder preview chat
+    try {
+        const box = document.getElementById("preview-chat-messages");
+        if (box) {
+            box.querySelectorAll(".preview-chat-msg.thinking").forEach((el) => el.remove());
+            const div = document.createElement("div");
+            div.className = "preview-chat-msg bot thinking";
+            div.innerHTML = typingDotsHtml();
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+    } catch (e) {}
+}
+
+function clearThinkingIndicator() {
+    try {
+        document.querySelectorAll(".chat-msg.thinking, .preview-chat-msg.thinking").forEach((el) => el.remove());
+    } catch (e) {}
+}
+
 function appendMessage(msg, className) {
     const container = document.getElementById("chat-messages");
     let div = null;
     if (container) {
         div = document.createElement("div");
         div.className = `chat-msg ${className}`;
-        const isBot = /bot|assistant/i.test(String(className));
-        div.innerHTML = isBot ? formatChatMarkdown(msg) : String(msg).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g, "<br>");
+        if (/thinking/.test(String(className))) {
+            div.innerHTML = typingDotsHtml();
+        } else {
+            const isBot = /bot|assistant/i.test(String(className));
+            div.innerHTML = isBot ? formatChatMarkdown(msg) : String(msg).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g, "<br>");
+        }
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     }
@@ -1532,7 +1577,6 @@ function appendMessage(msg, className) {
     return div;
 }
 
-
 /* ---- Hybrid AI week planning session ---- */
 let _planSession = null; // { history: [], fixedNotes: string }
 let _planGenId = 0;
@@ -1543,7 +1587,6 @@ function planGenStillActive(myGen) {
     if (!_planSession) return false;
     return true;
 }
-
 
 function aiApiBase() {
     try {
@@ -1581,12 +1624,22 @@ function userSaidNoMore(text) {
     return false;
 }
 
+/** True when the message already lists concrete fixed times (skip flaky AI, build locally). */
+function looksLikeFullFixedSchedule(text) {
+    const t = String(text || "").toLowerCase();
+    if (t.length < 20) return false;
+    const hasDay = /\b(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|weekday)/i.test(t);
+    const hasRange = /\d{1,2}\s*[:.]?\s*\d{0,2}\s*[-–to]+\s*\d{1,2}/i.test(t) ||
+        /\d{1,2}-\d{3,4}\b/.test(t);
+    const hasClassWord = /\b(school|class|lecture|lab|shift|work|college|hindi|maths|math|science|tuition|coaching)\b/i.test(t);
+    return hasDay && hasRange && hasClassWord;
+}
+
 function wantsWeekBuild(text) {
     const t = String(text || "").toLowerCase();
     return /\b(generate|build|make|create|plan|set up|setup)\b/.test(t) &&
         /\b(week|schedule|routine|timetable|plan)\b/.test(t);
 }
-
 
 function getPersonalizationAnswers() {
     try {
@@ -1639,7 +1692,7 @@ function fillWeekAroundFixed(fixedWeek, notes) {
             const fromNotes = buildWeekFromNotes(notes);
             dayNames.forEach((d) => {
                 (fromNotes[d] || []).forEach((f) => {
-                    if (!/school|football|soccer|class|lecture|lab|work|shift|college/i.test(f.task || "")) return;
+                    if (!/school|football|soccer|class|lecture|lab|work|shift|college|hindi|science|maths|math|english|tuition|coaching|gym|fixed/i.test(f.task || "") && !f.fixed) return;
                     const overlap = (base[d] || []).some((b) => rangesOverlap(b.start, b.end, f.start, f.end));
                     const sameName = (base[d] || []).some((b) => String(b.task).toLowerCase() === String(f.task).toLowerCase());
                     if (!overlap && !sameName) base[d].push({ task: f.task, start: f.start, end: f.end });
@@ -1757,18 +1810,24 @@ function fillWeekAroundFixed(fixedWeek, notes) {
             let left = end - cur;
             if (left < 35) return;
 
+            // Rotate labels by weekday so Mon–Fri aren't identical copy-paste
+            const dayIdx = dayNames.indexOf(day);
+            const studyRotate = ["Study", "Revision", "Deep Study", "Practice Problems", "Study", "Light Review", "Planning"];
+            const eveRotate = ["Free Time", "Hobby Time", "Leisure", "Games", "Walk / Stretch", "Family Time", "Free Time"];
+            const hwRotate = ["Homework", "Homework", "Assignments", "Homework", "Revision", "Catch-up Work", "Light Homework"];
+
             let task = "Leisure";
             let dur = Math.min(60, left - 5);
 
             if (/school|class|college/i.test(gap.after) && left >= 45) {
-                task = "Homework";
+                task = hwRotate[dayIdx >= 0 ? dayIdx : 0] || "Homework";
                 dur = Math.min(studyStyle === "deep" ? 100 : 75, left - 5);
             } else if (/football|sport|gym/i.test(gap.before) && left >= 35) {
                 task = "Travel / Snack";
                 dur = Math.min(40, left - 5);
             } else if (cur < toM("12:00")) {
                 task = (role === "student" || role === "both")
-                    ? (studyStyle === "deep" ? "Deep Study" : "Study")
+                    ? (studyStyle === "deep" ? "Deep Study" : (studyRotate[dayIdx >= 0 ? dayIdx : 0] || "Study"))
                     : (role === "work" ? "Focus Work" : "Morning Block");
                 dur = Math.min(studyStyle === "deep" ? 110 : 75, left - 5);
             } else if (cur < toM("17:00")) {
@@ -1776,27 +1835,29 @@ function fillWeekAroundFixed(fixedWeek, notes) {
                     task = "Nap";
                     dur = Math.min(40, left - 5);
                 } else if (role === "student" || role === "both") {
-                    task = "Homework";
+                    task = hwRotate[dayIdx >= 0 ? dayIdx : 0] || "Homework";
                     dur = Math.min(80, left - 5);
                 } else {
                     task = "Focus Work";
                     dur = Math.min(75, left - 5);
                 }
             } else {
-                if (likesExercise && !result.some((b) => /football|exercise|gym|sport/i.test(b.task))) {
+                if (likesExercise && !result.some((b) => /football|exercise|gym|sport/i.test(b.task)) && dayIdx % 2 === 1) {
                     task = sportName || "Exercise";
                     dur = Math.min(50, left - 5);
-                } else if (sideProjects) {
+                } else if (sideProjects && dayIdx % 3 === 0) {
                     task = prefs.side_detail ? String(prefs.side_detail).slice(0, 24) : "Side Project";
                     dur = Math.min(70, left - 5);
-                } else if (likesGames) {
+                } else if (likesGames && (dayIdx === 4 || dayIdx >= 5)) {
                     task = favGame ? ("Games: " + favGame) : "Games";
                     dur = Math.min(55, left - 5);
-                } else if (isWeekend && prefs.weekends === "yes") {
-                    task = "Free Time";
+                } else if (isWeekend) {
+                    task = day === "Saturday" ? "Free Time" : "Rest / Family";
                     dur = Math.min(intensity === "light" ? left - 5 : 70, left - 5);
                 } else {
-                    task = intensity === "packed" ? "Extra Focus" : "Leisure";
+                    task = intensity === "packed"
+                        ? "Extra Focus"
+                        : (eveRotate[dayIdx >= 0 ? dayIdx : 0] || "Leisure");
                     dur = Math.min(50, left - 5);
                 }
             }
@@ -1818,7 +1879,6 @@ function fillWeekAroundFixed(fixedWeek, notes) {
     dayNames.forEach((d) => { out[d] = fillDay(d, base[d] || []); });
     return out;
 }
-
 
 function normalizeWeekDays(week) {
     const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
@@ -1935,6 +1995,8 @@ function applyAiWeek(week, opts) {
             } else if (typeof openPreview === "function") {
                 openPreview();
             }
+            window._previewReadyToAccept = true;
+            if (typeof setPreviewFooterMode === "function") setPreviewFooterMode("full");
         }
     } catch (e) {
         console.warn("preview open failed", e);
@@ -1952,10 +2014,16 @@ function supabaseAiUrl() {
 }
 
 async function callAiPlan(message) {
-    if (_planAborted) {
+    // Only honor abort if the session was explicitly cancelled mid-flight
+    if (_planAborted && !_planSession) {
         const err = new Error("cancelled");
         err.code = "cancelled";
         throw err;
+    }
+    // Active session: clear stale abort left over from a previous closePreview()
+    if (_planSession && _planAborted) {
+        _planAborted = false;
+        try { if (typeof window !== "undefined") window._planAborted = false; } catch (e) {}
     }
     const payload = {
         message,
@@ -2003,17 +2071,19 @@ async function callAiPlan(message) {
     // Personal OpenAI-compatible endpoint for planning
     if (personalOn) {
         try {
-            const model = settings.personalApiModel || "gpt-4o-mini";
+            const model = settings.personalApiModel || "google/gemini-2.5-flash";
+            const base = settings.personalApiUrl.replace(/\/$/, "");
             const body = {
                 model,
                 temperature: 0.2,
                 messages: [
-                    { role: "system", content: "You plan weeks for Momento. Reply with JSON only: {\"reply\":string,\"done\":boolean,\"week\":{\"Monday\":[{\"task\",\"start\",\"end\"}],...\"Sunday\":[]}}. Use 24h times HH:MM only (never 30:00). Fixed commitments only while collecting; full week in edit mode." },
+                    { role: "system", content: "You plan weeks for Momento. Reply with JSON only: {\"reply\":string,\"done\":boolean,\"week\":{\"Monday\":[{\"task\",\"start\",\"end\"}],\"Tuesday\":[],\"Wednesday\":[],\"Thursday\":[],\"Friday\":[],\"Saturday\":[],\"Sunday\":[]}}. Use 24h HH:MM times only. Include every fixed class the user named (school, hindi, science, maths, etc.) on the correct days. When done:true, fill remaining gaps with wake/meals/study/homework/sleep." },
                     { role: "user", content: JSON.stringify(payload).slice(0, 12000) }
                 ]
             };
+            console.log("[Momento AI] personal plan →", base, "model=", model);
             const { res, j } = await postJson(
-                settings.personalApiUrl.replace(/\/$/, "") + "/chat/completions",
+                base + "/chat/completions",
                 { Authorization: "Bearer " + settings.personalApiKey },
                 body
             );
@@ -2027,7 +2097,7 @@ async function callAiPlan(message) {
                 const raw = j.choices[0].message.content || "";
                 const parsed = parseModelContent(raw);
                 if (parsed) {
-                    console.log("[Momento AI] using personal model", model);
+                    console.log("[Momento AI] personal model OK", model, "done=", !!parsed.done, "hasWeek=", !!parsed.week);
                     return {
                         reply: parsed.reply || "Got it.",
                         done: !!parsed.done,
@@ -2036,14 +2106,17 @@ async function callAiPlan(message) {
                     };
                 }
                 // plain text from personal model
+                console.warn("[Momento AI] personal model returned non-JSON, length=", String(raw).length);
                 return { reply: String(raw).trim().slice(0, 1500) || "Got it.", done: false, week: null, _source: "personal" };
             }
-            lastErr = new Error((j.error && j.error.message) || ("personal AI " + res.status));
-            // If personal is enabled, do NOT silently fall through — surface the error
+            const errMsg = (j.error && (j.error.message || j.error)) || ("personal AI HTTP " + res.status);
+            console.error("[Momento AI] personal plan failed:", errMsg, j);
+            lastErr = new Error(String(errMsg));
+            lastErr._source = "personal";
             throw lastErr;
         } catch (e) {
             if (e && (e.code === "rate_limit" || e.code === "cancelled")) throw e;
-            // personal configured but failed — stop (no music-server surprise)
+            // personal configured but failed — surface error (do not silently use OpenRouter)
             throw e;
         }
     }
@@ -2130,15 +2203,24 @@ async function continuePlanSession(userText) {
 
     if (_planSession.phase === "intake") {
         const text = String(userText || "").trim();
+
+        // User said "no" / done — hand off to AI finalize (personal or server); local only if AI fails
         if (userSaidNoMore(text) || /^(none|no fixed|nothing fixed|just generate|normal week)\b/i.test(text)) {
             const style = _planSession.style || "study";
-            _planSession = null;
-            return runRuleBasedWeek(style, style);
-        }
-        if (needsRealAiForSchedule(text) || text.length > 12) {
+            const notes = (_planSession.fixedNotes || "").trim() || style;
+            _planAborted = false;
+            _planSession.phase = "ai";
+            _planSession.fixedNotes = notes;
+            _planSession.history = _planSession.history || [];
+        } else if (needsRealAiForSchedule(text) || text.length > 12 || looksLikeFullFixedSchedule(text)) {
+            // Always AI first (personal Mercury-3 / server). Never skip straight to local.
+            _planAborted = false;
             _planSession.phase = "ai";
             _planSession.fixedNotes = text;
             _planSession.history = [];
+            if (looksLikeFullFixedSchedule(text)) {
+                _planSession._finishAfterThis = true; // one-shot full schedule → build full week
+            }
         } else {
             return (
                 "Got it, but I need a bit more detail, or say **no**.\n\n" +
@@ -2147,11 +2229,11 @@ async function continuePlanSession(userText) {
         }
     }
 
-    if (!userSaidNoMore(userText)) {
+    if (!userSaidNoMore(userText) && !(_planSession && _planSession._finishAfterThis)) {
         _planSession.fixedNotes = ((_planSession.fixedNotes || "") + " " + userText).trim().slice(0, 2000);
     }
 
-    const finishing = userSaidNoMore(userText);
+    const finishing = userSaidNoMore(userText) || !!( _planSession && _planSession._finishAfterThis );
 
     const finalizeLocalFromNotes = (reason) => {
         const notes = (_planSession && _planSession.fixedNotes) || userText || "study";
@@ -2168,9 +2250,11 @@ async function continuePlanSession(userText) {
             const prompt = isEdit
                 ? ("User finished editing. Fixed notes:\n" + (_planSession.fixedNotes || "") +
                    "\n\nPrevious week snapshot:\n" + JSON.stringify(_planSession.editContextWeek || (typeof window !== "undefined" ? window._previewWeek : null) || {}).slice(0, 3500) +
-                   "\n\nReturn JSON done:true with week = ONLY fixed commitments (all 7 days). Do not fill free time.")
-                : ("Finalize fixed commitments only.\n" + (_planSession.fixedNotes || "") +
-                   "\n\nReturn JSON done:true with week = ONLY fixed commitments Mon-Sun. No study/leisure filler.");
+                   "\n\nReturn JSON done:true with week covering all 7 days. Keep every fixed class (school, hindi, science, maths, etc.) on the correct days and times.")
+                : ("Build the week from these fixed commitments. Include EVERY named class on the correct days:\n" +
+                   (_planSession.fixedNotes || "") +
+                   "\n\nReturn JSON done:true with week Mon–Sun. Each day: array of {task,start,end} in HH:MM. " +
+                   "Must include school, hindi, science/maths exactly as the user stated. Fill gaps with wake, meals, homework, study, sleep.");
 
             let result = await callAiPlan(prompt);
             _planSession.history.push({ role: "user", content: userText });
@@ -2255,7 +2339,6 @@ async function continuePlanSession(userText) {
             return reply;
         }
 
-
         // Local NLP only if settings say so (offline-first) or actually offline
         const useLocal = (typeof shouldUseLocalScheduleNlp === "function")
             ? shouldUseLocalScheduleNlp()
@@ -2322,9 +2405,6 @@ async function continuePlanSession(userText) {
         return "AI unavailable: " + (e.message || e) + (e && e.failed_generation ? ("\n\n**failed_generation:**\n```\n" + String(e.failed_generation).slice(0, 1200) + "\n```") : "") + ". Try **generate study week** again, or check `AI_API_KEY` on the server.";
     }
 }
-
-
-
 
 function applyLocalWeekEdits(currentWeek, userText, aiWeek) {
     const days = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
@@ -2454,7 +2534,6 @@ function applyLocalWeekEdits(currentWeek, userText, aiWeek) {
     return base;
 }
 
-
 function keepOnlyFixedBlocks(week) {
     const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
     const fixedRe = /school|college|class|lecture|lab|seminar|football|soccer|sport|training|work|shift|office|internship|lesson|piano|tutor|commute|meeting/i;
@@ -2563,7 +2642,6 @@ function ensureSchoolMonSat(week, notes) {
     return week;
 }
 
-
 function startWeekEditMode() {
     if (!_planSession) {
         _planSession = { phase: "editing", history: [], fixedNotes: "", style: "custom", seed: "" };
@@ -2620,22 +2698,41 @@ async function refreshFixedDraftFromNotes() {
     }
 }
 
-
 function startWeekIntake(seedText) {
     const hint = String(seedText || "").toLowerCase();
     let style = "balanced";
     if (/\bstudy|exam|college|school\b/.test(hint)) style = "study";
     else if (/\bwork|office|job\b/.test(hint)) style = "work";
     else if (/\bfit|gym|health\b/.test(hint)) style = "fitness";
+    // Always clear abort flag — closePreview() leaves _planAborted true and was
+    // making every later callAiPlan throw "cancelled".
+    _planAborted = false;
+    _planGenId += 1;
     _planSession = {
         phase: "intake",
         history: [],
         fixedNotes: "",
         style,
-        seed: seedText || ""
+        seed: seedText || "",
+        gen: _planGenId
     };
     try {
+        if (typeof window !== "undefined") {
+            window._planAborted = false;
+            window._planSession = _planSession;
+        }
+        // Close main AI chatbot (fullscreen or docked) — week builder is the focus
+        try {
+            if (typeof closeAiChat === "function") closeAiChat();
+            else {
+                const w = document.getElementById("ai-chat-widget");
+                const win = document.getElementById("ai-chat-window");
+                if (w) w.classList.remove("ai-chat-fullscreen");
+                if (win) win.classList.add("chat-hidden");
+            }
+        } catch (eClose) {}
         window._previewApplyAllDays = true;
+        window._previewReadyToAccept = false;
         if (typeof openPreview === "function") {
             if (!window._previewWeek) {
                 window._previewWeek = {};
@@ -2643,8 +2740,13 @@ function startWeekIntake(seedText) {
             }
             openPreview();
         }
+        if (typeof setPreviewFooterMode === "function") setPreviewFooterMode("draft");
+        // Single intake prompt in preview chat only — avoid duplicating the main chat reply
         if (typeof appendPreviewChat === "function") {
-            appendPreviewChat("Tell me any fixed classes, work, or sports. When you are done, say **no** and I will build a full week to preview.", "bot");
+            appendPreviewChat(
+                "Any **fixed** classes, work, or sports? When you are done, say **no** and I will build a full week.",
+                "bot"
+            );
         }
     } catch (e) {}
     return (
@@ -2654,7 +2756,6 @@ function startWeekIntake(seedText) {
         "If none, just say **no** and I will generate a normal **" + style + "** week."
     );
 }
-
 
 function buildWeekFromNotes(notes) {
     const text = String(notes || "").toLowerCase();
@@ -2723,76 +2824,228 @@ function buildWeekFromNotes(notes) {
         sat: "Saturday", saturday: "Saturday",
         sun: "Sunday", sunday: "Sunday"
     };
+    const orderedDays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
     function daysFromPhrase(phrase) {
         const p = phrase.toLowerCase();
-        if (/mon\s*[-–/to]+\s*sat|mon-sat|mon\/sat|monday\s*[-–/to]+\s*saturday/.test(p)) {
-            return ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        // Continuous ranges use hyphen/en-dash/to only — NOT slash (mon/fri = two days)
+        if (/mon(?:day)?\s*[-–]|to\s*sat|mon-sat|monday\s*[-–]|to\s*saturday/.test(p) && /sat/.test(p) && /mon/.test(p) && !/mon\s*\/\s*sat/.test(p)) {
+            if (/mon(?:day)?\s*[-–to]+\s*sat/.test(p) || /mon-sat/.test(p)) {
+                return ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+            }
         }
         if (/except\s+sunday|all\s+days\s+except\s+sun/.test(p)) {
             return ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
         }
-        if (/mon\s*[-–to]+\s*fri|weekdays/.test(p)) {
+        // mon-fri continuous (hyphen/to), not mon/fri
+        if ((/mon(?:day)?\s*[-–to]+\s*fri/.test(p) || /weekdays/.test(p)) && !/mon\s*\/\s*fri/.test(p)) {
             return ["Monday","Tuesday","Wednesday","Thursday","Friday"];
         }
+        // Slash pairs first: mon/fri, tue/thu → exactly those days
+        const slashPair = p.match(/\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\s*\/\s*(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/);
+        if (slashPair) {
+            const resolve = (tok) => {
+                const k = String(tok).toLowerCase();
+                return dayMap[k] || dayMap[k.slice(0, 3)] || dayMap[k.replace(/day$/, "")] || null;
+            };
+            const a = resolve(slashPair[1]);
+            const b = resolve(slashPair[2]);
+            if (a && b) return [a, b].filter((d, i, arr) => arr.indexOf(d) === i);
+        }
+        // Expand continuous ranges like mon-wed, tue-thu, mon-fri
+        const rangeM = p.match(/\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\s*[-–to]+\s*(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/);
+        if (rangeM) {
+            const resolve = (tok) => {
+                const k = String(tok).toLowerCase();
+                return dayMap[k] || dayMap[k.slice(0, 3)] || dayMap[k.replace(/day$/, "")] || null;
+            };
+            const startName = resolve(rangeM[1]);
+            const endName = resolve(rangeM[2]);
+            if (startName && endName) {
+                const i0 = orderedDays.indexOf(startName);
+                const i1 = orderedDays.indexOf(endName);
+                if (i0 >= 0 && i1 >= 0 && i1 >= i0) return orderedDays.slice(i0, i1 + 1);
+            }
+        }
         const found = [];
-        const re = /\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/g;
+        // include thur / thu / thursday
+        const re = /\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/g;
         let x;
         while ((x = re.exec(p))) {
-            const d = dayMap[x[1]];
+            const key = x[1].toLowerCase();
+            const d = dayMap[key] || dayMap[key.slice(0, 3)] || dayMap[key.replace(/day$/, "")];
             if (d && !found.includes(d)) found.push(d);
         }
         return found;
     }
 
-    // School block
-    if (/school|college|class(?:es)?/.test(text)) {
-        const range = parseLooseRange(text.match(/school[^.]{0,40}?(\d{1,2}\s*[-–]\s*\d{3,4}|\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2}|\d{1,2}\s*[-–]\s*\d{1,2})/i)?.[1] || text.match(/(\d{1,2}\s*[-–]\s*\d{3,4})/)?.[1] || "6-1430")
-            || parseLooseRange("6-1430");
-        let ds = daysFromPhrase(text);
-        if (/except\s+sunday|all\s+days\s+except|every\s+day\s+except\s+sun/.test(text)) {
-            ds = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-        } else if (/mon\s*[-–/to]+\s*sat|mon(?:day)?\s*[-–/to]+\s*sat|mon\/sat|monday\s*[-–/to]+\s*saturday/.test(text)) {
-            ds = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-        } else if (!ds.length) {
-            ds = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+    function parseTimeToken(token, forcePm) {
+        const t = String(token || "").toLowerCase().replace(/\s/g, "");
+        const pm = forcePm || /pm/.test(t);
+        const am = /am/.test(t);
+        const clean = t.replace(/(am|pm)/g, "");
+        let h = 0, min = 0;
+        if (/^\d{3,4}$/.test(clean)) {
+            // 630 → 6:30, 1430 → 14:30
+            h = parseInt(clean.slice(0, clean.length - 2), 10);
+            min = parseInt(clean.slice(-2), 10);
+        } else {
+            const m = clean.match(/^(\d{1,2})(?::(\d{2}))?$/);
+            if (!m) return null;
+            h = parseInt(m[1], 10);
+            min = m[2] ? parseInt(m[2], 10) : 0;
         }
-        // If phrase was only mon/sat as endpoints, still expand to all between
+        if (h > 23 || min > 59) return null;
+        if (pm && h < 12) h += 12;
+        if (am && h === 12) h = 0;
+        return toHM(h, min);
+    }
+
+    function parseRangeWithPm(chunk, preferPm) {
+        const s = String(chunk || "");
+        // Prefer compact ends first (630, 1430) so "5-630" is not read as 5–63
+        const m = s.match(/(\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?)\s*[-–to]+\s*(\d{3,4}(?:\s*(?:am|pm))?|\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?)/i);
+        if (!m) {
+            const loose = parseLooseRange(s);
+            if (!loose) return null;
+            let [sh, sm] = loose.start.split(":").map(Number);
+            let [eh, em] = loose.end.split(":").map(Number);
+            if (preferPm) {
+                if (sh > 0 && sh < 12) sh += 12;
+                if (eh > 0 && eh < 12) eh += 12;
+            }
+            if (eh < sh) eh += 12;
+            return { start: toHM(sh % 24, sm % 60), end: toHM(eh % 24, em % 60) };
+        }
+        const hasPm = /pm/i.test(s) || preferPm;
+        const start = parseTimeToken(m[1], hasPm && !/am/i.test(m[1]));
+        let end = parseTimeToken(m[2], hasPm && !/am/i.test(m[2]));
+        if (!start || !end) {
+            const loose = parseLooseRange(s.replace(/(am|pm)/gi, ""));
+            if (!loose) return null;
+            let [sh, sm] = loose.start.split(":").map(Number);
+            let [eh, em] = loose.end.split(":").map(Number);
+            if (preferPm) {
+                if (sh > 0 && sh < 12) sh += 12;
+                if (eh > 0 && eh < 12) eh += 12;
+            }
+            if (eh < sh) eh += 12;
+            return { start: toHM(sh % 24, sm % 60), end: toHM(eh % 24, em % 60) };
+        }
+        // Guard against garbage hours like 63:00
+        let [sh, sm] = start.split(":").map(Number);
+        let [eh, em] = end.split(":").map(Number);
+        if (sh > 23 || eh > 23) {
+            const loose = parseLooseRange(s.replace(/(am|pm)/gi, ""));
+            if (loose) {
+                [sh, sm] = loose.start.split(":").map(Number);
+                [eh, em] = loose.end.split(":").map(Number);
+                if (preferPm) {
+                    if (sh > 0 && sh < 12) sh += 12;
+                    if (eh > 0 && eh < 12) eh += 12;
+                }
+            }
+        }
+        if (eh * 60 + em <= sh * 60 + sm && eh < 12) eh += 12;
+        return { start: toHM(sh % 24, sm % 60), end: toHM(eh % 24, em % 60) };
+    }
+
+    function titleCaseTask(name) {
+        const n = String(name || "Block").trim();
+        if (/^school$/i.test(n)) return "School";
+        if (/^football|soccer$/i.test(n)) return "Football";
+        if (/maths?|mathematics/i.test(n)) return "Maths Class";
+        if (/science/i.test(n)) return "Science Class";
+        if (/hindi/i.test(n)) return "Hindi Class";
+        if (/english/i.test(n)) return "English Class";
+        return n.replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 40);
+    }
+
+    // Split into clauses and parse each fixed commitment separately
+    // e.g. "school mon-fri 6-1430, hindi on tue/thur 5-6pm, science/maths on mon/fri 5-630pm"
+    // Split on comma/semicolon, and on "and" when the next token is another subject
+    // (keep "science and maths" together — that subject pair is handled below)
+    const clauses = text
+        .split(/[,;]+|\s+and\s+(?=(?:hindi|english|science|sceince|sciense|maths?\b|math\b|school|college|gym|football|soccer|tuition|coaching|lab|lecture)[^,]*)/i)
+        .map((c) => c.trim())
+        .filter((c) => c.length > 3);
+
+    function addFixed(task, range, dayList) {
+        if (!range || !dayList || !dayList.length) return;
+        dayList.forEach((d) => {
+            if (!week[d]) return;
+            const dup = week[d].some((b) =>
+                String(b.task).toLowerCase() === String(task).toLowerCase() &&
+                b.start === range.start && b.end === range.end
+            );
+            if (!dup) week[d].push({ task, start: range.start, end: range.end, fixed: true });
+        });
+    }
+
+    clauses.forEach((clause) => {
+        // Detect subject / activity name
+        let task = null;
+        if (/\bschool\b|\bcollege\b/.test(clause)) task = "School";
+        else if (/\bfootball\b|\bsoccer\b/.test(clause)) task = "Football";
+        else if (/\bhindi\b/.test(clause)) task = "Hindi Class";
+        else if (/\b(science|sceince|sciense)\b/.test(clause) && /\bmaths?\b|\bmathematics\b/.test(clause)) {
+            // "science and maths" / typos like "sceince" → one combined block
+            task = "__SCIENCE_MATHS__";
+        } else if (/\b(science|sceince|sciense)\b/.test(clause)) task = "Science Class";
+        else if (/\bmaths?\b|\bmathematics\b/.test(clause)) task = "Maths Class";
+        else if (/\benglish\b/.test(clause)) task = "English Class";
+        else if (/\btuition\b|\bcoaching\b/.test(clause)) task = "Tuition";
+        else if (/\bgym\b|\bworkout\b/.test(clause)) task = "Gym";
+        else if (/\blab\b/.test(clause)) task = "Lab";
+        else if (/\blecture/.test(clause)) task = "Lecture";
+        else if (/\bclass(?:es)?\b/.test(clause)) {
+            // generic "classes on tue..." — try to grab preceding word
+            const pre = clause.match(/([a-z]{3,})\s+class/);
+            task = pre ? titleCaseTask(pre[1] + " Class") : "Class";
+        }
+        if (!task) return;
+
+        let ds = daysFromPhrase(clause);
+        // school without days → weekdays
+        if (!ds.length && task === "School") ds = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+        if (!ds.length) return;
+
+        const preferPm = /pm\b|evening|afternoon|after\s*school|tuition|coaching|hindi|science|maths|gym|football|soccer/.test(clause)
+            || (task !== "School" && !/am\b|morning/.test(clause));
+        // Pull time range — prefer compact ends (5-630, 6-1430) before short digits
+        const rangeMatch = clause.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-–to]+\s*\d{3,4}\s*(?:am|pm)?|\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-–to]+\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)?|\d{1,2}\s*[-–]\s*\d{3,4})/i);
+        let range = rangeMatch ? parseRangeWithPm(rangeMatch[1], preferPm) : null;
+        if (!range && task === "School") range = parseLooseRange("6-1430");
+        if (!range && task === "Football") range = { start: "17:00", end: "18:30" };
+        if (!range) return;
+
+        // School hours like 6-1430 should stay morning–afternoon, not force PM
+        if (task === "School") {
+            let [sh, sm] = range.start.split(":").map(Number);
+            let [eh, em] = range.end.split(":").map(Number);
+            // If someone wrote 6-2 meaning 6am-2pm
+            if (eh < sh && eh <= 12) eh += 12;
+            range = { start: toHM(sh, sm), end: toHM(eh, em) };
+        }
+
+        if (task === "__SCIENCE_MATHS__") {
+            // Same slot — one combined block is clearer than two overlapping
+            addFixed("Science & Maths", range, ds);
+        } else {
+            addFixed(task, range, ds);
+        }
+    });
+
+    // Fallback: whole-text school if no school clause produced blocks
+    const anySchool = orderedDays.some((d) => (week[d] || []).some((b) => /school/i.test(b.task)));
+    if (!anySchool && /\bschool\b|\bcollege\b/.test(text)) {
+        const range = parseLooseRange((text.match(/(\d{1,2}\s*[-–]\s*\d{3,4})/) || [])[1] || "6-1430") || parseLooseRange("6-1430");
+        let ds = daysFromPhrase(text);
+        if (!ds.length) ds = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
         if (ds.length === 2 && ds[0] === "Monday" && ds[1] === "Saturday") {
             ds = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
         }
-        if (range) {
-            ds.forEach((d) => {
-                week[d].push({ task: "School", start: range.start, end: range.end });
-            });
-        }
-    }
-
-    // Football / sports after school — treat low hours as PM
-    if (/football|soccer/.test(text)) {
-        let use = { start: "17:00", end: "18:30" };
-        const loose = text.match(/football[^.]{0,80}?(\d{1,2}\s*[-–]\s*\d{3,4})/i)
-            || text.match(/football[^.]{0,80}?(\d{1,2}(?::\d{2})?\s*[-–]\s*\d{1,2}(?::\d{2})?\s*(am|pm)?)/i);
-        if (loose) {
-            const r = parseLooseRange(loose[1]);
-            if (r) {
-                let [sh, sm] = r.start.split(":").map(Number);
-                let [eh, em] = r.end.split(":").map(Number);
-                // 5-630 or 5-6:30 in evening context → 17:00-18:30
-                if (sh < 12 && (/pm|evening|afternoon|football|soccer/.test(text))) sh += 12;
-                if (eh < 12 && eh < sh) eh += 12;
-                if (eh < 12 && /pm/.test(loose[0] || "")) eh += 12;
-                use = { start: toHM(sh % 24, sm), end: toHM(eh % 24, em) };
-            }
-        }
-        // Days only from the football clause when possible
-        const fbIdx = text.search(/football|soccer/);
-        const clause = fbIdx >= 0 ? text.slice(fbIdx, fbIdx + 80) : text;
-        let ds = daysFromPhrase(clause);
-        if (!ds.length) ds = ["Tuesday", "Thursday"];
-        ds.forEach((d) => {
-            week[d].push({ task: "Football", start: use.start, end: use.end });
-        });
+        addFixed("School", range, ds);
     }
 
     // Sleep / wake
@@ -2839,7 +3092,6 @@ function buildWeekFromNotes(notes) {
     return week;
 }
 
-
 function runRuleBasedWeek(style, notes) {
     const intent = notes || style || "study";
     try {
@@ -2868,12 +3120,15 @@ function runRuleBasedWeek(style, notes) {
             window._previewWeek = preview;
             window._previewDay = DAYS[0];
             window._previewApplyAllDays = true;
+            window._previewReadyToAccept = true;
             window._previewRoutineLabel = "Chat: " + String(intent).slice(0, 48);
-            if (typeof syncPreviewFromPlan === "function") syncPreviewFromPlan(preview);
+            if (typeof showFullWeekInPreview === "function") showFullWeekInPreview(preview);
+            else if (typeof syncPreviewFromPlan === "function") syncPreviewFromPlan(preview);
             else if (typeof openPreview === "function") openPreview();
+            if (typeof setPreviewFooterMode === "function") setPreviewFooterMode("full");
         } catch (e) {}
         const n = (preview[DAYS[0]] || []).length;
-        return `✅ Draft ready — **${n}** blocks on the first day (${total} total). Review days in the preview, then **Keep This Week** to apply.`;
+        return `✅ Draft ready — **${n}** blocks on the first day (${total} total). Review days in the preview, then press **Accept week** to apply.`;
     } catch (e) {
         return "Week build failed: " + (e.message || e);
     }
@@ -2888,9 +3143,6 @@ async function startPlanSession(seedText) {
         "I want a personalised week plan. Ask me about fixed classes, work, or other commitments."
     );
 }
-
-
-
 
 function runSilentMomentoAction(act) {
     if (!act || !act.momento_action) return { ok: false, error: "no action" };
@@ -3100,14 +3352,13 @@ function runSilentMomentoAction(act) {
     }
 }
 
-
 async function callPersonalChatbot(userText) {
     const settings = (typeof getAppSettings === "function") ? getAppSettings() : {};
     if (!settings.usePersonalForChat || !settings.personalApiKey || !settings.personalApiUrl) return null;
     const overview = (typeof getEffectiveSystemPrompt === "function") ? getEffectiveSystemPrompt() : `You are Momento's in-app assistant.`;
     try {
         const body = {
-            model: settings.personalApiModel || "gpt-4o-mini",
+            model: settings.personalApiModel || "google/gemini-2.5-flash",
             temperature: 0.4,
             messages: [
                 { role: "system", content: overview },
@@ -3170,7 +3421,7 @@ function processNLPIntent(rawInput) {
     const input = rawInput.trim();
     const lower = input.toLowerCase();
 
-    // Fast local automation (no API) for common UI commands
+    
     const quick = [
         { re: /\b(open|show)\s+(the\s+)?crates?\b/, act: { momento_action: "open_crates" } },
         { re: /\b(open|show)\s+(the\s+)?(to-?dos?|todo list)\b/, act: { momento_action: "open_todos" } },
@@ -3194,24 +3445,23 @@ function processNLPIntent(rawInput) {
     };
 
     const finishReply = (reply) => {
-        const thinking = document.querySelector(".chat-msg.thinking:last-child");
-        if (thinking) thinking.remove();
+        clearThinkingIndicator();
         appendMessage(reply, "bot-msg");
     };
 
-    // Active planning session (intake question or AI)
+    
     if (_planSession) {
-        appendMessage("…", "bot-msg thinking");
+        showThinkingIndicator();
         Promise.resolve(continuePlanSession(input)).then(finishReply).catch((e) => {
             finishReply("Planning error: " + (e.message || e));
         });
         return;
     }
 
-    // Week-build / personalised plan → always ask about fixed stuff first
+    
     if (wantsWeekBuild(input) || /\b(personalised|personalized|custom week|help me plan|plan my week)\b/i.test(input)) {
         if (needsRealAiForSchedule(input)) {
-            appendMessage("…", "bot-msg thinking");
+            showThinkingIndicator();
             Promise.resolve(startPlanSession(input)).then(finishReply).catch(runLocal);
             return;
         }
@@ -3226,9 +3476,6 @@ function processNLPIntent(rawInput) {
     }
 }
 
-
-
-/** Voice / headless path: run NLP + actions, return reply text, never touch chat UI */
 async function processNLPIntentSilent(rawInput) {
     if (!rawInput || !String(rawInput).trim()) return "";
     const input = rawInput.trim();
@@ -3249,11 +3496,13 @@ async function processNLPIntentSilent(rawInput) {
         }
     }
 
-    // Personal model for general chat (not mid week-plan)
+    
     try {
         const settings = (typeof getAppSettings === "function") ? getAppSettings() : {};
         const inPlan = typeof _planSession !== "undefined" && _planSession;
-        if (!inPlan && settings.usePersonalForChat && settings.personalApiKey && settings.personalApiUrl) {
+        const isWeekIntent = (typeof wantsWeekBuild === "function" && wantsWeekBuild(input)) ||
+            /\b(personalised|personalized|custom week|help me plan|plan my week|study week|generate study)\b/i.test(input);
+        if (!inPlan && !isWeekIntent && settings.usePersonalForChat && settings.personalApiKey && settings.personalApiUrl) {
             const reply = await callPersonalChatbot(input);
             if (reply) return reply;
         }
@@ -3317,7 +3566,6 @@ function speechFriendlyText(s) {
     t = t.replace(/^\s*\.\s*/, "");
     return t.trim();
 }
-
 
 function resolveLocalIntent(input, lower) {
     for (const intent of AI_DATABASE.intents) {

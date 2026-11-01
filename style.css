@@ -1165,6 +1165,38 @@ body.auth-visible #ai-chat-widget {
     line-height: 1.3;
 }
 
+/* Subtle sequential bouncing dots — AI / week-builder thinking */
+.ai-typing-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 0;
+    min-height: 1.2em;
+}
+.ai-typing-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.35;
+    animation: ai-dot-bounce 1.05s ease-in-out infinite;
+}
+.ai-typing-dots span:nth-child(1) { animation-delay: 0s; }
+.ai-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.ai-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes ai-dot-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+    30% { transform: translateY(-5px); opacity: 0.95; }
+}
+.chat-msg.thinking,
+.preview-chat-msg.thinking {
+    opacity: 0.9;
+}
+.chat-msg.thinking .ai-typing-dots,
+.preview-chat-msg.thinking .ai-typing-dots {
+    color: var(--accent-color, #a78bfa);
+}
+
 .bot-msg {
     background: var(--surface, #25213b);
     color: var(--text-color, #e0e0e0);
