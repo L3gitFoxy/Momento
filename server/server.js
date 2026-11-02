@@ -461,7 +461,7 @@ function createHandler() {
       res.end();
       return;
     }
-    const u = new URL(req.url, "http:
+    const u = new URL(req.url, "http://127.0.0.1");
 
     if (u.pathname === "/api/device-config" && req.method === "GET") {
       const cfg = readDeviceConfig();

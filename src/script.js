@@ -6599,7 +6599,7 @@ function escapeHtml(str) {
 }
 
 const PIPED_INSTANCES = [
-    "https:
+    "https://pipedapi.kavin.rocks",
     "https://pipedapi.syncpundit.io",
     "https://pipedapi.adminforge.de",
     "https://api.piped.private.coffee",
@@ -10308,7 +10308,7 @@ let _deviceConfigReady = false;
 
 function deviceConfigApiBase() {
     try {
-        return localStorage.getItem("MOMENTO_MUSIC_API") || "http:
+        return localStorage.getItem("MOMENTO_MUSIC_API") || "http://127.0.0.1:8787";
     } catch (e) {
         return "http://127.0.0.1:8787";
     }
