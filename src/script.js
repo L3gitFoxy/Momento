@@ -4145,6 +4145,7 @@ function awardXPForTask(task) {
     data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
     task.xpAwarded = true;
     task.xpAmount = xpGain;
+    try { if (typeof trackQuestProgress === "function") trackQuestProgress("blocks", 1); } catch (e) {}
 
     const todayStr = new Date().toDateString();
     if (data.lastCompletedDate !== todayStr) {
@@ -4171,6 +4172,7 @@ function awardXPForTask(task) {
     try { playRewardSound("complete"); } catch (e) {}
     showXPPopup(xpGain, task.task || "Task", infoAfter);
     updateXPDisplay();
+    try { if (typeof applyActiveCosmetics === "function") applyActiveCosmetics(); } catch (e) {}
     triggerCompletionFx(infoAfter);
     if (infoAfter.levelIndex > infoBefore.levelIndex) {
         checkAndUnlockRewards(infoAfter.levelIndex);
@@ -7629,6 +7631,10 @@ function skipFocusPhase() {
 function completeFocusTask() {
     if (!_focusTaskRef) return;
     const { task, day } = _focusTaskRef;
+    try {
+        const mins = Math.max(1, Math.round((25 * 60 - (typeof _focusSecondsLeft === "number" ? _focusSecondsLeft : 0)) / 60));
+        if (typeof trackQuestProgress === "function") trackQuestProgress("focus", Math.min(25, mins));
+    } catch (e) {}
     if (!task || task.completed) {
         closeFocusMode();
         return;
@@ -7727,14 +7733,24 @@ function nextWeekdayLocal(targetDow) {
 function getTodoQuickDateOptions() {
     const now = new Date();
     const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    const curName = dayNames[now.getDay()];
-    return [
+    const dow = now.getDay();
+    const curName = dayNames[dow];
+    const opts = [
         { label: "Today", date: formatLocalYMD(now) },
         { label: "Tomorrow", date: formatLocalYMD(addDaysLocal(now, 1)) },
-        { label: "Day after tomorrow", date: formatLocalYMD(addDaysLocal(now, 2)) },
-        { label: "Next Monday", date: formatLocalYMD(nextWeekdayLocal(1)) },
-        { label: "Next " + curName, date: formatLocalYMD(addDaysLocal(now, 7)) }
+        { label: "Day after tomorrow", date: formatLocalYMD(addDaysLocal(now, 2)) }
     ];
+    // Next Monday — skip when today is already Monday (same as "Next Monday" +7)
+    if (dow !== 1) {
+        opts.push({ label: "Next Monday", date: formatLocalYMD(nextWeekdayLocal(1)) });
+    }
+    // Next <today's weekday> in a week — skip when Monday to avoid duplicate label/date
+    if (dow !== 1) {
+        opts.push({ label: "Next " + curName, date: formatLocalYMD(addDaysLocal(now, 7)) });
+    } else {
+        opts.push({ label: "Next Monday", date: formatLocalYMD(addDaysLocal(now, 7)) });
+    }
+    return opts;
 }
 
 let _todoAddForOpen = false;
@@ -7886,6 +7902,7 @@ function toggleTodo(id) {
                 showToast("Very late, 25% XP only", "warn");
             }
         }
+        try { if (typeof trackQuestProgress === "function") trackQuestProgress("todos", 1); } catch (e) {}
         t.xpAwarded = xpEarned;
         data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
         data.xp = (data.xp || 0) + xpEarned;
@@ -8852,12 +8869,39 @@ function toggleCosmetic(id) {
 function applyActiveCosmetics() {
     data.activeCosmetics = data.activeCosmetics || [];
     document.body.classList.toggle("cos-particles", data.activeCosmetics.includes("cosmetic_particles"));
-    // Block glow is always enabled
     document.body.classList.add("cos-glow");
-    document.body.classList.toggle("cos-streakfire", data.activeCosmetics.includes("cosmetic_streakfire"));
+    const fireOn = data.activeCosmetics.includes("cosmetic_streakfire") && (data.streak || 0) >= 7;
+    document.body.classList.toggle("cos-streakfire", fireOn);
     document.body.classList.toggle("cos-stardust", data.activeCosmetics.includes("cosmetic_crate_trail"));
     document.body.classList.toggle("cos-checkmark", data.activeCosmetics.includes("cosmetic_crate_checkmark"));
     document.body.classList.toggle("cos-orbit", data.activeCosmetics.includes("cosmetic_crate_orbit"));
+    try {
+        const el = document.getElementById("progress-streak");
+        if (el) {
+            el.classList.toggle("streak-fire-on", fireOn);
+            const n = data.streak || 0;
+            el.textContent = "Streak: " + n;
+        }
+    } catch (e) {}
+    try {
+        const pill = document.getElementById("xp-pill");
+        if (pill) {
+            let badge = document.getElementById("xp-streak-fire");
+            if (fireOn) {
+                if (!badge) {
+                    badge = document.createElement("span");
+                    badge.id = "xp-streak-fire";
+                    badge.className = "xp-streak-fire";
+                    badge.title = "Streak fire";
+                    pill.insertBefore(badge, pill.firstChild);
+                }
+                badge.innerHTML = '<span class="xp-streak-flame">🔥</span><span class="xp-streak-num">' + (data.streak || 0) + '</span>';
+                badge.classList.add("on");
+            } else if (badge) {
+                badge.remove();
+            }
+        }
+    } catch (e) {}
 }
 
 /* Enhance updateXPDisplay with rank divisions (hook) */
@@ -10289,7 +10333,7 @@ window.activateCrateCosmetic = activateCrateCosmetic;
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "9.3.1";
+const CHANGELOG_VERSION = "9.4.0";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -10569,6 +10613,14 @@ const CHANGELOG_9_3_0 = [
     "If a full day was already key-claimed, extra blocks on re-apply still grant no keys (XP still works; silent)"
 ];
 
+const CHANGELOG_9_4_0 = [
+    "Today Mode: live current block with Done, Snooze 10m, Skip, and focus lock",
+    "Recovery plan when you fall behind on flexible blocks (one-tap apply)",
+    "End-of-day recap with what you protected and what slipped",
+    "Single-instance app: second launch opens the running Momento instead of a stuck login",
+    "Themes apply to footer links, mic, Day Flex, and update card"
+];
+
 const CHANGELOG_9_3_1 = [
     "To-dos due today or tomorrow can no longer be deleted (finish them for XP)",
     "Half XP for one-day-late to-dos works reliably again",
@@ -10635,7 +10687,7 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        const cl = (typeof CHANGELOG_9_3_1 !== "undefined") ? CHANGELOG_9_3_1 : ((typeof CHANGELOG_9_3_0 !== "undefined") ? CHANGELOG_9_3_0 : ((typeof CHANGELOG_9_2_2 !== "undefined") ? CHANGELOG_9_2_2 : ((typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0)))))));
+        const cl = (typeof CHANGELOG_9_4_0 !== "undefined") ? CHANGELOG_9_4_0 : ((typeof CHANGELOG_9_3_1 !== "undefined") ? CHANGELOG_9_3_1 : ((typeof CHANGELOG_9_3_0 !== "undefined") ? CHANGELOG_9_3_0 : ((typeof CHANGELOG_9_2_2 !== "undefined") ? CHANGELOG_9_2_2 : ((typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0))))))));
         body.innerHTML = "<ul>" + cl.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
@@ -11976,7 +12028,7 @@ try { document.addEventListener("DOMContentLoaded", bindMusicBetaTooltip); } cat
 setTimeout(bindMusicBetaTooltip, 800);
 
 (function setupVersionWatermark() {
-    var FALLBACK = "9.3.1";
+    var FALLBACK = "9.4.0";
     function setLabel(v) {
         if (!v) return;
         var el = document.getElementById("momento-version-watermark");
@@ -12720,7 +12772,7 @@ function runDayFlex(opts) {
     if (cursor % 5 !== 0) cursor = cursor + (5 - (cursor % 5));
 
     const placed = [];
-    const dayEnd = 23 * 60 + 45;
+    const dayEnd = 21 * 60 + 30;
 
     flexible.forEach((t) => {
         const dur = Math.max(10, timeToMinutes(t.end) - timeToMinutes(t.start));
@@ -12771,3 +12823,675 @@ function runDayFlex(opts) {
 }
 
 window.runDayFlex = runDayFlex;
+
+
+
+let _todayModeOn = false;
+let _todayTick = null;
+let _todayLockOn = false;
+let _recoveryOfferedDay = "";
+
+function minutesNow() {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+}
+
+function fromMinutesHM(m) {
+    m = ((Math.round(m) % 1440) + 1440) % 1440;
+    const h = Math.floor(m / 60), mm = m % 60;
+    return String(h).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
+}
+
+function getTodayBlocks() {
+    const day = DAYS[typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay];
+    return { day, list: (data.schedules && data.schedules[day]) || [] };
+}
+
+function findCurrentBlock() {
+    const { list } = getTodayBlocks();
+    const now = minutesNow();
+    let current = null, currentIdx = -1, next = null, nextIdx = -1;
+    list.forEach((t, i) => {
+        if (!t || t.isSleep || t.completed || t.skipped) return;
+        const s = timeToMinutes(t.start), e = timeToMinutes(t.end);
+        if (e <= s) return;
+        if (now >= s && now < e) { current = t; currentIdx = i; }
+        else if (s > now && nextIdx < 0) { next = t; nextIdx = i; }
+    });
+    return { current, currentIdx, next, nextIdx, now };
+}
+
+function ensureTodayLiveBar() {
+    let bar = document.getElementById("today-live-bar");
+    if (bar) return bar;
+    bar = document.createElement("div");
+    bar.id = "today-live-bar";
+    bar.className = "today-live-bar";
+    bar.innerHTML = `
+      <div class="tlb-label"><span id="tlb-title">Today Mode</span><span class="tlb-sub" id="tlb-sub"></span></div>
+      <button type="button" id="tlb-done">Done</button>
+      <button type="button" class="secondary" id="tlb-snooze">Snooze 10m</button>
+      <button type="button" class="secondary" id="tlb-skip">Skip</button>
+      <button type="button" class="secondary" id="tlb-lock">Focus lock</button>
+      <button type="button" class="secondary" id="tlb-recap">Recap</button>
+      <button type="button" class="secondary" id="tlb-exit">Exit</button>`;
+    const host = document.getElementById("task-container") || document.querySelector(".card") || document.body;
+    host.parentNode.insertBefore(bar, host);
+    bar.querySelector("#tlb-done").onclick = () => todayModeAction("done");
+    bar.querySelector("#tlb-snooze").onclick = () => todayModeAction("snooze");
+    bar.querySelector("#tlb-skip").onclick = () => todayModeAction("skip");
+    bar.querySelector("#tlb-lock").onclick = () => toggleTodayFocusLock();
+    bar.querySelector("#tlb-recap").onclick = () => showEndOfDayRecap(true);
+    bar.querySelector("#tlb-exit").onclick = () => toggleTodayMode(false);
+    return bar;
+}
+
+function ensureTodayLockOverlay() {
+    let ov = document.getElementById("today-lock-overlay");
+    if (ov) return ov;
+    ov = document.createElement("div");
+    ov.id = "today-lock-overlay";
+    ov.className = "today-lock-overlay";
+    let calm = false; try { if (typeof getAppSettings === "function" && getAppSettings().focusLockCalm) calm = true; else calm = localStorage.getItem("momento_focus_lock_calm") === "1"; } catch (e) { try { calm = localStorage.getItem("momento_focus_lock_calm") === "1"; } catch (e2) {} }
+    if (calm) ov.classList.add("calm-bg");
+    ov.innerHTML = `<div class="tlo-bg" aria-hidden="true"></div>
+      <h2 id="tlo-title">Focus</h2><p id="tlo-sub"></p>
+      <label class="tlo-calm-check"><input type="checkbox" id="tlo-calm" ${calm ? "checked" : ""}/> Calm background</label>
+      <button type="button" id="tlo-done">Mark done</button>
+      <button type="button" id="tlo-unlock" class="secondary" style="background:transparent;border:1px solid var(--accent-color);color:var(--text-color)">Unlock</button>`;
+    document.body.appendChild(ov);
+    ov.querySelector("#tlo-done").onclick = () => { todayModeAction("done"); toggleTodayFocusLock(false); };
+    ov.querySelector("#tlo-unlock").onclick = () => toggleTodayFocusLock(false);
+    const calmBox = ov.querySelector("#tlo-calm");
+    if (calmBox) {
+        calmBox.addEventListener("change", () => {
+            ov.classList.toggle("calm-bg", !!calmBox.checked);
+            try {
+                if (typeof getAppSettings === "function" && typeof saveAppSettings === "function") {
+                    const s = getAppSettings();
+                    s.focusLockCalm = !!calmBox.checked;
+                    saveAppSettings(s);
+                } else {
+                    localStorage.setItem("momento_focus_lock_calm", calmBox.checked ? "1" : "0");
+                }
+            } catch (e) {
+                try { localStorage.setItem("momento_focus_lock_calm", calmBox.checked ? "1" : "0"); } catch (e2) {}
+            }
+        });
+    }
+    return ov;
+}
+
+function refreshTodayModeUi() {
+    if (!_todayModeOn) return;
+    const bar = ensureTodayLiveBar();
+    bar.classList.add("show");
+    const btn = document.getElementById("today-mode-btn");
+    if (btn) btn.classList.add("on");
+    const todayIdx = typeof getTodayIndex === "function" ? getTodayIndex() : 0;
+    if (data.currentDay !== todayIdx) {
+        data.currentDay = todayIdx;
+        try { if (typeof renderDayTabs === "function") renderDayTabs(); } catch (e) {}
+        try { if (typeof renderTasks === "function") renderTasks(); } catch (e) {}
+    }
+    const info = findCurrentBlock();
+    const title = document.getElementById("tlb-title");
+    const sub = document.getElementById("tlb-sub");
+    if (info.current) {
+        if (title) title.textContent = info.current.task || "Current block";
+        if (sub) sub.textContent = (info.current.start || "") + " – " + (info.current.end || "") + " · in progress";
+    } else if (info.next) {
+        if (title) title.textContent = "Up next: " + (info.next.task || "Block");
+        if (sub) sub.textContent = (info.next.start || "") + " – " + (info.next.end || "");
+    } else {
+        if (title) title.textContent = "Nothing left today";
+        if (sub) sub.textContent = "Open recap when you are done";
+    }
+    try {
+        document.querySelectorAll(".task-row").forEach((row) => row.classList.remove("active-now"));
+        if (info.currentIdx >= 0) {
+            const rows = document.querySelectorAll(".task-row");
+            let visible = 0;
+            const { list } = getTodayBlocks();
+            list.forEach((t, i) => {
+                if (t.isSleep) return;
+                if (i === info.currentIdx && rows[visible]) rows[visible].classList.add("active-now");
+                visible++;
+            });
+        }
+    } catch (e) {}
+    if (_todayLockOn && info.current) {
+        const ov = ensureTodayLockOverlay();
+        ov.classList.add("show");
+        const h = document.getElementById("tlo-title");
+        const p = document.getElementById("tlo-sub");
+        if (h) h.textContent = info.current.task || "Focus";
+        if (p) p.textContent = "You are in this block until " + (info.current.end || "") + ". Stay with it.";
+    }
+    maybeOfferRecovery();
+}
+
+function toggleTodayMode(force) {
+    _todayModeOn = (force === true || force === false) ? force : !_todayModeOn;
+    const bar = ensureTodayLiveBar();
+    const btn = document.getElementById("today-mode-btn");
+    if (!_todayModeOn) {
+        bar.classList.remove("show");
+        if (btn) btn.classList.remove("on");
+        if (_todayTick) { clearInterval(_todayTick); _todayTick = null; }
+        toggleTodayFocusLock(false);
+        return;
+    }
+    if (btn) btn.classList.add("on");
+    refreshTodayModeUi();
+    if (_todayTick) clearInterval(_todayTick);
+    _todayTick = setInterval(refreshTodayModeUi, 30000);
+    if (typeof showToast === "function") showToast("Today Mode on", "info");
+}
+
+function todayModeAction(action) {
+    const { day, list } = getTodayBlocks();
+    const info = findCurrentBlock();
+    let idx = info.currentIdx;
+    if (idx < 0 && info.nextIdx >= 0 && action === "snooze") idx = info.nextIdx;
+    if (idx < 0) {
+        if (typeof showToast === "function") showToast("No active block right now", "info");
+        return;
+    }
+    const task = list[idx];
+    if (!task) return;
+    if (action === "done") {
+        task.completed = true;
+        task.skipped = false;
+        try {
+            if (!task.isSleep && !task.xpAwarded && typeof awardXPForTask === "function") {
+                awardXPForTask(task);
+            }
+        } catch (e) {}
+        if (typeof showToast === "function") showToast("Done: " + (task.task || "block"), "success");
+    } else if (action === "skip") {
+        task.skipped = true;
+        task.completed = false;
+        if (typeof showToast === "function") showToast("Skipped: " + (task.task || "block"), "info");
+    } else if (action === "snooze") {
+        const shift = 10;
+        const hardEnd = 22 * 60 + 30;
+        let s = timeToMinutes(task.start) + shift;
+        let e = timeToMinutes(task.end) + shift;
+        if (e > hardEnd) {
+            e = hardEnd;
+            s = Math.max(minutesNow(), e - Math.max(10, timeToMinutes(task.end) - timeToMinutes(task.start)));
+        }
+        task.start = fromMinutesHM(s);
+        task.end = fromMinutesHM(e);
+        // Cascade: push later unfinished blocks so times don't overlap
+        const ordered = list
+            .map((b, i) => ({ b, i }))
+            .filter(x => x.b && !x.b.isSleep && !x.b.completed && !x.b.skipped && x.i !== idx)
+            .sort((a, c) => timeToMinutes(a.b.start) - timeToMinutes(c.b.start));
+        let cursor = e + 5;
+        ordered.forEach(({ b }) => {
+            if (timeToMinutes(b.start) >= cursor && timeToMinutes(b.start) > e) return;
+            if (isAnchorBlock(b)) return;
+            const dur = Math.max(10, timeToMinutes(b.end) - timeToMinutes(b.start));
+            let ns = Math.max(cursor, timeToMinutes(b.start) + shift);
+            let ne = ns + dur;
+            if (ne > hardEnd) {
+                ne = hardEnd;
+                ns = Math.max(cursor, ne - dur);
+            }
+            if (ne <= ns) return;
+            b.start = fromMinutesHM(ns);
+            b.end = fromMinutesHM(ne);
+            cursor = ne + 5;
+        });
+        if (typeof showToast === "function") showToast("Snoozed 10 minutes (later blocks shifted)", "info");
+    }
+    saveData();
+    try { renderTasks(); } catch (e) {}
+    try { updateXPDisplay(); } catch (e) {}
+    try { renderProgressTracker(); } catch (e) {}
+    refreshTodayModeUi();
+}
+
+function toggleTodayFocusLock(force) {
+    _todayLockOn = (force === true || force === false) ? force : !_todayLockOn;
+    const ov = ensureTodayLockOverlay();
+    if (!_todayLockOn) {
+        ov.classList.remove("show");
+        return;
+    }
+    const info = findCurrentBlock();
+    if (!info.current) {
+        _todayLockOn = false;
+        if (typeof showToast === "function") showToast("No current block to lock onto", "info");
+        return;
+    }
+    ov.classList.add("show");
+    refreshTodayModeUi();
+}
+
+function showEndOfDayRecap(manual) {
+    const { list } = getTodayBlocks();
+    const work = list.filter(t => t && !t.isSleep);
+    const done = work.filter(t => t.completed).length;
+    const skipped = work.filter(t => t.skipped).length;
+    const total = work.length || 1;
+    const pct = Math.round((done / total) * 100);
+    const missedNames = work.filter(t => !t.completed && !t.skipped).map(t => t.task || "Block");
+    const protectedNames = work.filter(t => t.completed && isAnchorBlock(t)).map(t => t.task || "Block");
+    let line = "You showed up for " + pct + "% of today's plan.";
+    if (protectedNames.length) line = "You protected " + protectedNames.slice(0, 2).join(" & ") + ".";
+    if (skipped || missedNames.length) {
+        const slip = (missedNames[0] || (skipped ? "a few blocks" : ""));
+        if (slip) line += " " + slip + " slipped.";
+    }
+    const msg = "Today: " + done + "/" + work.length + " done (" + pct + "% XP path).\n" + line;
+    if (typeof showToast === "function") showToast(msg.replace(/\n/g, " "), "info");
+    try {
+        if (typeof appendMessage === "function") appendMessage(msg, "bot-msg");
+    } catch (e) {}
+    return { pct, done, total: work.length, line };
+}
+
+function countMissedFlexibleToday() {
+    const { list } = getTodayBlocks();
+    const now = minutesNow();
+    let n = 0;
+    list.forEach((t) => {
+        if (!t || t.isSleep || t.completed || t.skipped) return;
+        if (isAnchorBlock(t)) return;
+        const e = timeToMinutes(t.end);
+        if (e <= now) n++;
+    });
+    return n;
+}
+
+function buildRecoveryPreview() {
+    const { day, list } = getTodayBlocks();
+    const now = minutesNow();
+    const remaining = [];
+    list.forEach((t) => {
+        if (!t || t.isSleep || t.completed || t.skipped) return;
+        if (isAnchorBlock(t)) return;
+        remaining.push({ task: t.task || "Block", start: t.start, end: t.end, dur: Math.max(10, timeToMinutes(t.end) - timeToMinutes(t.start)) });
+    });
+    return { day, remaining, now };
+}
+
+function maybeOfferRecovery() {
+    const dayKey = (new Date()).toISOString().slice(0, 10);
+    if (_recoveryOfferedDay === dayKey) return;
+    const missed = countMissedFlexibleToday();
+    if (missed < 2) return;
+    _recoveryOfferedDay = dayKey;
+    showRecoveryModal();
+}
+
+function showRecoveryModal() {
+    const prev = buildRecoveryPreview();
+    if (!prev.remaining.length) return;
+    let modal = document.getElementById("recovery-modal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "recovery-modal";
+        modal.className = "modal-overlay";
+        modal.innerHTML = `<div class="modal-box recovery-modal">
+          <div class="modal-header"><h3>Recovery plan</h3><button class="close-btn" id="recovery-close">✕</button></div>
+          <div class="modal-body">
+            <p>You are behind on a few flexible blocks. Momento can reshape the rest of today around fixed classes.</p>
+            <div class="recovery-list" id="recovery-list"></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-cancel" id="recovery-cancel">Not now</button>
+            <button class="btn-save-final" id="recovery-apply">Apply recovery</button>
+          </div>
+        </div>`;
+        document.body.appendChild(modal);
+        modal.querySelector("#recovery-close").onclick = () => modal.classList.add("hidden");
+        modal.querySelector("#recovery-cancel").onclick = () => modal.classList.add("hidden");
+        modal.querySelector("#recovery-apply").onclick = () => {
+            modal.classList.add("hidden");
+            const r = runDayFlex({ includePastFlexible: true });
+            if (r && r.ok !== false && typeof showToast === "function") showToast("Recovery applied for the rest of today", "success");
+            try { renderTasks(); } catch (e) {}
+            refreshTodayModeUi();
+        };
+    }
+    const box = modal.querySelector("#recovery-list");
+    if (box) {
+        box.innerHTML = prev.remaining.slice(0, 8).map((b) =>
+            "<div><strong>" + String(b.task).replace(/</g, "&lt;") + "</strong> · was " + b.start + "–" + b.end + " · will be refit after now</div>"
+        ).join("");
+    }
+    modal.classList.remove("hidden");
+}
+
+try {
+    document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(function () {
+            try {
+                if (typeof getTodayIndex === "function" && data && data.currentDay === getTodayIndex()) {
+                    if (countMissedFlexibleToday() >= 2) maybeOfferRecovery();
+                }
+            } catch (e) {}
+        }, 2500);
+    });
+} catch (e) {}
+
+
+
+function isoDate(d) {
+    const x = d || new Date();
+    return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
+}
+
+function isoWeekKey(d) {
+    const date = d ? new Date(d) : new Date();
+    const tmp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7);
+    return tmp.getUTCFullYear() + "-W" + String(week).padStart(2, "0");
+}
+
+function endOfTodayMs() {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 23, 59, 59, 999).getTime();
+}
+
+function endOfWeekMs() {
+    const n = new Date();
+    const day = n.getDay();
+    const diff = day === 0 ? 0 : 7 - day;
+    const end = new Date(n.getFullYear(), n.getMonth(), n.getDate() + diff, 23, 59, 59, 999);
+    return end.getTime();
+}
+
+function questLevel() {
+    try {
+        return (typeof getLevelInfo === "function") ? (getLevelInfo(data.xp || 0).levelIndex || 1) : 1;
+    } catch (e) { return 1; }
+}
+
+/** Steady curve: meaningful but never wild. No XP multipliers. */
+function questXpReward(kind, difficulty) {
+    const lv = Math.max(1, questLevel());
+    const d = Math.max(1, Math.min(3, difficulty || 1));
+    if (kind === "daily") {
+        return Math.round(12 + lv * 1.6 + d * 6);
+    }
+    return Math.round(36 + lv * 4 + d * 18);
+}
+
+function ensureQuestsState() {
+    if (!data.quests || typeof data.quests !== "object") {
+        data.quests = { daily: [], weekly: [], lastDailyRoll: "", lastWeeklyRoll: "" };
+    }
+    if (!Array.isArray(data.quests.daily)) data.quests.daily = [];
+    if (!Array.isArray(data.quests.weekly)) data.quests.weekly = [];
+    rollQuestsIfNeeded();
+    return data.quests;
+}
+
+function makeQuest(def) {
+    return {
+        id: def.id || (def.kind + "_" + def.type + "_" + Date.now() + "_" + Math.floor(Math.random() * 999)),
+        kind: def.kind,
+        type: def.type,
+        title: def.title,
+        desc: def.desc,
+        target: def.target,
+        progress: 0,
+        xp: def.xp,
+        expiresAt: def.expiresAt,
+        claimed: false,
+        difficulty: def.difficulty || 1
+    };
+}
+
+function pickDailyQuests(lv) {
+    const expiresAt = endOfTodayMs();
+    const pool = [
+        { type: "blocks", title: "Clear the board", desc: "Complete time blocks on today's schedule.", target: Math.min(6, 2 + Math.floor(lv / 8)), difficulty: 1 },
+        { type: "blocks", title: "Stay on track", desc: "Finish more blocks before the day ends.", target: Math.min(8, 3 + Math.floor(lv / 6)), difficulty: 2 },
+        { type: "focus", title: "Deep pocket", desc: "Log focused minutes (Focus Mode sessions count).", target: Math.min(60, 15 + Math.floor(lv / 3) * 5), difficulty: 1 },
+        { type: "focus", title: "Focus sprint", desc: "Stack real focus time today.", target: Math.min(90, 25 + Math.floor(lv / 2) * 5), difficulty: 2 },
+        { type: "todos", title: "Tick the list", desc: "Complete to-dos today.", target: Math.min(4, 1 + Math.floor(lv / 10)), difficulty: 1 },
+        { type: "any_block", title: "Show up", desc: "Complete at least one schedule block today.", target: 1, difficulty: 1 }
+    ];
+    const shuffled = pool.sort(() => Math.random() - 0.5);
+    const chosen = shuffled.slice(0, 3);
+    return chosen.map((c, i) => makeQuest({
+        kind: "daily",
+        type: c.type,
+        title: c.title,
+        desc: c.desc,
+        target: c.target,
+        xp: questXpReward("daily", c.difficulty),
+        expiresAt,
+        difficulty: c.difficulty,
+        id: "d_" + isoDate() + "_" + i + "_" + c.type
+    }));
+}
+
+function pickWeeklyQuests(lv) {
+    const expiresAt = endOfWeekMs();
+    const pool = [
+        { type: "blocks", title: "Week of work", desc: "Complete schedule blocks across the week.", target: Math.min(30, 10 + Math.floor(lv / 3)), difficulty: 2 },
+        { type: "focus", title: "Focus arc", desc: "Accumulate focus minutes this week.", target: Math.min(300, 75 + lv * 8), difficulty: 2 },
+        { type: "todos", title: "List closer", desc: "Complete to-dos this week.", target: Math.min(12, 4 + Math.floor(lv / 5)), difficulty: 1 },
+        { type: "blocks", title: "Consistency grind", desc: "Push through a heavier block goal.", target: Math.min(40, 14 + Math.floor(lv / 2)), difficulty: 3 },
+        { type: "focus", title: "Marathon mind", desc: "Serious focus hours across the week.", target: Math.min(400, 120 + lv * 10), difficulty: 3 }
+    ];
+    const shuffled = pool.sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 2).map((c, i) => makeQuest({
+        kind: "weekly",
+        type: c.type,
+        title: c.title,
+        desc: c.desc,
+        target: c.target,
+        xp: questXpReward("weekly", c.difficulty),
+        expiresAt,
+        difficulty: c.difficulty,
+        id: "w_" + isoWeekKey() + "_" + i + "_" + c.type
+    }));
+}
+
+function rollQuestsIfNeeded() {
+    if (!data.quests) data.quests = { daily: [], weekly: [], lastDailyRoll: "", lastWeeklyRoll: "" };
+    const today = isoDate();
+    const week = isoWeekKey();
+    const lv = questLevel();
+    const now = Date.now();
+    // Drop only expired rows. Claimed quests stay until the period ends so we never re-roll early.
+    data.quests.daily = (data.quests.daily || []).filter(q => q && q.expiresAt > now);
+    data.quests.weekly = (data.quests.weekly || []).filter(q => q && q.expiresAt > now);
+    if (data.quests.lastDailyRoll !== today) {
+        data.quests.daily = pickDailyQuests(lv);
+        data.quests.lastDailyRoll = today;
+    }
+    if (data.quests.lastWeeklyRoll !== week) {
+        data.quests.weekly = pickWeeklyQuests(lv);
+        data.quests.lastWeeklyRoll = week;
+    }
+}
+
+function allActiveQuests() {
+    ensureQuestsState();
+    return [].concat(data.quests.daily || [], data.quests.weekly || []);
+}
+
+function trackQuestProgress(type, amount) {
+    amount = Number(amount) || 0;
+    if (amount <= 0) return;
+    ensureQuestsState();
+    let changed = false;
+    allActiveQuests().forEach((q) => {
+        if (!q || q.claimed) return;
+        if (q.expiresAt && q.expiresAt <= Date.now()) return;
+        let match = false;
+        if (type === "blocks" && (q.type === "blocks" || q.type === "any_block")) match = true;
+        if (type === "focus" && q.type === "focus") match = true;
+        if (type === "todos" && q.type === "todos") match = true;
+        if (!match) return;
+        const before = q.progress || 0;
+        q.progress = Math.min(q.target, before + amount);
+        if (q.progress !== before) changed = true;
+    });
+    if (changed) {
+        saveData();
+        updateQuestsBadge();
+        try { renderQuestsPanelBody(); } catch (e) {}
+    }
+}
+
+function claimQuest(id) {
+    ensureQuestsState();
+    const q = allActiveQuests().find(x => x.id === id);
+    if (!q || q.claimed) return false;
+    if ((q.progress || 0) < q.target) {
+        if (typeof showToast === "function") showToast("Quest not finished yet", "info");
+        return false;
+    }
+    q.claimed = true;
+    const xp = Math.max(1, Math.round(q.xp || 0));
+    data.xp = (data.xp || 0) + xp;
+    saveData();
+    try {
+        const info = getLevelInfo(data.xp || 0);
+        if (typeof showXPPopup === "function") showXPPopup(xp, q.title || "Quest", info);
+        updateXPDisplay();
+        playRewardSound("complete");
+    } catch (e) {}
+    updateQuestsBadge();
+    renderQuestsPanelBody();
+    if (typeof showToast === "function") showToast("Quest claimed +" + xp + " XP", "success");
+    return true;
+}
+
+function questExpiryLabel(q) {
+    if (!q || !q.expiresAt) return "";
+    const ms = q.expiresAt - Date.now();
+    if (ms <= 0) return "Expired";
+    const hours = ms / 3600000;
+    if (q.kind === "daily" || hours <= 24) {
+        if (hours < 1) return "Expires in under an hour";
+        return "Expires today";
+    }
+    const days = Math.ceil(hours / 24);
+    if (days === 1) return "Expires tomorrow";
+    return "Expires in " + days + " days";
+}
+
+function claimableQuestCount() {
+    return allActiveQuests().filter(q => !q.claimed && (q.progress || 0) >= q.target && q.expiresAt > Date.now()).length;
+}
+
+function updateQuestsBadge() {
+    const badge = document.getElementById("quests-fab-badge");
+    if (!badge) return;
+    const n = claimableQuestCount();
+    badge.textContent = String(n);
+    badge.classList.toggle("show", n > 0);
+}
+
+function toggleQuestsPanel(force) {
+    ensureQuestsState();
+    let panel = document.getElementById("quests-panel");
+    if (!panel) {
+        panel = document.createElement("div");
+        panel.id = "quests-panel";
+        panel.className = "quests-panel";
+        panel.innerHTML = `<div class="quests-panel-header"><span>Quests</span><button type="button" id="quests-panel-close" aria-label="Close">✕</button></div><div class="quests-panel-body" id="quests-panel-body"></div>`;
+        document.body.appendChild(panel);
+        panel.querySelector("#quests-panel-close").onclick = () => panel.classList.remove("show");
+    }
+    const open = force === true ? true : force === false ? false : !panel.classList.contains("show");
+    panel.classList.toggle("show", open);
+    if (open) renderQuestsPanelBody();
+}
+
+function renderQuestsPanelBody() {
+    const body = document.getElementById("quests-panel-body");
+    if (!body) return;
+    ensureQuestsState();
+    const sections = [
+        { label: "Daily", list: data.quests.daily || [] },
+        { label: "Weekly", list: data.quests.weekly || [] }
+    ];
+    body.innerHTML = sections.map((sec) => {
+        const cards = (sec.list || []).map((q) => {
+            const pct = Math.min(100, Math.round(((q.progress || 0) / Math.max(1, q.target)) * 100));
+            const ready = !q.claimed && (q.progress || 0) >= q.target;
+            const cls = "quest-card" + (ready ? " ready" : "") + (q.claimed ? " claimed" : "");
+            return `<div class="${cls}" data-quest-id="${q.id}">
+              <div class="quest-card-top">
+                <div class="quest-card-title">${String(q.title || "Quest").replace(/</g, "&lt;")}</div>
+                <div class="quest-card-xp">+${q.xp} XP</div>
+              </div>
+              <div class="quest-card-meta">${(q.progress || 0)}/${q.target} · ${questExpiryLabel(q)}${ready ? " · Ready to claim" : ""}${q.claimed ? " · Claimed" : ""}</div>
+              <div class="quest-card-bar"><i style="width:${pct}%"></i></div>
+            </div>`;
+        }).join("");
+        return `<div class="quest-section-label">${sec.label}</div>${cards || "<div class='quest-card-meta'>None active</div>"}`;
+    }).join("");
+    body.querySelectorAll("[data-quest-id]").forEach((el) => {
+        el.addEventListener("click", () => openQuestDetail(el.getAttribute("data-quest-id")));
+    });
+    updateQuestsBadge();
+}
+
+function openQuestDetail(id) {
+    ensureQuestsState();
+    const q = allActiveQuests().find(x => x.id === id);
+    if (!q) return;
+    let ov = document.getElementById("quest-detail-overlay");
+    if (!ov) {
+        ov = document.createElement("div");
+        ov.id = "quest-detail-overlay";
+        ov.className = "quest-detail-overlay";
+        ov.innerHTML = `<div class="quest-detail" id="quest-detail-box"></div>`;
+        document.body.appendChild(ov);
+        ov.addEventListener("click", (e) => { if (e.target === ov) ov.classList.remove("show"); });
+    }
+    const pct = Math.min(100, Math.round(((q.progress || 0) / Math.max(1, q.target)) * 100));
+    const ready = !q.claimed && (q.progress || 0) >= q.target;
+    const unit = q.type === "focus" ? "min" : (q.type === "todos" ? "to-dos" : "blocks");
+    const box = ov.querySelector("#quest-detail-box");
+    box.innerHTML = `
+      <h3>${String(q.title || "Quest").replace(/</g, "&lt;")}</h3>
+      <div class="qd-desc">${String(q.desc || "").replace(/</g, "&lt;")}</div>
+      <div class="qd-bar"><i style="width:${pct}%"></i></div>
+      <div class="quest-card-meta">${q.progress || 0} / ${q.target} ${unit} (${pct}%)</div>
+      <div class="qd-stats">
+        <div class="qd-stat"><b>+${q.xp}</b><span>XP reward</span></div>
+        <div class="qd-stat"><b>${q.kind === "weekly" ? "Weekly" : "Daily"}</b><span>Quest type</span></div>
+        <div class="qd-stat"><b>${questExpiryLabel(q).replace("Expires ", "")}</b><span>Expiry</span></div>
+      </div>
+      <div class="quest-detail-actions">
+        <button type="button" class="secondary" id="qd-close">Close</button>
+        <button type="button" id="qd-claim" ${ready ? "" : "disabled style='opacity:0.5'"}>${q.claimed ? "Claimed" : (ready ? "Claim XP" : "In progress")}</button>
+      </div>`;
+    ov.classList.add("show");
+    box.querySelector("#qd-close").onclick = () => ov.classList.remove("show");
+    const claimBtn = box.querySelector("#qd-claim");
+    if (claimBtn && ready && !q.claimed) {
+        claimBtn.onclick = () => {
+            claimQuest(q.id);
+            ov.classList.remove("show");
+        };
+    }
+}
+
+try {
+    document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(function () {
+            try {
+                ensureQuestsState();
+                updateQuestsBadge();
+                saveData();
+            } catch (e) {}
+        }, 800);
+    });
+} catch (e) {}

@@ -61,6 +61,7 @@
         
         <div class="day-tabs-row">
             <div class="day-tabs" id="day-tabs-container"></div>
+            <button type="button" id="today-mode-btn" class="today-mode-btn" onclick="toggleTodayMode()" title="Live today mode: current block, done / snooze / skip">Today Mode</button>
             <button type="button" id="day-flex-btn" class="day-flex-btn" onclick="runDayFlex()" title="Shift remaining blocks to fit the rest of today">Day Flex</button>
         </div>
 
@@ -208,6 +209,7 @@
     </div>
 
     
+    <button type="button" id="quests-fab" class="quests-fab" title="Quests" onclick="toggleQuestsPanel()" aria-label="Quests">&#127919;<span id="quests-fab-badge" class="quests-fab-badge">0</span></button>
     <button type="button" id="voice-fab" class="voice-fab" title="Voice control (hold or click)" onclick="toggleVoiceListen()" aria-label="Voice control">&#127908;</button>
 <div id="ai-chat-widget" data-widget="ai-chat">
         <button id="ai-chat-toggle" onclick="toggleChatWindow()">&#129302;</button>

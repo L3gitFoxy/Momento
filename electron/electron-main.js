@@ -1,6 +1,31 @@
-const { app, BrowserWindow, shell, Tray, Menu, ipcMain, nativeImage } = require('electron');
+const { app, BrowserWindow, shell, Tray, Menu, ipcMain, nativeImage, dialog } = require('electron');
 const path = require('path');
 const { startMusicServer } = require('../server/server');
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    let openIt = true;
+    try {
+      const choice = dialog.showMessageBoxSync({
+        type: 'info',
+        title: 'Momento is already running',
+        message: 'Momento is already running. Open the existing window?',
+        buttons: ['OK', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true
+      });
+      openIt = choice === 0;
+    } catch (e) {}
+    if (!openIt || !mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
 
 let autoUpdater = null;
 try {
@@ -69,6 +94,7 @@ async function createWindow() {
   }
 
   const appIcon = resolveAppIcon();
+  try { Menu.setApplicationMenu(null); } catch (e) {}
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 800,
@@ -77,6 +103,7 @@ async function createWindow() {
     title: "Momento",
     icon: appIcon,
     backgroundColor: "#120f1d",
+    autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -85,6 +112,7 @@ async function createWindow() {
     },
     show: false,
   });
+  try { mainWindow.setMenuBarVisibility(false); } catch (e) {}
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
@@ -428,6 +456,7 @@ ipcMain.handle('momento-get-app-version', () => {
 });
 
 app.whenReady().then(async () => {
+  if (!gotTheLock) return;
   try { clearPendingUpdateCache(); } catch (e) {}
   await createWindow();
   setupAutoUpdater();
