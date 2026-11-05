@@ -287,7 +287,8 @@ function getDefaultAppData() {
             status: "pending",
             version: 1,
             answers: {}
-        }
+        },
+        quests: { daily: [], weekly: [], lastDailyRoll: "", lastWeeklyRoll: "" }
     };
 }
 
@@ -1538,8 +1539,52 @@ function initAuthUI() {
         });
     }
 }
+
+function countScheduleBlocks(schedules) {
+    if (!schedules || typeof schedules !== "object") return 0;
+    let n = 0;
+    Object.keys(schedules).forEach((day) => {
+        const arr = schedules[day];
+        if (Array.isArray(arr)) n += arr.filter(b => b && !b.isSleep).length;
+    });
+    return n;
+}
+
+/** True when blob looks like real user progress (not empty defaults). */
+function isMeaningfulAppData(obj) {
+    if (!obj || typeof obj !== "object") return false;
+    if (Number(obj.xp) > 0) return true;
+    if (Number(obj.streak) > 0) return true;
+    if (Array.isArray(obj.todos) && obj.todos.length > 0) return true;
+    if (countScheduleBlocks(obj.schedules) > 0) return true;
+    if (Number(obj.crateKeys) > 0) return true;
+    if (Array.isArray(obj.rewardsUnlocked) && obj.rewardsUnlocked.length > 0) return true;
+    return false;
+}
+
+function readLocalUserPayload(username) {
+    if (!username) return null;
+    try {
+        const key = "momento_user_data_" + username;
+        const profileKey = typeof profileStorageKey === "function" ? profileStorageKey(username) : null;
+        const raw = localStorage.getItem(key) || (profileKey ? localStorage.getItem(profileKey) : null);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (e) {
+        return null;
+    }
+}
+
 function applyProfileData(parsed) {
     if (!parsed || typeof parsed !== "object") return;
+    // Never let an empty cloud/file blob wipe a richer in-memory or local save
+    try {
+        if (!isMeaningfulAppData(parsed) && isMeaningfulAppData(typeof data !== "undefined" ? data : null)) {
+            console.warn("[applyProfileData] ignored empty profile payload to protect local data");
+            return;
+        }
+    } catch (e) {}
     if (typeof applyAppDataObject === "function") {
         applyAppDataObject(parsed);
     } else {
@@ -2124,20 +2169,12 @@ window.confirmCopyDayTo = confirmCopyDayTo;
 function checkAutoWeeklyReset() {
     const currentWeek = getWeekIdentifier();
     if (data.lastResetWeek && data.lastResetWeek !== currentWeek) {
-        DAYS.forEach(day => {
-            if (Array.isArray(data.schedules[day])) {
-                data.schedules[day].forEach(t => t.completed = false);
-            }
-            data.notes[day] = "";
-        });
         data.lastResetWeek = currentWeek;
         saveData();
-        setTimeout(() => showSavedMessage("🧹 New week detected! Checklist auto-reset."), 1000);
-    } else {
-        if (data.lastResetWeek !== currentWeek) {
-            data.lastResetWeek = currentWeek;
-            saveData();
-        }
+        setTimeout(() => showSavedMessage("New week — completed blocks and XP kept."), 1000);
+    } else if (data.lastResetWeek !== currentWeek) {
+        data.lastResetWeek = currentWeek;
+        saveData();
     }
 }
 
@@ -2207,6 +2244,17 @@ function applyAppDataObject(parsed) {
     } else if (!data.personalization) {
         data.personalization = { status: "pending", version: 1, answers: {} };
     }
+    if (parsed.quests && typeof parsed.quests === "object") {
+        data.quests = {
+            daily: Array.isArray(parsed.quests.daily) ? parsed.quests.daily : [],
+            weekly: Array.isArray(parsed.quests.weekly) ? parsed.quests.weekly : [],
+            lastDailyRoll: parsed.quests.lastDailyRoll || "",
+            lastWeeklyRoll: parsed.quests.lastWeeklyRoll || ""
+        };
+    } else if (!data.quests || typeof data.quests !== "object") {
+        data.quests = { daily: [], weekly: [], lastDailyRoll: "", lastWeeklyRoll: "" };
+    }
+
     try {
         const ls = localStorage.getItem("MOMENTO_PERSONALIZATION_STATUS");
         if ((ls === "completed" || ls === "declined") && data.personalization.status === "pending") {
@@ -2224,27 +2272,35 @@ function resetToDefaultAppData() {
 }
 
 function loadData() {
+    let loadedOk = false;
     try {
-        
-        
         if (currentUser) {
             const key = "momento_user_data_" + currentUser;
             const profileKey = profileStorageKey(currentUser);
             let saved = localStorage.getItem(key) || localStorage.getItem(profileKey);
             if (saved) {
                 applyAppDataObject(JSON.parse(saved));
+                loadedOk = true;
             } else {
-                
-                resetToDefaultAppData();
+                // Fresh account only — do not clobber if in-memory already has progress
+                if (!isMeaningfulAppData(data)) resetToDefaultAppData();
+                loadedOk = false;
             }
         } else {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) applyAppDataObject(JSON.parse(saved));
-            else resetToDefaultAppData();
+            if (saved) {
+                applyAppDataObject(JSON.parse(saved));
+                loadedOk = true;
+            } else {
+                if (!isMeaningfulAppData(data)) resetToDefaultAppData();
+                loadedOk = false;
+            }
         }
     } catch (error) {
         console.error("Could not load Momento data:", error);
-        resetToDefaultAppData();
+        // Parse failure: keep existing in-memory data if it looks real; never write defaults over a good local key blindly
+        if (!isMeaningfulAppData(data)) resetToDefaultAppData();
+        loadedOk = false;
     }
     try { if (typeof syncRewardsToLevel === "function") syncRewardsToLevel(); } catch (e) {}
 
@@ -2262,7 +2318,10 @@ function loadData() {
             if (typeof updateClock === "function") updateClock();
         }
     } catch (e) {}
-    saveData();
+    // Only persist after a successful load or first-time defaults for an empty account
+    if (loadedOk || !isMeaningfulAppData(readLocalUserPayload(currentUser))) {
+        try { saveData(); } catch (e) {}
+    }
 }
 
 async function saveData() {
@@ -2827,11 +2886,14 @@ function createTaskRow(task, index) {
     checkbox.type = "checkbox";
     checkbox.checked = !!task.completed;
 
-    
     const isToday = (typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay) === data.currentDay;
     if (!isToday) {
         checkbox.disabled = true;
         checkbox.title = "Only today's tasks can be checked off";
+    }
+    if (task.completed) {
+        checkbox.disabled = true;
+        checkbox.title = "Completed blocks stay checked";
     }
 
     checkbox.addEventListener("change", () => {
@@ -2842,6 +2904,12 @@ function createTaskRow(task, index) {
         if (data.currentDay !== todayIdx) {
             checkbox.checked = wasCompleted;
             showToast("⛔ You can only check off tasks on today's day!", "warn");
+            return;
+        }
+        if (wasCompleted) {
+            checkbox.checked = true;
+            checkbox.disabled = true;
+            if (typeof showToast === "function") showToast("Completed blocks cannot be unchecked", "info");
             return;
         }
 
@@ -2879,10 +2947,10 @@ function createTaskRow(task, index) {
                 }
             }
         } else if (!checkbox.checked && wasCompleted) {
-            task.completed = false;
-            if (!task.isSleep && (task.xpAwarded || task.xpAmount)) {
-                revokeXPForTask(task);
-            }
+            checkbox.checked = true;
+            task.completed = true;
+            if (typeof showToast === "function") showToast("Completed blocks cannot be unchecked", "info");
+            return;
         } else {
             task.completed = checkbox.checked;
         }
@@ -3236,12 +3304,10 @@ function saveBlockDetail() {
             awardXPForTask(task);
         }
     } else if (!nowDone && wasCompleted) {
-        task.completed = false;
-        if (!task.isSleep) {
-            if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
-            task.xpAwarded = true;
-            revokeXPForTask(task);
-        }
+        task.completed = true;
+        try { const el = document.getElementById("bd-completed"); if (el) el.checked = true; } catch (e) {}
+        if (typeof showToast === "function") showToast("Completed blocks cannot be unchecked", "info");
+        return;
     } else {
         task.completed = nowDone;
     }
@@ -3588,12 +3654,9 @@ function applyPreset() {
         daysTouched++;
         
         
-        if (i === todayIdx && typeof clawbackDayXP === "function") {
-            lost += clawbackDayXP(day, { silent: true });
-        }
-        data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
-            ...t, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false
-        }));
+        const incoming = deepClone(data.presets[name][day] || []);
+        if (typeof mergeDaySchedulePreservingDone === "function") mergeDaySchedulePreservingDone(day, incoming);
+        else data.schedules[day] = incoming.map(x => ({ ...x, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false }));
     });
     data.appliedRoutine = name;
     saveData();
@@ -3612,10 +3675,9 @@ function applySingleDayPreset() {
     const name = select.value;
     const day = DAYS[data.currentDay];
 
-    if (typeof clawbackDayXP === "function") clawbackDayXP(day);
-    data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
-        ...t, completed: false, xpAwarded: false, xpAmount: 0
-    }));
+    const incomingDay = deepClone(data.presets[name][day] || []);
+    if (typeof mergeDaySchedulePreservingDone === "function") mergeDaySchedulePreservingDone(day, incomingDay);
+    else data.schedules[day] = incomingDay.map(x => ({ ...x, completed: false, xpAwarded: false, xpAmount: 0 }));
     data.appliedRoutine = `${name} → ${day}`;
     saveData();
     renderCurrentDay();
@@ -3625,10 +3687,9 @@ function applySingleDayPreset() {
 }
 
 function applyCustomDayPreset(day,name){
-    if (typeof clawbackDayXP === "function") clawbackDayXP(day);
-    data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
-        ...t, completed: false, xpAwarded: false, xpAmount: 0
-    }));
+    const incomingDay = deepClone(data.presets[name][day] || []);
+    if (typeof mergeDaySchedulePreservingDone === "function") mergeDaySchedulePreservingDone(day, incomingDay);
+    else data.schedules[day] = incomingDay.map(x => ({ ...x, completed: false, xpAwarded: false, xpAmount: 0 }));
     data.appliedRoutine = `${name} → ${day}`;
     saveData();
     renderCurrentDay();
@@ -3955,43 +4016,42 @@ const REWARD_CATALOG = [
     { id: "feature_timeline", atLevel: 7,  name: "Timeline Visualizer",   desc: "Unlock the day timeline visualizer" },
     { id: "crate_keys_8",     atLevel: 8,  name: "2 Crate Keys",          desc: "Earn 2 crate keys", crateKeys: 2 },
     { id: "theme_coral",      atLevel: 9,  name: "Coral Theme",           desc: "Unlock the Coral colour theme" },
-    { id: "sound_levelup",    atLevel: 10, name: "Level-Up Fanfare",      desc: "Special arpeggio when you level up" },
-    { id: "theme_ember",      atLevel: 11, name: "Ember Theme",           desc: "Fiery dark orange gradient" },
+    { id: "sound_chill",      atLevel: 10, name: "Chill Chime",            desc: "Softer completion tone" },
+    { id: "theme_amber",      atLevel: 11, name: "Amber Theme",           desc: "Unlock the Amber colour theme" },
     { id: "feature_analyser", atLevel: 12, name: "Week Analyser",         desc: "Unlock Analyse My Week" },
-    { id: "sound_crystal",    atLevel: 13, name: "Crystal Chime",         desc: "Bright crystalline completion tone" },
-    { id: "theme_amber",      atLevel: 14, name: "Amber Theme",           desc: "Unlock the Amber colour theme" },
+    { id: "sound_drum",       atLevel: 13, name: "Drum Hit",              desc: "Punchy drum on task complete" },
+    { id: "theme_green",      atLevel: 14, name: "Green Theme",           desc: "Unlock the Green colour theme" },
     { id: "confetti",         atLevel: 15, name: "Confetti Celebration",  desc: "Confetti on big XP gains" },
-    { id: "cosmetic_particles", atLevel: 16, name: "XP Particles",        desc: "Floating particles when you earn XP" },
-    { id: "theme_green",      atLevel: 17, name: "Green Theme",           desc: "Unlock the Green colour theme" },
-    { id: "theme_glacier",    atLevel: 18, name: "Glacier Theme",         desc: "Icy blue glacial gradient" },
-    { id: "sound_victory",    atLevel: 19, name: "Victory Fanfare",       desc: "Special chime on task complete" },
-    { id: "theme_rose",       atLevel: 20, name: "Rose Theme",            desc: "Unlock the Rose colour theme" },
-    { id: "sound_drum",       atLevel: 21, name: "Drum Hit",              desc: "Punchy drum on task complete" },
-    { id: "focus_plus",       atLevel: 22, name: "Focus+ Modes",          desc: "Extra timer lengths (15/45/60)" },
-    { id: "theme_toxic",      atLevel: 23, name: "Toxic Theme",           desc: "Neon acid green gradient" },
+    { id: "theme_rose",       atLevel: 16, name: "Rose Theme",            desc: "Unlock the Rose colour theme" },
+    { id: "sound_levelup",    atLevel: 17, name: "Level-Up Fanfare",      desc: "Special arpeggio when you level up" },
+    { id: "theme_ocean",      atLevel: 18, name: "Ocean Theme",           desc: "Unlock the Ocean colour theme" },
+    { id: "cosmetic_particles", atLevel: 19, name: "XP Particles",        desc: "Floating particles when you earn XP" },
+    { id: "theme_forest",     atLevel: 20, name: "Forest Theme",          desc: "Unlock the Forest colour theme" },
+    { id: "focus_plus",       atLevel: 21, name: "Focus+ Modes",          desc: "Extra timer lengths (15/45/60)" },
+    { id: "theme_gold",       atLevel: 22, name: "Gold Theme",            desc: "Unlock the Gold colour theme" },
+    { id: "sound_crystal",    atLevel: 23, name: "Crystal Chime",         desc: "Bright crystalline completion tone" },
     { id: "xp_boost_skilled", atLevel: 24, name: "+100 Bonus XP",         desc: "One-time +100 XP at Skilled 5", bonusXP: 100 },
-    { id: "cosmetic_glow",    atLevel: 25, name: "Block Glow",            desc: "Active blocks get a soft pulse glow" },
-    { id: "theme_gold",       atLevel: 26, name: "Gold Theme",            desc: "Unlock the Gold colour theme" },
-    { id: "theme_royal",      atLevel: 27, name: "Royal Theme",           desc: "Deep purple radial glow" },
-    { id: "sound_chill",      atLevel: 28, name: "Chill Chime",            desc: "Softer completion tone" },
-    { id: "sound_sparkle",    atLevel: 29, name: "Sparkle Cascade",       desc: "Sparkly cascade on level-up" },
-    { id: "theme_ocean",      atLevel: 30, name: "Ocean Theme",           desc: "Unlock the Ocean colour theme" },
-    { id: "theme_bloodmoon",  atLevel: 31, name: "Blood Moon Theme",      desc: "Crimson night gradient" },
+    { id: "theme_neon",       atLevel: 25, name: "Neon Theme",            desc: "Unlock the Neon colour theme" },
+    { id: "cosmetic_glow",    atLevel: 26, name: "Block Glow",            desc: "Active blocks get a soft pulse glow" },
+    { id: "theme_sunset",     atLevel: 27, name: "Sunset Gradient",       desc: "Unlock the Sunset gradient theme" },
+    { id: "sound_victory",    atLevel: 28, name: "Victory Fanfare",       desc: "Special chime on task complete" },
+    { id: "theme_aurora",     atLevel: 29, name: "Aurora Theme",          desc: "Northern-lights style gradient" },
+    { id: "theme_candy",      atLevel: 30, name: "Candy Theme",           desc: "Sweet pink gradient theme" },
+    { id: "sound_sparkle",    atLevel: 31, name: "Sparkle Cascade",       desc: "Sparkly cascade on level-up" },
     { id: "badge_legend",     atLevel: 32, name: "Legend Badge",          desc: "Show a Legend badge on your progress pill" },
-    { id: "cosmetic_streakfire", atLevel: 33, name: "Streak Fire",        desc: "Animated fire icon on long streaks" },
-    { id: "theme_forest",     atLevel: 34, name: "Forest Theme",          desc: "Unlock the Forest colour theme" },
-    { id: "theme_matrix",     atLevel: 35, name: "Matrix Theme",          desc: "Classic green-on-black" },
-    { id: "theme_neon",       atLevel: 36, name: "Neon Theme",            desc: "Unlock the Neon colour theme" },
-    { id: "crate_keys_37",    atLevel: 37, name: "7 Crate Keys",          desc: "Earn 7 crate keys", crateKeys: 7 },
-    { id: "xp_boost_master",  atLevel: 38, name: "+250 Bonus XP",         desc: "One-time +250 XP at Master 4", bonusXP: 250 },
+    { id: "theme_midnight",   atLevel: 33, name: "Midnight Theme",        desc: "Unlock the Midnight colour theme" },
+    { id: "theme_glacier",    atLevel: 35, name: "Glacier Theme",         desc: "Icy blue glacial gradient" },
+    { id: "theme_ember",      atLevel: 37, name: "Ember Theme",           desc: "Fiery dark orange gradient" },
+    { id: "crate_keys_37",    atLevel: 38, name: "7 Crate Keys",          desc: "Earn 7 crate keys", crateKeys: 7 },
+    { id: "theme_toxic",      atLevel: 40, name: "Toxic Theme",           desc: "Neon acid green gradient" },
+    { id: "xp_boost_master",  atLevel: 41, name: "+250 Bonus XP",         desc: "One-time +250 XP at Master 4", bonusXP: 250 },
+    { id: "theme_royal",      atLevel: 43, name: "Royal Theme",           desc: "Deep purple radial glow" },
+    { id: "cosmetic_streakfire", atLevel: 44, name: "Streak Fire",        desc: "Animated fire icon on long streaks" },
+    { id: "theme_bloodmoon",  atLevel: 46, name: "Blood Moon Theme",      desc: "Crimson night gradient" },
+    { id: "theme_matrix",     atLevel: 48, name: "Matrix Theme",          desc: "Classic green-on-black" },
     { id: "crate_keys_39",    atLevel: 39, name: "8 Crate Keys",          desc: "Earn 8 crate keys", crateKeys: 8 },
-    { id: "theme_midnight",   atLevel: 40, name: "Midnight Theme",        desc: "Unlock the Midnight colour theme" },
-    { id: "crate_keys_41",    atLevel: 41, name: "3 Crate Keys",          desc: "Earn 3 crate keys", crateKeys: 3 },
-    { id: "theme_sunset",     atLevel: 42, name: "Sunset Gradient",       desc: "Unlock the Sunset gradient theme" },
     { id: "crate_keys_43",    atLevel: 43, name: "3 Crate Keys",          desc: "Earn 3 crate keys", crateKeys: 3 },
-    { id: "theme_aurora",     atLevel: 44, name: "Aurora Gradient",       desc: "Unlock the Aurora gradient theme" },
     { id: "crate_keys_45",    atLevel: 45, name: "3 Crate Keys",          desc: "Earn 3 crate keys", crateKeys: 3 },
-    { id: "theme_candy",      atLevel: 46, name: "Candy Gradient",        desc: "Unlock the Candy gradient theme" },
     { id: "crate_keys_47",    atLevel: 47, name: "5 Crate Keys",          desc: "Earn 5 crate keys", crateKeys: 5 },
     { id: "theme_mythic",     atLevel: 48, name: "Mythic Aura",           desc: "Special Mythic glow on the XP pill" },
     { id: "title_mythic",     atLevel: 49, name: "Mythic Title",          desc: "Unlock the Mythic title under Momento" },
@@ -4496,32 +4556,56 @@ function showThemeLockedPopup(theme) {
     document.body.appendChild(el);
 }
 
-function clawbackDayXP(day, opts) {
-    opts = opts || {};
-    const silent = !!opts.silent;
-    const tasks = data.schedules[day] || [];
-    let total = 0;
-    const infoBefore = getLevelInfo(data.xp || 0);
-    tasks.forEach(t => {
-        if ((t.xpAwarded || t.completed) && !t.isSleep) {
-            const loss = t.xpAmount || calcTaskXP(t);
-            data.xp = Math.max(0, (data.xp || 0) - loss);
-            data.totalTasksCompleted = Math.max(0, (data.totalTasksCompleted || 0) - 1);
-            total += loss;
+function mergeDaySchedulePreservingDone(day, incomingBlocks) {
+    const prev = (data.schedules[day] || []).slice();
+    const incoming = Array.isArray(incomingBlocks) ? incomingBlocks : [];
+    const next = incoming.map((blk) => {
+        const start = String(blk.start || "09:00").slice(0, 5);
+        const end = String(blk.end || "10:00").slice(0, 5);
+        const name = String(blk.task || blk.activity || "Block");
+        const match = prev.find((p) =>
+            String(p.task || "").toLowerCase() === name.toLowerCase() &&
+            String(p.start || "").slice(0, 5) === start &&
+            String(p.end || "").slice(0, 5) === end &&
+            (p.completed || p.xpAwarded)
+        );
+        if (match) {
+            return {
+                task: name, start, end,
+                completed: true,
+                xpAwarded: !!match.xpAwarded,
+                xpAmount: match.xpAmount || 0,
+                keyGenerated: !!match.keyGenerated,
+                isSleep: !!(blk.isSleep || match.isSleep),
+                notes: blk.notes || match.notes || ""
+            };
         }
-        t.xpAwarded = false;
-        t.xpAmount = 0;
-        t.completed = false;
+        return {
+            task: name, start, end,
+            completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false,
+            isSleep: !!blk.isSleep, notes: blk.notes || ""
+        };
     });
-    if (total > 0 && !silent) {
-        const infoAfter = getLevelInfo(data.xp || 0);
-        if (infoAfter.levelIndex < infoBefore.levelIndex) {
-            showLevelDown(infoBefore.rank, infoAfter.rank);
+    prev.filter(p => p && (p.completed || p.xpAwarded) && !p.isSleep).forEach((p) => {
+        const still = next.some(n =>
+            String(n.task || "").toLowerCase() === String(p.task || "").toLowerCase() &&
+            String(n.start || "").slice(0, 5) === String(p.start || "").slice(0, 5)
+        );
+        if (!still) {
+            next.push({
+                task: p.task, start: p.start, end: p.end,
+                completed: true, xpAwarded: !!p.xpAwarded, xpAmount: p.xpAmount || 0,
+                keyGenerated: !!p.keyGenerated, isSleep: !!p.isSleep, notes: p.notes || ""
+            });
         }
-        showToast(`−${total} XP taken back (day cleared)`, "warn");
-    }
-    if (!silent) enforceLocksAfterXPChange();
-    return total;
+    });
+    next.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+    data.schedules[day] = next;
+    return next;
+}
+
+function clawbackDayXP(day, opts) {
+    return 0;
 }
 
 function clearDaySchedule(day) {
@@ -5721,12 +5805,9 @@ function applyNamedPreset(name) {
     DAYS.forEach((day, i) => {
         if (i < todayIdx) return;
         daysTouched++;
-        if (i === todayIdx && typeof clawbackDayXP === "function") {
-            lost += clawbackDayXP(day, { silent: true });
-        }
-        data.schedules[day] = deepClone(data.presets[name][day] || []).map(t => ({
-            ...t, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false
-        }));
+        const incoming = deepClone(data.presets[name][day] || []);
+        if (typeof mergeDaySchedulePreservingDone === "function") mergeDaySchedulePreservingDone(day, incoming);
+        else data.schedules[day] = incoming.map(x => ({ ...x, completed: false, xpAwarded: false, xpAmount: 0, keyGenerated: false }));
     });
     data.appliedRoutine = name;
     saveData();
@@ -6199,10 +6280,12 @@ async function authSignup(username, password) {
         if (res.ok && body && body.token) {
             setSession({ username: key, token: body.token, cloud: false, localFile: true });
             currentUser = key;
-
-            resetToDefaultAppData();
-            if (body.data) applyProfileData(body.data);
-            else {
+            const existing = readLocalUserPayload(key);
+            if (existing && isMeaningfulAppData(existing)) {
+                loadData();
+            } else if (body.data && isMeaningfulAppData(body.data)) {
+                applyProfileData(body.data);
+            } else {
                 migrateLegacyDataIfAny(key);
                 loadData();
             }
@@ -6228,8 +6311,10 @@ async function authSignup(username, password) {
     saveAccounts(accounts);
     setSession({ username: key, token: null, cloud: false });
     currentUser = key;
-    
-    resetToDefaultAppData();
+    const existingLocal = readLocalUserPayload(key);
+    if (!(existingLocal && isMeaningfulAppData(existingLocal))) {
+        resetToDefaultAppData();
+    }
     migrateLegacyDataIfAny(key);
     loadData();
     finishAuth();
@@ -6255,10 +6340,18 @@ async function authLogin(username, password) {
         if (res.ok && body && body.token) {
             setSession({ username: key, token: body.token, cloud: false, localFile: true });
             currentUser = key;
-            
-            resetToDefaultAppData();
-            if (body.data) applyProfileData(body.data);
-            else loadData();
+            // Load local first so empty server payloads cannot wipe progress
+            loadData();
+            const serverData = body.data;
+            if (serverData && isMeaningfulAppData(serverData)) {
+                const localBlocks = countScheduleBlocks(data.schedules);
+                const serverBlocks = countScheduleBlocks(serverData.schedules);
+                const localXp = Number(data.xp) || 0;
+                const serverXp = Number(serverData.xp) || 0;
+                if (serverXp > localXp || serverBlocks > localBlocks) {
+                    applyProfileData(serverData);
+                }
+            }
             finishAuth();
             showWelcomeBack();
             return;
@@ -6290,8 +6383,6 @@ async function authLogin(username, password) {
     if (passHash !== acc.passHash) throw new Error("Wrong password");
     setSession({ username: key, token: null, cloud: false });
     currentUser = key;
-    
-    resetToDefaultAppData();
     loadData();
     finishAuth();
     showWelcomeBack();
@@ -7436,6 +7527,8 @@ let _focusTimerInterval = null;
 let _focusSecondsLeft = 25 * 60;
 
 let _focusIsRunning = false;
+let _focusDeadline = null;
+let _focusQuestTick = 0;
 
 let _focusIsBreak = false;
 
@@ -7497,64 +7590,138 @@ function openFocusMode(task, index) {
 
 function closeFocusMode() {
     const modal = document.getElementById("focus-modal");
+    if (_focusIsRunning) {
+        const keep = window.confirm("Focus timer is still running.\n\nOK = keep timer going in the background\nCancel = stop the timer");
+        if (!keep) {
+            stopFocusTimerHard();
+        } else if (typeof showToast === "function") {
+            showToast("Timer keeps running in the background", "info");
+        }
+    }
     if (modal) modal.classList.add("hidden");
+}
+
+function stopFocusTimerHard() {
     if (_focusTimerInterval) clearInterval(_focusTimerInterval);
+    _focusTimerInterval = null;
     _focusIsRunning = false;
+    _focusDeadline = null;
+    _focusSecondsLeft = 25 * 60;
+    _focusIsBreak = false;
+    _focusQuestTick = 0;
+    updateFocusTimerDisplay();
 }
 
 function updateFocusTimerDisplay() {
-    const m = Math.floor(_focusSecondsLeft / 60);
-    const s = _focusSecondsLeft % 60;
-    const text = `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
-    const phaseText = _focusIsBreak ? "☕ Break Time" : "💪 Work Session";
-    const startText = _focusIsRunning ? "⏸ Pause" : "▶ Start";
-    ["focus-timer", "music-focus-timer"].forEach(id => {
+    const secs = Math.max(0, Number(_focusSecondsLeft) || 0);
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    const text = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    const phaseText = _focusIsBreak ? "Break Time" : "Work Session";
+    const startText = _focusIsRunning ? "Pause" : "Start";
+    ["focus-timer", "music-focus-timer"].forEach(function (id) {
         const el = document.getElementById(id);
-        if (el) el.textContent = text;
+        if (el && el.textContent !== text) el.textContent = text;
     });
-    ["focus-phase", "music-focus-phase"].forEach(id => {
+    ["focus-phase", "music-focus-phase"].forEach(function (id) {
         const el = document.getElementById(id);
         if (el) el.textContent = phaseText;
     });
-    ["focus-start-btn", "music-focus-start"].forEach(id => {
+    ["focus-start-btn", "music-focus-start"].forEach(function (id) {
         const el = document.getElementById(id);
         if (el) el.textContent = startText;
     });
+    // Any extra timer faces rendered by widgets
+    try {
+        document.querySelectorAll(".music-focus-panel .focus-timer, #focus-modal .focus-timer").forEach(function (el) {
+            if (el && el.textContent !== text) el.textContent = text;
+        });
+    } catch (e) {}
+}
+
+function syncFocusFromDeadline() {
+    if (!_focusIsRunning || !_focusDeadline) return;
+    const left = Math.max(0, Math.ceil((_focusDeadline - Date.now()) / 1000));
+    const prev = _focusSecondsLeft;
+    _focusSecondsLeft = left;
+    if (!_focusIsBreak && prev > left) {
+        let elapsed = prev - left;
+        _focusQuestTick = (_focusQuestTick || 0) + elapsed;
+        while (_focusQuestTick >= 60) {
+            _focusQuestTick -= 60;
+            try { if (typeof trackQuestProgress === "function") trackQuestProgress("focus", 1); } catch (e) {}
+        }
+    }
+}
+
+function advanceFocusPhase() {
+    if (_focusIsBreak) {
+        _focusIsBreak = false;
+        _focusSecondsLeft = 25 * 60;
+        _focusQuestTick = 0;
+        _focusDeadline = Date.now() + _focusSecondsLeft * 1000;
+        if (typeof showToast === "function") showToast("Focus time, back to work", "info");
+    } else {
+        try { awardFocusSessionBonus(); } catch (e) {}
+        _focusIsBreak = true;
+        _focusSecondsLeft = 5 * 60;
+        _focusQuestTick = 0;
+        _focusDeadline = Date.now() + _focusSecondsLeft * 1000;
+        if (typeof showToast === "function") showToast("Break time, 5 minutes", "info");
+    }
+    try {
+        if (typeof playRewardSound === "function") playRewardSound("complete");
+        else if (typeof playChime === "function") playChime();
+    } catch (e) {}
+    updateFocusTimerDisplay();
+}
+
+function ensureFocusTicker() {
+    if (_focusTimerInterval) clearInterval(_focusTimerInterval);
+    // 250ms tick so the UI feels live even if the main process throttles 1s timers
+    _focusTimerInterval = setInterval(function focusTick() {
+        if (!_focusIsRunning) return;
+        syncFocusFromDeadline();
+        if (_focusSecondsLeft <= 0) {
+            advanceFocusPhase();
+            return;
+        }
+        updateFocusTimerDisplay();
+    }, 250);
 }
 
 function toggleFocusTimer() {
     if (_focusIsRunning) {
-        clearInterval(_focusTimerInterval);
+        syncFocusFromDeadline();
+        if (_focusTimerInterval) clearInterval(_focusTimerInterval);
+        _focusTimerInterval = null;
         _focusIsRunning = false;
+        _focusDeadline = null;
         updateFocusTimerDisplay();
         return;
     }
     _focusIsRunning = true;
-    if (_focusTimerInterval) clearInterval(_focusTimerInterval);
-    _focusTimerInterval = setInterval(() => {
-        if (_focusSecondsLeft <= 0) {
-
-            if (_focusIsBreak) {
-                _focusIsBreak = false;
-                _focusSecondsLeft = 25 * 60;
-                showToast("Focus time, back to work", "info");
-            } else {
-                awardFocusSessionBonus();
-                _focusIsBreak = true;
-                _focusSecondsLeft = 5 * 60;
-                showToast("Break time, 5 minutes", "info");
-            }
-
-            try {
-                if (typeof playRewardSound === "function") playRewardSound("complete");
-                else if (typeof playChime === "function") playChime();
-            } catch (e) {}
-            updateFocusTimerDisplay();
-            return;
+    if (!_focusSecondsLeft || _focusSecondsLeft < 0) _focusSecondsLeft = 25 * 60;
+    _focusDeadline = Date.now() + Math.max(1, _focusSecondsLeft) * 1000;
+    ensureFocusTicker();
+    try {
+        if (!window._focusVisBound) {
+            window._focusVisBound = true;
+            document.addEventListener("visibilitychange", function () {
+                if (!_focusIsRunning) return;
+                syncFocusFromDeadline();
+                if (_focusSecondsLeft <= 0) advanceFocusPhase();
+                else updateFocusTimerDisplay();
+            });
+            // Keep ticking while window is visible
+            window.addEventListener("focus", function () {
+                if (!_focusIsRunning) return;
+                syncFocusFromDeadline();
+                ensureFocusTicker();
+                updateFocusTimerDisplay();
+            });
         }
-        _focusSecondsLeft--;
-        updateFocusTimerDisplay();
-    }, 1000);
+    } catch (e) {}
     updateFocusTimerDisplay();
 }
 
@@ -7598,11 +7765,7 @@ function awardFocusSessionBonus() {
 }
 
 function resetFocusTimer() {
-    clearInterval(_focusTimerInterval);
-    _focusIsRunning = false;
-    _focusIsBreak = false;
-    _focusSecondsLeft = 25 * 60;
-    updateFocusTimerDisplay();
+    stopFocusTimerHard();
 }
 
 function skipFocusPhase() {
@@ -7631,9 +7794,12 @@ function skipFocusPhase() {
 function completeFocusTask() {
     if (!_focusTaskRef) return;
     const { task, day } = _focusTaskRef;
+    // Live timer already credits each full minute; only bank a partial minute if any
     try {
-        const mins = Math.max(1, Math.round((25 * 60 - (typeof _focusSecondsLeft === "number" ? _focusSecondsLeft : 0)) / 60));
-        if (typeof trackQuestProgress === "function") trackQuestProgress("focus", Math.min(25, mins));
+        if (!_focusIsBreak && typeof _focusQuestTick === "number" && _focusQuestTick >= 30) {
+            if (typeof trackQuestProgress === "function") trackQuestProgress("focus", 1);
+            _focusQuestTick = 0;
+        }
     } catch (e) {}
     if (!task || task.completed) {
         closeFocusMode();
@@ -10333,7 +10499,7 @@ window.activateCrateCosmetic = activateCrateCosmetic;
    ============================================================ */
 
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "9.4.0";
+const CHANGELOG_VERSION = "9.4.1";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -10613,6 +10779,15 @@ const CHANGELOG_9_3_0 = [
     "If a full day was already key-claimed, extra blocks on re-apply still grant no keys (XP still works; silent)"
 ];
 
+const CHANGELOG_9_4_1 = [
+    "Data restore points in Settings — per account, under Momento/backup",
+    "Completed blocks stay checked; applying a week no longer removes XP",
+    "Focus timer keeps running when you leave the page, minimize, or tray",
+    "Quest XP scales with rank; dailies/weeklies only refresh at period end",
+    "Premium themes moved later in the reward chain",
+    "Safer login: empty cloud data cannot wipe your progress"
+];
+
 const CHANGELOG_9_4_0 = [
     "Today Mode: live current block with Done, Snooze 10m, Skip, and focus lock",
     "Recovery plan when you fall behind on flexible blocks (one-tap apply)",
@@ -10687,7 +10862,7 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        const cl = (typeof CHANGELOG_9_4_0 !== "undefined") ? CHANGELOG_9_4_0 : ((typeof CHANGELOG_9_3_1 !== "undefined") ? CHANGELOG_9_3_1 : ((typeof CHANGELOG_9_3_0 !== "undefined") ? CHANGELOG_9_3_0 : ((typeof CHANGELOG_9_2_2 !== "undefined") ? CHANGELOG_9_2_2 : ((typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0))))))));
+        const cl = (typeof CHANGELOG_9_4_1 !== "undefined") ? CHANGELOG_9_4_1 : ((typeof CHANGELOG_9_4_0 !== "undefined") ? CHANGELOG_9_4_0 : ((typeof CHANGELOG_9_3_1 !== "undefined") ? CHANGELOG_9_3_1 : ((typeof CHANGELOG_9_3_0 !== "undefined") ? CHANGELOG_9_3_0 : ((typeof CHANGELOG_9_2_2 !== "undefined") ? CHANGELOG_9_2_2 : ((typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0)))))))));
         body.innerHTML = "<ul>" + cl.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
@@ -11578,6 +11753,7 @@ function resetSystemPromptToDefault() {
 
 function toggleAppSettings(force, skipDirtyCheck) {
     const panel = document.getElementById("app-settings-panel");
+    try { setTimeout(function(){ if (panel && !panel.classList.contains("hidden")) refreshBackupList(); }, 50); } catch (e) {}
     if (!panel) return;
     const currentlyHidden = panel.classList.contains("hidden");
     const open = force === true || (force !== false && currentlyHidden);
@@ -12028,7 +12204,7 @@ try { document.addEventListener("DOMContentLoaded", bindMusicBetaTooltip); } cat
 setTimeout(bindMusicBetaTooltip, 800);
 
 (function setupVersionWatermark() {
-    var FALLBACK = "9.4.0";
+    var FALLBACK = "9.4.1";
     function setLabel(v) {
         if (!v) return;
         var el = document.getElementById("momento-version-watermark");
@@ -13214,14 +13390,17 @@ function questLevel() {
     } catch (e) { return 1; }
 }
 
-/** Steady curve: meaningful but never wild. No XP multipliers. */
+/** Scales with rank. No XP multipliers. Soft caps so it never explodes. */
 function questXpReward(kind, difficulty) {
     const lv = Math.max(1, questLevel());
     const d = Math.max(1, Math.min(3, difficulty || 1));
+    const rankBand = 1 + Math.floor(lv / 5) * 0.15;
     if (kind === "daily") {
-        return Math.round(12 + lv * 1.6 + d * 6);
+        const base = 16 + lv * 2.5 + d * 8;
+        return Math.max(15, Math.min(140, Math.round(base * rankBand)));
     }
-    return Math.round(36 + lv * 4 + d * 18);
+    const base = 50 + lv * 6.5 + d * 24;
+    return Math.max(40, Math.min(420, Math.round(base * rankBand)));
 }
 
 function ensureQuestsState() {
@@ -13304,16 +13483,19 @@ function rollQuestsIfNeeded() {
     const week = isoWeekKey();
     const lv = questLevel();
     const now = Date.now();
-    // Drop only expired rows. Claimed quests stay until the period ends so we never re-roll early.
-    data.quests.daily = (data.quests.daily || []).filter(q => q && q.expiresAt > now);
-    data.quests.weekly = (data.quests.weekly || []).filter(q => q && q.expiresAt > now);
-    if (data.quests.lastDailyRoll !== today) {
+    // Only strip rows that are past expiry. Never re-roll mid-day / mid-week.
+    data.quests.daily = (data.quests.daily || []).filter(q => q && Number(q.expiresAt) > now);
+    data.quests.weekly = (data.quests.weekly || []).filter(q => q && Number(q.expiresAt) > now);
+    // Locked for the calendar day — even if the user claimed everything
+    if (String(data.quests.lastDailyRoll || "") !== today) {
         data.quests.daily = pickDailyQuests(lv);
         data.quests.lastDailyRoll = today;
+        try { if (typeof saveData === "function") saveData(); } catch (e) {}
     }
-    if (data.quests.lastWeeklyRoll !== week) {
+    if (String(data.quests.lastWeeklyRoll || "") !== week) {
         data.quests.weekly = pickWeeklyQuests(lv);
         data.quests.lastWeeklyRoll = week;
+        try { if (typeof saveData === "function") saveData(); } catch (e) {}
     }
 }
 
@@ -13355,7 +13537,13 @@ function claimQuest(id) {
         return false;
     }
     q.claimed = true;
-    const xp = Math.max(1, Math.round(q.xp || 0));
+    // Pay out at current rank so climbing ranks increases quest XP
+    let xp = Math.max(1, Math.round(q.xp || 0));
+    try {
+        const live = questXpReward(q.kind === "weekly" ? "weekly" : "daily", q.difficulty || 1);
+        xp = Math.max(xp, live);
+        q.xp = xp;
+    } catch (e) {}
     data.xp = (data.xp || 0) + xp;
     saveData();
     try {
@@ -13495,3 +13683,109 @@ try {
         }, 800);
     });
 } catch (e) {}
+
+
+function currentBackupAccountId() {
+    try {
+        if (currentUser) return String(currentUser);
+        const session = typeof getSession === "function" ? getSession() : null;
+        if (session && session.username) return String(session.username);
+    } catch (e) {}
+    return "local";
+}
+
+async function createDataRestorePoint() {
+    const nameEl = document.getElementById("set-backup-name");
+    const name = (nameEl && nameEl.value ? nameEl.value : "").trim() || ("restore-" + new Date().toISOString().slice(0, 10));
+    const account = currentBackupAccountId();
+    const api = window.electronAPI;
+    if (api && typeof api.createBackup === "function") {
+        const r = await api.createBackup({ account, name, data: data });
+        if (r && r.ok) {
+            if (typeof showToast === "function") showToast("Restore point saved for " + account, "success");
+            if (nameEl) nameEl.value = "";
+            refreshBackupList();
+            return;
+        }
+        if (typeof showToast === "function") showToast((r && r.error) || "Backup failed", "warn");
+        return;
+    }
+    // Browser fallback: download JSON scoped to account
+    try {
+        const blob = new Blob([JSON.stringify({ momentoBackup: 1, account, name, createdAt: new Date().toISOString(), data }, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = account + "__" + name.replace(/\s+/g, "-") + ".json";
+        a.click();
+        URL.revokeObjectURL(a.href);
+        if (typeof showToast === "function") showToast("Backup downloaded (browser mode)", "info");
+    } catch (e) {
+        if (typeof showToast === "function") showToast("Could not create backup", "warn");
+    }
+}
+
+async function refreshBackupList() {
+    const box = document.getElementById("backup-list");
+    if (!box) return;
+    const account = currentBackupAccountId();
+    const api = window.electronAPI;
+    box.innerHTML = "<p class='app-settings-hint'>Loading backups for " + account + "…</p>";
+    if (!(api && typeof api.listBackups === "function")) {
+        box.innerHTML = "<p class='app-settings-hint'>Desktop app required to list folder backups. Browser mode only downloads files.</p>";
+        return;
+    }
+    const r = await api.listBackups({ account });
+    if (!r || !r.ok) {
+        box.innerHTML = "<p class='app-settings-hint'>" + ((r && r.error) || "Could not list backups") + "</p>";
+        return;
+    }
+    if (!r.items || !r.items.length) {
+        box.innerHTML = "<p class='app-settings-hint'>No restore points yet for this account.</p>";
+        return;
+    }
+    box.innerHTML = r.items.map((it) => {
+        const when = it.createdAt ? String(it.createdAt).replace("T", " ").slice(0, 19) : "";
+        return "<div class='backup-row'>" +
+            "<div class='backup-row-main'><strong>" + String(it.name || "").replace(/</g, "&lt;") + "</strong>" +
+            "<span class='app-settings-hint'>" + when + "</span></div>" +
+            "<button type='button' class='app-settings-update-btn' data-backup-file='" + String(it.file).replace(/'/g, "") + "'>Restore</button></div>";
+    }).join("");
+    box.querySelectorAll("[data-backup-file]").forEach((btn) => {
+        btn.onclick = () => restoreDataFromBackup(btn.getAttribute("data-backup-file"));
+    });
+}
+
+async function restoreDataFromBackup(file) {
+    const account = currentBackupAccountId();
+    if (!confirm("Restore this backup for account \"" + account + "\"? Current data will be replaced.")) return;
+    const api = window.electronAPI;
+    if (!(api && typeof api.restoreBackup === "function")) {
+        if (typeof showToast === "function") showToast("Restore requires the desktop app", "warn");
+        return;
+    }
+    const r = await api.restoreBackup({ account, file });
+    if (!r || !r.ok) {
+        if (typeof showToast === "function") showToast((r && r.error) || "Restore failed", "warn");
+        return;
+    }
+    if (sanitizeAccountCheck(r.account) !== sanitizeAccountCheck(account)) {
+        if (typeof showToast === "function") showToast("Backup account mismatch — blocked", "warn");
+        return;
+    }
+    try {
+        if (typeof applyAppDataObject === "function") applyAppDataObject(r.data);
+        else if (typeof applyProfileData === "function") applyProfileData(r.data);
+        await saveData();
+        try { renderTasks(); } catch (e) {}
+        try { updateXPDisplay(); } catch (e) {}
+        try { applySavedTheme(); } catch (e) {}
+        try { renderTodos(); } catch (e) {}
+        if (typeof showToast === "function") showToast("Restored \"" + (r.name || file) + "\"", "success");
+    } catch (e) {
+        if (typeof showToast === "function") showToast("Restore applied partially — reload Momento", "warn");
+    }
+}
+
+function sanitizeAccountCheck(a) {
+    return String(a || "local").toLowerCase().replace(/[^a-z0-9._-]+/g, "_").slice(0, 64) || "local";
+}

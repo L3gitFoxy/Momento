@@ -1,9 +1,9 @@
-# Momento v9.4.0
+# Momento v9.4.1
 
 ## Changelog
-* Today Mode: Done / Snooze 10m / Skip / focus lock / day recap
-* Recovery plan when flexible blocks slip (fixed classes kept)
-* Daily & weekly quests with level-scaled XP (refresh only at period end)
-* One Momento window at a time — second launch focuses the existing app
-* Theme coverage for settings, FABs, footer, update card; calm focus-lock option
-* Streak Fire on the XP pill; no duplicate “Next Monday” on Mondays
+* Data restore points in Settings (per-account only)
+* Completed blocks stay checked; applying a week no longer removes XP
+* Focus timer keeps running in the background
+* Quest XP scales with rank; quests only refresh at day/week end
+* Premium themes moved later in the reward chain
+* Safer login when cloud data is empty
