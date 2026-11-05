@@ -1070,29 +1070,7 @@ const AI_DATABASE = {
             patterns: [/(?:clear|reset|uncheck)\s+(?:day|today|all|checkboxes?|tasks?)/i],
             keywords: ["clear day","reset day","uncheck all","reset checkboxes"],
             handler: () => {
-                if (typeof isFeatureUnlocked === "function" && !isFeatureUnlocked("ai_clear_day")) {
-                    const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
-                    return `🔒 **Clear day** unlocks at **Starter IV**. You're **${info.rank}**.`;
-                }
-                const day = DAYS[data.currentDay];
-                const tasks = data.schedules[day] || [];
-                let count = 0;
-                if (typeof clawbackDayXP === "function") {
-                    const lost = clawbackDayXP(day);
-                    count = tasks.filter(t => !t.completed).length;
-                    try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
-                    return lost > 0
-                        ? `🧹 Unchecked tasks on **${day}**. **−${lost} XP** removed.`
-                        : `🧹 Unchecked tasks on **${day}**. Blocks remain.`;
-                }
-                tasks.forEach(t => {
-                    if (t.completed) { t.completed = false; count++; }
-                    t.xpAwarded = false;
-                });
-                try { saveData(); renderCurrentDay(); } catch(e) {}
-                return count > 0
-                    ? `🧹 Unchecked ${count} task(s) on **${day}**.`
-                    : `Nothing was checked on **${day}** anyway.`;
+                return "Completed blocks stay checked. Unchecking and XP clawback were removed — apply a new schedule if you need different blocks (done ones are kept).";
             }
         },
 
@@ -1100,23 +1078,7 @@ const AI_DATABASE = {
             id: "clear_week",
             patterns: [/(?:clear|reset|wipe)\s+(?:week|all days|everything)/i],
             handler: () => {
-                if (typeof isFeatureUnlocked === "function" && !isFeatureUnlocked("ai_clear_week")) {
-                    const info = typeof getLevelInfo === "function" ? getLevelInfo(data.xp || 0) : { rank: "?" };
-                    return `🔒 **Clear week** unlocks at **Beginner 3**. You're **${info.rank}**.`;
-                }
-                let lost = 0;
-                if (typeof clearWeekSchedules === "function") {
-                    DAYS.forEach(d => {
-                        if (typeof clawbackDayXP === "function") lost += clawbackDayXP(d);
-                        else (data.schedules[d] || []).forEach(t => { t.completed = false; t.xpAwarded = false; });
-                    });
-                } else {
-                    DAYS.forEach(d => { (data.schedules[d] || []).forEach(t => { t.completed = false; t.xpAwarded = false; }); });
-                }
-                try { saveData(); renderCurrentDay(); updateXPDisplay(); } catch(e) {}
-                return lost > 0
-                    ? `🧹 Unchecked the whole week. **−${lost} XP** removed.`
-                    : `🧹 Unchecked all tasks across the week.`;
+                return "Completed blocks stay checked across the week. Unchecking / XP clawback is disabled.";
             }
         },
 

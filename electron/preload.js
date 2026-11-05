@@ -35,5 +35,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return () => { try { ipcRenderer.removeListener('momento-update-status', fn); } catch (e) {} };
     } catch (e) { return () => {}; }
   },
+  createBackup: async (payload) => {
+    try { return await ipcRenderer.invoke('momento-backup-create', payload || {}); } catch (e) { return { ok: false, error: String(e) }; }
+  },
+  listBackups: async (payload) => {
+    try { return await ipcRenderer.invoke('momento-backup-list', payload || {}); } catch (e) { return { ok: false, items: [], error: String(e) }; }
+  },
+  restoreBackup: async (payload) => {
+    try { return await ipcRenderer.invoke('momento-backup-restore', payload || {}); } catch (e) { return { ok: false, error: String(e) }; }
+  },
   isDesktop: true
 });

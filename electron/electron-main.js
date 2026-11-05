@@ -1,5 +1,7 @@
 const { app, BrowserWindow, shell, Tray, Menu, ipcMain, nativeImage, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const { startMusicServer } = require('../server/server');
 
 const gotTheLock = app.requestSingleInstanceLock();
@@ -453,6 +455,119 @@ ipcMain.handle('momento-clear-update-cache', () => {
 
 ipcMain.handle('momento-get-app-version', () => {
   try { return app.getVersion(); } catch (e) { return null; }
+});
+
+
+
+function momentoBackupRoot() {
+  // Prefer C:\Momento\backup when that tree exists (matches users.json location)
+  const candidates = [];
+  try {
+    if (process.platform === 'win32') {
+      candidates.push(path.join('C:\\Momento', 'backup'));
+      candidates.push(path.join(process.env.USERPROFILE || os.homedir(), 'Momento', 'backup'));
+    }
+  } catch (e) {}
+  try {
+    candidates.push(path.join(os.homedir(), 'Momento', 'backup'));
+  } catch (e) {}
+  try {
+    candidates.push(path.join(app.getPath('userData'), 'backup'));
+  } catch (e) {}
+  for (const c of candidates) {
+    try {
+      if (c && fs.existsSync(path.dirname(c))) return c;
+    } catch (e) {}
+  }
+  return candidates[0] || path.join(os.homedir(), 'Momento', 'backup');
+}
+
+function sanitizeBackupAccount(account) {
+  return String(account || 'local').toLowerCase().replace(/[^a-z0-9._-]+/g, '_').slice(0, 64) || 'local';
+}
+
+function sanitizeBackupName(name) {
+  let n = String(name || 'restore-point').trim().replace(/[<>:"/\\|?*\x00-\x1f]+/g, '_').replace(/\s+/g, ' ').slice(0, 80);
+  if (!n) n = 'restore-point';
+  return n;
+}
+
+function accountBackupDir(account) {
+  const root = momentoBackupRoot();
+  const dir = path.join(root, sanitizeBackupAccount(account));
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+ipcMain.handle('momento-backup-create', async (_evt, payload) => {
+  try {
+    const account = sanitizeBackupAccount(payload && payload.account);
+    const name = sanitizeBackupName(payload && payload.name);
+    const data = payload && payload.data;
+    if (!data || typeof data !== 'object') return { ok: false, error: 'No data to back up' };
+    const dir = accountBackupDir(account);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const file = path.join(dir, name + '__' + stamp + '.json');
+    const blob = {
+      momentoBackup: 1,
+      account,
+      name,
+      createdAt: new Date().toISOString(),
+      data
+    };
+    fs.writeFileSync(file, JSON.stringify(blob, null, 2), 'utf8');
+    return { ok: true, path: file, account, name };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || String(e) };
+  }
+});
+
+ipcMain.handle('momento-backup-list', async (_evt, payload) => {
+  try {
+    const account = sanitizeBackupAccount(payload && payload.account);
+    const dir = accountBackupDir(account);
+    const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+    const items = [];
+    for (const f of files) {
+      try {
+        const full = path.join(dir, f);
+        const raw = fs.readFileSync(full, 'utf8');
+        const j = JSON.parse(raw);
+        if (!j || j.momentoBackup !== 1) continue;
+        if (sanitizeBackupAccount(j.account) !== account) continue;
+        items.push({
+          file: f,
+          path: full,
+          name: j.name || f,
+          account: j.account,
+          createdAt: j.createdAt || null
+        });
+      } catch (e) {}
+    }
+    items.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    return { ok: true, account, items, dir };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || String(e), items: [] };
+  }
+});
+
+ipcMain.handle('momento-backup-restore', async (_evt, payload) => {
+  try {
+    const account = sanitizeBackupAccount(payload && payload.account);
+    const fileName = path.basename(String((payload && payload.file) || ''));
+    if (!fileName.endsWith('.json')) return { ok: false, error: 'Invalid backup file' };
+    const full = path.join(accountBackupDir(account), fileName);
+    if (!fs.existsSync(full)) return { ok: false, error: 'Backup not found' };
+    const j = JSON.parse(fs.readFileSync(full, 'utf8'));
+    if (!j || j.momentoBackup !== 1) return { ok: false, error: 'Not a Momento backup' };
+    if (sanitizeBackupAccount(j.account) !== account) {
+      return { ok: false, error: 'This backup belongs to another account' };
+    }
+    if (!j.data || typeof j.data !== 'object') return { ok: false, error: 'Backup has no data' };
+    return { ok: true, data: j.data, name: j.name, createdAt: j.createdAt, account: j.account };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || String(e) };
+  }
 });
 
 app.whenReady().then(async () => {

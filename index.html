@@ -999,6 +999,14 @@
                 <span id="update-settings-version" class="app-settings-hint"></span>
             </div>
 
+            <hr class="app-settings-hr" />
+            <label class="app-settings-label">Data restore points</label>
+            <p class="app-settings-hint">Backups are stored under Momento/backup for <strong>this account only</strong>. Other profiles cannot see or restore them.</p>
+            <input type="text" id="set-backup-name" class="app-settings-input" placeholder="Restore point name e.g. before-exam-week" maxlength="80" />
+            <button type="button" class="app-settings-update-btn" style="width:100%;margin:6px 0 10px" onclick="createDataRestorePoint()">Create a data restore point</button>
+            <div id="backup-list" class="backup-list"></div>
+            <button type="button" class="app-settings-hint-btn" onclick="refreshBackupList()">Refresh backup list</button>
+
             <button type="button" class="btn-save-final app-settings-save" onclick="saveAppSettings()">Save settings</button>
         </div>
     </div>

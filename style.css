@@ -7391,3 +7391,39 @@ body.old-man-mode .sidebar-card:has([data-gamify="1"]) {
   from { transform: translateY(1px) scale(1); filter: drop-shadow(0 0 3px rgba(255,100,0,0.7)) brightness(1); }
   to { transform: translateY(-2px) scale(1.18); filter: drop-shadow(0 0 7px rgba(255,160,0,1)) brightness(1.25); }
 }
+
+
+/* Account backups in settings */
+.backup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 10px;
+  max-height: 180px;
+  overflow: auto;
+}
+.backup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent-color, #6c5ce7) 25%, transparent);
+  background: color-mix(in srgb, var(--bg-color, #0c0a14) 70%, transparent);
+}
+.backup-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.backup-row-main strong {
+  color: var(--text-color, #eee);
+  font-size: 0.85rem;
+}
+.backup-row .app-settings-update-btn {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+}
