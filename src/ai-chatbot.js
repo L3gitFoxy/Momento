@@ -47,7 +47,7 @@ try { loadScheduleNlpCorpus(); } catch (e) {}
 function parseTimeTokenLocal(raw) {
     let s = String(raw || "").toLowerCase().trim().replace(/\./g, ":");
     s = s.replace(/\s+/g, " ").trim();
-    s = s.replace(/\s*[-–to]+\s*/g, "-").replace(/\s+/g, "");
+    s = s.replace(/\s*[-\u2013to]+\s*/g, "-").replace(/\s+/g, "");
     const pad = (n) => String(Math.max(0, Math.min(59, n | 0))).padStart(2, "0");
     const padH = (n) => String(Math.max(0, Math.min(23, n | 0))).padStart(2, "0");
 
@@ -148,9 +148,9 @@ function resolveDaysFromText(text) {
         if (best) return best.slice();
     }
     if (/except\s+sunday|all\s+days\s+except/.test(t)) return ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    if (/mon\s*[-–/to]+\s*sat|mon-sat/.test(t)) return ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    if (/mon\s*[-–/to]+\s*fri|weekday/.test(t)) return ["Monday","Tuesday","Wednesday","Thursday","Friday"];
-    if (/weekend|sat\s*[-–/]\s*sun/.test(t)) return ["Saturday","Sunday"];
+    if (/mon\s*[-\u2013/to]+\s*sat|mon-sat/.test(t)) return ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    if (/mon\s*[-\u2013/to]+\s*fri|weekday/.test(t)) return ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+    if (/weekend|sat\s*[-\u2013/]\s*sun/.test(t)) return ["Saturday","Sunday"];
     const found = [];
     const map = {mon:"Monday",monday:"Monday",tue:"Tuesday",tues:"Tuesday",tuesday:"Tuesday",wed:"Wednesday",wednesday:"Wednesday",thu:"Thursday",thur:"Thursday",thurs:"Thursday",thursday:"Thursday",fri:"Friday",friday:"Friday",sat:"Saturday",saturday:"Saturday",sun:"Sunday",sunday:"Sunday"};
     const re = /\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/g;
@@ -253,9 +253,9 @@ function matchLocalScheduleUtterance(text) {
     const task = resolveTaskFromText(t);
     
     let range = null;
-    const candidates = t.match(/\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-–to]+\s*\d{1,2}(?::?\d{2})?\s*(?:am|pm)?/ig)
-        || t.match(/\d{1,2}\s*[-–]\s*\d{3,4}/g)
-        || t.match(/\b\d{3,4}\s*[-–]\s*\d{3,4}\b/g);
+    const candidates = t.match(/\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-\u2013to]+\s*\d{1,2}(?::?\d{2})?\s*(?:am|pm)?/ig)
+        || t.match(/\d{1,2}\s*[-\u2013]\s*\d{3,4}/g)
+        || t.match(/\b\d{3,4}\s*[-\u2013]\s*\d{3,4}\b/g);
     if (candidates) {
         for (const cand of candidates) {
             range = parseTimeTokenLocal(cand);
@@ -400,7 +400,6 @@ function generateConversationalReply(input, lower) {
         if (lines.length) return pick(lines);
     }
 
-    // generic small-talk composition
     if (/\b(i feel|i'm|im |feeling|today was|rough day|good day)\b/.test(lower)) {
         const hook = banks.momento_hooks && banks.momento_hooks.length ? pick(banks.momento_hooks) : "";
         if (/\b(bad|rough|hard|tired|sad|awful|terrible)\b/.test(lower)) {
@@ -1070,7 +1069,7 @@ const AI_DATABASE = {
             patterns: [/(?:clear|reset|uncheck)\s+(?:day|today|all|checkboxes?|tasks?)/i],
             keywords: ["clear day","reset day","uncheck all","reset checkboxes"],
             handler: () => {
-                return "Completed blocks stay checked. Unchecking and XP clawback were removed — apply a new schedule if you need different blocks (done ones are kept).";
+                return "Completed blocks stay checked. Unchecking and XP clawback were removed, apply a new schedule if you need different blocks (done ones are kept).";
             }
         },
 
@@ -1483,7 +1482,6 @@ function typingDotsHtml() {
 }
 
 function showThinkingIndicator() {
-    // Main chatbot
     try {
         const container = document.getElementById("chat-messages");
         if (container) {
@@ -1495,7 +1493,6 @@ function showThinkingIndicator() {
             container.scrollTop = container.scrollHeight;
         }
     } catch (e) {}
-    // Week builder preview chat
     try {
         const box = document.getElementById("preview-chat-messages");
         if (box) {
@@ -1539,8 +1536,7 @@ function appendMessage(msg, className) {
     return div;
 }
 
-/* ---- Hybrid AI week planning session ---- */
-let _planSession = null; // { history: [], fixedNotes: string }
+let _planSession = null;
 let _planGenId = 0;
 let _planAborted = false;
 function planGenStillActive(myGen) {
@@ -1561,7 +1557,6 @@ function aiApiBase() {
 function needsRealAiForSchedule(text) {
     const t = String(text || "").toLowerCase();
     if (!t) return false;
-    // Fixed / messy real-life constraints
     if (/\b(class|classes|college|university|uni|lecture|lectures|lab|seminar|school|timetable|roster|shift|shifts|work from|wfh|office hours|commute|internship|placement)\b/.test(t)) return true;
     if (/\b(every|each)\s+(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday)/.test(t)) return true;
     if (/\b(mon|tue|wed|thu|fri|monday|tuesday|wednesday|thursday|friday)\b.*\b(\d{1,2}\s*([:.]|\s)?\d{0,2}\s*(am|pm)?|\d{1,2}\s*(am|pm))\b/.test(t)) return true;
@@ -1586,12 +1581,11 @@ function userSaidNoMore(text) {
     return false;
 }
 
-/** True when the message already lists concrete fixed times (skip flaky AI, build locally). */
 function looksLikeFullFixedSchedule(text) {
     const t = String(text || "").toLowerCase();
     if (t.length < 20) return false;
     const hasDay = /\b(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|weekday)/i.test(t);
-    const hasRange = /\d{1,2}\s*[:.]?\s*\d{0,2}\s*[-–to]+\s*\d{1,2}/i.test(t) ||
+    const hasRange = /\d{1,2}\s*[:.]?\s*\d{0,2}\s*[-\u2013to]+\s*\d{1,2}/i.test(t) ||
         /\d{1,2}-\d{3,4}\b/.test(t);
     const hasClassWord = /\b(school|class|lecture|lab|shift|work|college|hindi|maths|math|science|tuition|coaching)\b/i.test(t);
     return hasDay && hasRange && hasClassWord;
@@ -1648,7 +1642,6 @@ function fillWeekAroundFixed(fixedWeek, notes) {
             }));
         });
     }
-    // Notes-based fixed overlay (school etc.) — only add if missing
     if (notes && typeof buildWeekFromNotes === "function") {
         try {
             const fromNotes = buildWeekFromNotes(notes);
@@ -1679,7 +1672,6 @@ function fillWeekAroundFixed(fixedWeek, notes) {
         sorted.forEach((b) => {
             const s = toM(b.start), e = toM(b.end);
             if (e <= s) return;
-            // merge with previous if same task and touching/overlapping
             if (out.length) {
                 const prev = out[out.length - 1];
                 if (prev.task === b.task && s <= toM(prev.end) + 10) {
@@ -1687,7 +1679,6 @@ function fillWeekAroundFixed(fixedWeek, notes) {
                     return;
                 }
             }
-            // skip if overlaps any existing (prefer earlier / fixed-looking)
             if (out.some((x) => rangesOverlap(x.start, x.end, b.start, fromM(e)))) return;
             out.push({ task: b.task, start: fromM(s), end: fromM(e), isSleep: !!b.isSleep });
         });
@@ -1700,14 +1691,12 @@ function fillWeekAroundFixed(fixedWeek, notes) {
         let daySleep = toM(sleep);
         if (day === "Sunday" && prefs.weekends === "yes") dayWake = Math.min(dayWake + 60, toM("10:00"));
 
-        // Start with fixed only (no wake/sleep yet)
         let fixed = (fixedBlocks || [])
             .filter((b) => !/wake|get ready|sleep/i.test(b.task || ""))
             .map((b) => ({ task: b.task, start: toM(b.start), end: toM(b.end) }))
             .filter((b) => b.end > b.start)
             .sort((a, b) => a.start - b.start);
 
-        // Merge overlapping fixed with same/different names — keep first name
         const merged = [];
         fixed.forEach((b) => {
             if (!merged.length || b.start >= merged[merged.length - 1].end) {
@@ -1726,7 +1715,6 @@ function fillWeekAroundFixed(fixedWeek, notes) {
         });
         result.push({ task: "Sleep", start: fromM(daySleep), end: "23:59", isSleep: true });
 
-        // Gaps
         const occupied = result
             .map((b) => ({ task: b.task, start: toM(b.start), end: toM(b.end) }))
             .sort((a, b) => a.start - b.start);
@@ -1748,7 +1736,6 @@ function fillWeekAroundFixed(fixedWeek, notes) {
                 if (s < cur) s = cur;
                 if (e > end) e = end;
                 if (e - s < 30) return false;
-                // no overlap with already placed in this gap
                 if (placed.some((p) => s < p.e && e > p.s)) return false;
                 result.push({ task, start: fromM(s), end: fromM(e) });
                 placed.push({ s, e });
@@ -1756,7 +1743,6 @@ function fillWeekAroundFixed(fixedWeek, notes) {
                 return true;
             }
 
-            // Meals once per day max
             const hasLunch = result.some((b) => /lunch/i.test(b.task));
             const hasDinner = result.some((b) => /dinner/i.test(b.task));
             if (!hasLunch && gap.start < toM("13:30") && gap.end > toM("11:45")) {
@@ -1768,11 +1754,9 @@ function fillWeekAroundFixed(fixedWeek, notes) {
                 place("Dinner", ds, Math.min(gap.end, ds + 40));
             }
 
-            // One meaningful block per gap (not a spam of Study)
             let left = end - cur;
             if (left < 35) return;
 
-            // Rotate labels by weekday so Mon–Fri aren't identical copy-paste
             const dayIdx = dayNames.indexOf(day);
             const studyRotate = ["Study", "Revision", "Deep Study", "Practice Problems", "Study", "Light Review", "Planning"];
             const eveRotate = ["Free Time", "Hobby Time", "Leisure", "Games", "Walk / Stretch", "Family Time", "Free Time"];
@@ -1829,7 +1813,6 @@ function fillWeekAroundFixed(fixedWeek, notes) {
                 if (end - cur >= 35) place("Free Time", cur, end);
             } else {
                 place(task, cur, cur + Math.min(dur, left - 5));
-                // if still a big leftover, one Free Time — not another Study
                 if (end - cur >= 40) place("Free Time", cur, end);
             }
         });
@@ -1885,7 +1868,6 @@ function mergeFixedCommitments(week, notes) {
         );
         if (!fixedBlocks.length) return;
         const existing = week[day] || [];
-        // Remove AI blocks that heavily overlap fixed commitments
         const kept = existing.filter((b) => {
             if (/school|football|soccer/i.test(b.task || "")) return false;
             return !fixedBlocks.some((f) => rangesOverlap(b.start, b.end, f.start, f.end));
@@ -1924,7 +1906,6 @@ function applyAiWeek(week, opts) {
             });
             normalized[d] = out.sort((a, b) => String(a.start).localeCompare(String(b.start)));
         });
-        // Still close obvious holes
         normalized = fillGapsInExistingWeek(normalized);
     } else {
         normalized = keepOnlyFixedBlocks(normalized);
@@ -1932,7 +1913,6 @@ function applyAiWeek(week, opts) {
         normalized = fillWeekAroundFixed(normalized, notes);
     }
 
-    // Show in preview modal — do not apply until user clicks Keep
     const preview = {};
     let n = 0;
     dayNames.forEach((day) => {
@@ -1976,13 +1956,11 @@ function supabaseAiUrl() {
 }
 
 async function callAiPlan(message) {
-    // Only honor abort if the session was explicitly cancelled mid-flight
     if (_planAborted && !_planSession) {
         const err = new Error("cancelled");
         err.code = "cancelled";
         throw err;
     }
-    // Active session: clear stale abort left over from a previous closePreview()
     if (_planSession && _planAborted) {
         _planAborted = false;
         try { if (typeof window !== "undefined") window._planAborted = false; } catch (e) {}
@@ -2030,7 +2008,6 @@ async function callAiPlan(message) {
     const settings = (typeof getAppSettings === "function") ? getAppSettings() : {};
     const personalOn = !!(settings.usePersonalForPlan && settings.personalApiKey && settings.personalApiUrl);
 
-    // Personal OpenAI-compatible endpoint for planning
     if (personalOn) {
         try {
             const model = settings.personalApiModel || "google/gemini-2.5-flash";
@@ -2067,7 +2044,6 @@ async function callAiPlan(message) {
                         _source: "personal"
                     };
                 }
-                // plain text from personal model
                 console.warn("[Momento AI] personal model returned non-JSON, length=", String(raw).length);
                 return { reply: String(raw).trim().slice(0, 1500) || "Got it.", done: false, week: null, _source: "personal" };
             }
@@ -2078,7 +2054,6 @@ async function callAiPlan(message) {
             throw lastErr;
         } catch (e) {
             if (e && (e.code === "rate_limit" || e.code === "cancelled")) throw e;
-            // personal configured but failed — surface error (do not silently use OpenRouter)
             throw e;
         }
     }
@@ -2150,7 +2125,7 @@ async function continuePlanSession(userText) {
                 if (modal) modal.classList.add("hidden");
             } catch (e2) {}
         }
-        return "Week builder cancelled. Back to normal help — type **help** anytime.";
+        return "Week builder cancelled. Back to normal help, type **help** anytime.";
     }
     if (_planAborted && !_planSession) {
         return "Week builder is closed. Say **generate study week** to start again.";
@@ -2166,7 +2141,6 @@ async function continuePlanSession(userText) {
     if (_planSession.phase === "intake") {
         const text = String(userText || "").trim();
 
-        // User said "no" / done — hand off to AI finalize (personal or server); local only if AI fails
         if (userSaidNoMore(text) || /^(none|no fixed|nothing fixed|just generate|normal week)\b/i.test(text)) {
             const style = _planSession.style || "study";
             const notes = (_planSession.fixedNotes || "").trim() || style;
@@ -2175,13 +2149,12 @@ async function continuePlanSession(userText) {
             _planSession.fixedNotes = notes;
             _planSession.history = _planSession.history || [];
         } else if (needsRealAiForSchedule(text) || text.length > 12 || looksLikeFullFixedSchedule(text)) {
-            // Always AI first (personal Mercury-3 / server). Never skip straight to local.
             _planAborted = false;
             _planSession.phase = "ai";
             _planSession.fixedNotes = text;
             _planSession.history = [];
             if (looksLikeFullFixedSchedule(text)) {
-                _planSession._finishAfterThis = true; // one-shot full schedule → build full week
+                _planSession._finishAfterThis = true;
             }
         } else {
             return (
@@ -2215,7 +2188,7 @@ async function continuePlanSession(userText) {
                    "\n\nReturn JSON done:true with week covering all 7 days. Keep every fixed class (school, hindi, science, maths, etc.) on the correct days and times.")
                 : ("Build the week from these fixed commitments. Include EVERY named class on the correct days:\n" +
                    (_planSession.fixedNotes || "") +
-                   "\n\nReturn JSON done:true with week Mon–Sun. Each day: array of {task,start,end} in HH:MM. " +
+                   "\n\nReturn JSON done:true with week Mon-Sun. Each day: array of {task,start,end} in HH:MM. " +
                    "Must include school, hindi, science/maths exactly as the user stated. Fill gaps with wake, meals, homework, study, sleep.");
 
             let result = await callAiPlan(prompt);
@@ -2243,10 +2216,8 @@ async function continuePlanSession(userText) {
             return finalizeLocalFromNotes("AI did not return fixed blocks, so I built a week locally from your notes.");
         }
 
-        // Editing mode mid-turn: update fixed week from feedback
         if (_planSession.phase === "editing") {
             const currentWeek = _planSession.editContextWeek || (typeof window !== "undefined" ? window._previewWeek : null) || {};
-            // Instant local apply so the timetable updates even if AI fails
             let week = applyLocalWeekEdits(currentWeek, userText, null);
             if (week && typeof showFullWeekInPreview === "function") {
                 showFullWeekInPreview(week);
@@ -2257,7 +2228,7 @@ async function continuePlanSession(userText) {
             let result = { reply: "Updated from your instructions.", week: null };
             try {
                 result = await callAiPlan(
-                    "EDIT MODE — apply the user's changes to the FULL week.\n" +
+                    "EDIT MODE, apply the user's changes to the FULL week.\n" +
                     "User said:\n" + userText + "\n\n" +
                     "Return JSON {reply, done:false, week:{Monday:[...],...,Sunday:[...]}} with the COMPLETE updated schedule.\n" +
                     "Apply removes, renames, time changes, and adds exactly.\n" +
@@ -2301,7 +2272,6 @@ async function continuePlanSession(userText) {
             return reply;
         }
 
-        // Local NLP only if settings say so (offline-first) or actually offline
         const useLocal = (typeof shouldUseLocalScheduleNlp === "function")
             ? shouldUseLocalScheduleNlp()
             : (typeof navigator !== "undefined" && navigator.onLine === false);
@@ -2315,17 +2285,15 @@ async function continuePlanSession(userText) {
                     (typeof DAYS !== "undefined" ? DAYS : []).forEach((d) => { draft[d] = []; });
                 }
                 draft = applyLocalUtteranceToFixedWeek(draft, localUtt);
-                // Only re-assert school if THIS message is about school — never on hindi/math class lines
                 if (/school|college/i.test(userText)) {
                     draft = ensureSchoolMonSat(draft, (_planSession.fixedNotes || "") + " " + userText);
                 } else if (/school|college/i.test(_planSession.fixedNotes || "")) {
-                    // Keep prior school times; do not parse times from this message
                     draft = ensureSchoolMonSat(draft, _planSession.fixedNotes || "");
                 }
                 if (typeof showFixedDraftInPreview === "function") showFixedDraftInPreview(draft);
                 _planSession.history.push({ role: "user", content: userText });
                 _planSession.history.push({ role: "assistant", content: "Locked " + localUtt.task + " locally." });
-                return "Got it — **" + localUtt.task + "** " + localUtt.start + "–" + localUtt.end +
+                return "Got it, **" + localUtt.task + "** " + localUtt.start + "-" + localUtt.end +
                     " on " + (localUtt.days || []).map((d) => d.slice(0, 3)).join(", ") +
                     ".\n\nAnything else I should lock in? If not, say **no** and I will build the full week.";
             } catch (e) { console.warn("local utt", e); }
@@ -2400,10 +2368,9 @@ function applyLocalWeekEdits(currentWeek, userText, aiWeek) {
 
     const t = String(userText || "").toLowerCase().trim();
 
-    if (/school/.test(t) && (/except\s+sunday|all\s+days|every\s+day|mon\s*[-–/to]+\s*sat|make sure all days|every weekday/.test(t))) {
+    if (/school/.test(t) && (/except\s+sunday|all\s+days|every\s+day|mon\s*[-\u2013/to]+\s*sat|make sure all days|every weekday/.test(t))) {
         let start = "06:00", end = "14:30";
-        // NEVER use (\d{1,2})-(\d{3,4}) alone — "630-1430" becomes 30:00
-        const rangeTok = (t.match(/(\d{3,4}\s*[-–]\s*\d{3,4})/) || t.match(/(\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2})/) || t.match(/(\d{1,2}\s*[-–]\s*\d{3,4})/) || [])[1];
+        const rangeTok = (t.match(/(\d{3,4}\s*[-\u2013]\s*\d{3,4})/) || t.match(/(\d{1,2}:\d{2}\s*[-\u2013]\s*\d{1,2}:\d{2})/) || t.match(/(\d{1,2}\s*[-\u2013]\s*\d{3,4})/) || [])[1];
         if (rangeTok && typeof parseTimeTokenLocal === "function") {
             const r = parseTimeTokenLocal(rangeTok);
             if (r && r.start && r.end) { start = r.start; end = r.end; }
@@ -2439,7 +2406,7 @@ function applyLocalWeekEdits(currentWeek, userText, aiWeek) {
         }
     }
 
-    const timeChange = t.match(/(?:change|move|set)\s+([a-z][a-z0-9\/\s]{1,24}?)\s+(?:to|from)\s+(\d{1,2}(?::\d{2})?)\s*[-–]\s*(\d{1,2}(?::\d{2})?)/i);
+    const timeChange = t.match(/(?:change|move|set)\s+([a-z][a-z0-9\/\s]{1,24}?)\s+(?:to|from)\s+(\d{1,2}(?::\d{2})?)\s*[-\u2013]\s*(\d{1,2}(?::\d{2})?)/i);
     if (timeChange) {
         const name = timeChange[1].trim();
         let s = timeChange[2], e = timeChange[3];
@@ -2455,11 +2422,11 @@ function applyLocalWeekEdits(currentWeek, userText, aiWeek) {
     }
 
     if (/\badd\b|\bput\b/.test(t)) {
-        const addMatch = t.match(/(?:add|put)\s+([a-z][a-z0-9\/\s]{1,24}?)\s+(\d{1,2}(?::\d{2})?\s*[-–]\s*\d{1,2}(?::?\d{2})?)/i);
+        const addMatch = t.match(/(?:add|put)\s+([a-z][a-z0-9\/\s]{1,24}?)\s+(\d{1,2}(?::\d{2})?\s*[-\u2013]\s*\d{1,2}(?::?\d{2})?)/i);
         if (addMatch) {
             const name = addMatch[1].trim().replace(/\b\w/g, (ch) => ch.toUpperCase());
             let range = addMatch[2].replace(/\s/g, "");
-            const rm = range.match(/(\d{1,2})(?::(\d{2}))?[-–](\d{1,2})(?::?(\d{2}))?/);
+            const rm = range.match(/(\d{1,2})(?::(\d{2}))?[-\u2013](\d{1,2})(?::?(\d{2}))?/);
             let s, e;
             if (rm) {
                 s = pad(+rm[1]) + ":" + pad(rm[2] ? +rm[2] : 0);
@@ -2507,7 +2474,6 @@ function keepOnlyFixedBlocks(week) {
             const t = String(b.task || b.name || "");
             if (fixedRe.test(t)) return true;
             if (junkRe.test(t)) return false;
-            // keep unknown only if user-named and not generic filler
             return t.length > 2 && !/block/i.test(t);
         }).map((b) => ({
             task: b.task || b.name || "Fixed",
@@ -2520,16 +2486,12 @@ function keepOnlyFixedBlocks(week) {
 
 function stripJsonFromReply(text) {
     let s = String(text || "");
-    // Drop fenced json
     s = s.replace(/```json[\s\S]*?```/gi, "");
     s = s.replace(/```[\s\S]*?```/g, "");
-    // Drop raw week JSON dumps
     s = s.replace(/\{\s*"reply"\s*:[\s\S]*$/g, "");
     s = s.replace(/\{\s*"done"\s*:[\s\S]*$/g, "");
-    // Remove trailing partial JSON object
     const idx = s.search(/\{\s*"(reply|done|week)"\s*:/);
     if (idx >= 0) s = s.slice(0, idx);
-    // Collapse leftover braces lines
     s = s.split("\n").filter((line) => {
         const t = line.trim();
         if (t.startsWith("{") || t.startsWith("}") || t.startsWith('"Monday"') || t.startsWith('"Tuesday"')) return false;
@@ -2543,20 +2505,18 @@ function stripJsonFromReply(text) {
 
 function ensureSchoolMonSat(week, notes) {
     const text = String(notes || "").toLowerCase();
-    // Only real school/college — never "hindi class" / "math class"
     if (!/\bschool\b|\bcollege\b|\buniversity\b/.test(text)) return week;
     const dayNames = typeof DAYS !== "undefined" ? DAYS : ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
     let days = [];
     if (/except\s+sunday|all\s+days\s+except\s+sun|every\s+day\s+except\s+sun/.test(text)) {
         days = dayNames.filter((d) => d !== "Sunday");
-    } else if (/mon\s*[-–/to]+\s*sat|mon(?:day)?\s*[-–/to]+\s*sat|monday\s*[-–/to]+\s*saturday|mon\/sat/.test(text)) {
+    } else if (/mon\s*[-\u2013/to]+\s*sat|mon(?:day)?\s*[-\u2013/to]+\s*sat|monday\s*[-\u2013/to]+\s*saturday|mon\/sat/.test(text)) {
         days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    } else if (/mon\s*[-–/to]+\s*fri|weekdays/.test(text)) {
+    } else if (/mon\s*[-\u2013/to]+\s*fri|weekdays/.test(text)) {
         days = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
     }
     if (!days.length) return week;
 
-    // Prefer existing School block times; only parse times near the word "school"
     let start = "06:00", end = "14:30";
     let foundExisting = false;
     for (const d of dayNames) {
@@ -2565,10 +2525,10 @@ function ensureSchoolMonSat(week, notes) {
     }
     if (!foundExisting) {
         let schoolChunk = null;
-        const near = text.match(/(?:school|college)[^\n.]{0,48}?(\d{1,4}\s*[-–]\s*\d{1,4}(?::\d{2})?)/i);
+        const near = text.match(/(?:school|college)[^\n.]{0,48}?(\d{1,4}\s*[-\u2013]\s*\d{1,4}(?::\d{2})?)/i);
         if (near) schoolChunk = near[1];
         if (!schoolChunk) {
-            const any = text.match(/(\d{3,4}\s*[-–]\s*\d{3,4}|\d{1,2}\s*[-–]\s*\d{3,4}|\d{1,2}:\d{2}\s*[-–]\s*\d{1,2}:\d{2})/);
+            const any = text.match(/(\d{3,4}\s*[-\u2013]\s*\d{3,4}|\d{1,2}\s*[-\u2013]\s*\d{3,4}|\d{1,2}:\d{2}\s*[-\u2013]\s*\d{1,2}:\d{2})/);
             if (any) schoolChunk = any[1];
         }
         if (schoolChunk && typeof parseTimeTokenLocal === "function") {
@@ -2583,19 +2543,16 @@ function ensureSchoolMonSat(week, notes) {
         if (!week[d]) week[d] = [];
         const has = week[d].some((b) => /school|college/i.test(b.task || ""));
         if (!has) week[d].push({ task: "School", start, end });
-        // Do NOT remove other classes (hindi, science, etc.)
         week[d] = week[d].filter((b) => {
             if (/school|college/i.test(b.task || "")) return true;
             if (/study/i.test(b.task || "") && b.start >= start && b.end <= end) return false;
             return true;
         });
-        // Collapse duplicate School rows to the canonical time
         const schools = week[d].filter((b) => /school|college/i.test(b.task || ""));
         if (schools.length > 1) {
             week[d] = week[d].filter((b) => !/school|college/i.test(b.task || ""));
             week[d].push({ task: "School", start, end });
         } else if (schools.length === 1 && foundExisting) {
-            // keep existing school times — do not shift to 5-6pm from another class message
             schools[0].start = start;
             schools[0].end = end;
         }
@@ -2610,7 +2567,6 @@ function startWeekEditMode() {
     } else {
         _planSession.phase = "editing";
     }
-    // Snapshot current preview as context for the model
     try {
         _planSession.editContextWeek = window._previewWeek || null;
     } catch (e) {
@@ -2628,7 +2584,6 @@ async function refreshFixedDraftFromNotes() {
     const notes = (_planSession && _planSession.fixedNotes) || "";
     if (!notes || notes.length < 4) return;
     let fixed = null;
-    // Prefer AI extract if available, else local notes parser
     try {
         const result = await callAiPlan(
             "Extract ONLY fixed commitments so far into week JSON. done=false. week may be partial. Notes:\n" + notes
@@ -2638,7 +2593,6 @@ async function refreshFixedDraftFromNotes() {
     if (!fixed && typeof buildWeekFromNotes === "function") {
         try {
             const w = buildWeekFromNotes(notes);
-            // strip non-fixed
             const days = typeof DAYS !== "undefined" ? DAYS : Object.keys(w);
             fixed = {};
             days.forEach((d) => {
@@ -2666,8 +2620,6 @@ function startWeekIntake(seedText) {
     if (/\bstudy|exam|college|school\b/.test(hint)) style = "study";
     else if (/\bwork|office|job\b/.test(hint)) style = "work";
     else if (/\bfit|gym|health\b/.test(hint)) style = "fitness";
-    // Always clear abort flag — closePreview() leaves _planAborted true and was
-    // making every later callAiPlan throw "cancelled".
     _planAborted = false;
     _planGenId += 1;
     _planSession = {
@@ -2683,7 +2635,6 @@ function startWeekIntake(seedText) {
             window._planAborted = false;
             window._planSession = _planSession;
         }
-        // Close main AI chatbot (fullscreen or docked) — week builder is the focus
         try {
             if (typeof closeAiChat === "function") closeAiChat();
             else {
@@ -2703,7 +2654,6 @@ function startWeekIntake(seedText) {
             openPreview();
         }
         if (typeof setPreviewFooterMode === "function") setPreviewFooterMode("draft");
-        // Single intake prompt in preview chat only — avoid duplicating the main chat reply
         if (typeof appendPreviewChat === "function") {
             appendPreviewChat(
                 "Any **fixed** classes, work, or sports? When you are done, say **no** and I will build a full week.",
@@ -2712,9 +2662,9 @@ function startWeekIntake(seedText) {
         }
     } catch (e) {}
     return (
-        "Sure — opening the week builder.\n\n" +
+        "Sure, opening the week builder.\n\n" +
         "Any **fixed** stuff I should lock in first? (classes, college, work shifts, labs, commute)\n" +
-        "Example: *Mon/Wed lectures 10–12, Fri lab 2–5*\n\n" +
+        "Example: *Mon/Wed lectures 10-12, Fri lab 2-5*\n\n" +
         "If none, just say **no** and I will generate a normal **" + style + "** week."
     );
 }
@@ -2728,15 +2678,12 @@ function buildWeekFromNotes(notes) {
     const pad = (n) => String(n).padStart(2, "0");
     const toHM = (h, m) => pad(h) + ":" + pad(m || 0);
 
-    // Parse "6-1430" / "6-14:30" / "5-630" / "5-6:30"
     function parseRange(str) {
-        const m = String(str).match(/(\d{1,2})(?::?(\d{2}))?\s*[-–to]+\s*(\d{1,2})(?::?(\d{2}))?/i);
+        const m = String(str).match(/(\d{1,2})(?::?(\d{2}))?\s*[-\u2013to]+\s*(\d{1,2})(?::?(\d{2}))?/i);
         if (!m) return null;
         let h1 = parseInt(m[1], 10), min1 = m[2] ? parseInt(m[2], 10) : 0;
         let h2 = parseInt(m[3], 10), min2 = m[4] ? parseInt(m[4], 10) : 0;
-        // 1430 style already split wrong — handle continuous digits
         if (!m[2] && m[1].length <= 2 && m[3].length >= 3) {
-            // e.g. 6-1430
             const endRaw = m[3] + (m[4] || "");
             if (endRaw.length === 3 || endRaw.length === 4) {
                 h2 = parseInt(endRaw.slice(0, endRaw.length - 2), 10);
@@ -2744,9 +2691,7 @@ function buildWeekFromNotes(notes) {
             }
         }
         if (!m[4] && m[3].length >= 3 && m[2] == null) {
-            // already handled
         }
-        // 630 as 6:30
         if (!m[4] && String(m[3]).length === 3) {
             h2 = parseInt(String(m[3])[0], 10);
             min2 = parseInt(String(m[3]).slice(1), 10);
@@ -2759,7 +2704,6 @@ function buildWeekFromNotes(notes) {
         return { start: toHM(h1, min1), end: toHM(h2, min2) };
     }
 
-    // Fix common "6-1430"
     function parseLooseRange(chunk) {
         const compact = chunk.replace(/\s/g, "");
         let m = compact.match(/(\d{1,2})-(\d{3,4})/);
@@ -2790,20 +2734,17 @@ function buildWeekFromNotes(notes) {
 
     function daysFromPhrase(phrase) {
         const p = phrase.toLowerCase();
-        // Continuous ranges use hyphen/en-dash/to only — NOT slash (mon/fri = two days)
-        if (/mon(?:day)?\s*[-–]|to\s*sat|mon-sat|monday\s*[-–]|to\s*saturday/.test(p) && /sat/.test(p) && /mon/.test(p) && !/mon\s*\/\s*sat/.test(p)) {
-            if (/mon(?:day)?\s*[-–to]+\s*sat/.test(p) || /mon-sat/.test(p)) {
+        if (/mon(?:day)?\s*[-\u2013]|to\s*sat|mon-sat|monday\s*[-\u2013]|to\s*saturday/.test(p) && /sat/.test(p) && /mon/.test(p) && !/mon\s*\/\s*sat/.test(p)) {
+            if (/mon(?:day)?\s*[-\u2013to]+\s*sat/.test(p) || /mon-sat/.test(p)) {
                 return ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
             }
         }
         if (/except\s+sunday|all\s+days\s+except\s+sun/.test(p)) {
             return ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
         }
-        // mon-fri continuous (hyphen/to), not mon/fri
-        if ((/mon(?:day)?\s*[-–to]+\s*fri/.test(p) || /weekdays/.test(p)) && !/mon\s*\/\s*fri/.test(p)) {
+        if ((/mon(?:day)?\s*[-\u2013to]+\s*fri/.test(p) || /weekdays/.test(p)) && !/mon\s*\/\s*fri/.test(p)) {
             return ["Monday","Tuesday","Wednesday","Thursday","Friday"];
         }
-        // Slash pairs first: mon/fri, tue/thu → exactly those days
         const slashPair = p.match(/\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\s*\/\s*(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/);
         if (slashPair) {
             const resolve = (tok) => {
@@ -2814,8 +2755,7 @@ function buildWeekFromNotes(notes) {
             const b = resolve(slashPair[2]);
             if (a && b) return [a, b].filter((d, i, arr) => arr.indexOf(d) === i);
         }
-        // Expand continuous ranges like mon-wed, tue-thu, mon-fri
-        const rangeM = p.match(/\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\s*[-–to]+\s*(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/);
+        const rangeM = p.match(/\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\s*[-\u2013to]+\s*(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/);
         if (rangeM) {
             const resolve = (tok) => {
                 const k = String(tok).toLowerCase();
@@ -2830,7 +2770,6 @@ function buildWeekFromNotes(notes) {
             }
         }
         const found = [];
-        // include thur / thu / thursday
         const re = /\b(mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/g;
         let x;
         while ((x = re.exec(p))) {
@@ -2848,7 +2787,6 @@ function buildWeekFromNotes(notes) {
         const clean = t.replace(/(am|pm)/g, "");
         let h = 0, min = 0;
         if (/^\d{3,4}$/.test(clean)) {
-            // 630 → 6:30, 1430 → 14:30
             h = parseInt(clean.slice(0, clean.length - 2), 10);
             min = parseInt(clean.slice(-2), 10);
         } else {
@@ -2865,8 +2803,7 @@ function buildWeekFromNotes(notes) {
 
     function parseRangeWithPm(chunk, preferPm) {
         const s = String(chunk || "");
-        // Prefer compact ends first (630, 1430) so "5-630" is not read as 5–63
-        const m = s.match(/(\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?)\s*[-–to]+\s*(\d{3,4}(?:\s*(?:am|pm))?|\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?)/i);
+        const m = s.match(/(\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?)\s*[-\u2013to]+\s*(\d{3,4}(?:\s*(?:am|pm))?|\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?)/i);
         if (!m) {
             const loose = parseLooseRange(s);
             if (!loose) return null;
@@ -2894,7 +2831,6 @@ function buildWeekFromNotes(notes) {
             if (eh < sh) eh += 12;
             return { start: toHM(sh % 24, sm % 60), end: toHM(eh % 24, em % 60) };
         }
-        // Guard against garbage hours like 63:00
         let [sh, sm] = start.split(":").map(Number);
         let [eh, em] = end.split(":").map(Number);
         if (sh > 23 || eh > 23) {
@@ -2923,10 +2859,6 @@ function buildWeekFromNotes(notes) {
         return n.replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 40);
     }
 
-    // Split into clauses and parse each fixed commitment separately
-    // e.g. "school mon-fri 6-1430, hindi on tue/thur 5-6pm, science/maths on mon/fri 5-630pm"
-    // Split on comma/semicolon, and on "and" when the next token is another subject
-    // (keep "science and maths" together — that subject pair is handled below)
     const clauses = text
         .split(/[,;]+|\s+and\s+(?=(?:hindi|english|science|sceince|sciense|maths?\b|math\b|school|college|gym|football|soccer|tuition|coaching|lab|lecture)[^,]*)/i)
         .map((c) => c.trim())
@@ -2945,13 +2877,11 @@ function buildWeekFromNotes(notes) {
     }
 
     clauses.forEach((clause) => {
-        // Detect subject / activity name
         let task = null;
         if (/\bschool\b|\bcollege\b/.test(clause)) task = "School";
         else if (/\bfootball\b|\bsoccer\b/.test(clause)) task = "Football";
         else if (/\bhindi\b/.test(clause)) task = "Hindi Class";
         else if (/\b(science|sceince|sciense)\b/.test(clause) && /\bmaths?\b|\bmathematics\b/.test(clause)) {
-            // "science and maths" / typos like "sceince" → one combined block
             task = "__SCIENCE_MATHS__";
         } else if (/\b(science|sceince|sciense)\b/.test(clause)) task = "Science Class";
         else if (/\bmaths?\b|\bmathematics\b/.test(clause)) task = "Maths Class";
@@ -2961,47 +2891,40 @@ function buildWeekFromNotes(notes) {
         else if (/\blab\b/.test(clause)) task = "Lab";
         else if (/\blecture/.test(clause)) task = "Lecture";
         else if (/\bclass(?:es)?\b/.test(clause)) {
-            // generic "classes on tue..." — try to grab preceding word
             const pre = clause.match(/([a-z]{3,})\s+class/);
             task = pre ? titleCaseTask(pre[1] + " Class") : "Class";
         }
         if (!task) return;
 
         let ds = daysFromPhrase(clause);
-        // school without days → weekdays
         if (!ds.length && task === "School") ds = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
         if (!ds.length) return;
 
         const preferPm = /pm\b|evening|afternoon|after\s*school|tuition|coaching|hindi|science|maths|gym|football|soccer/.test(clause)
             || (task !== "School" && !/am\b|morning/.test(clause));
-        // Pull time range — prefer compact ends (5-630, 6-1430) before short digits
-        const rangeMatch = clause.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-–to]+\s*\d{3,4}\s*(?:am|pm)?|\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-–to]+\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)?|\d{1,2}\s*[-–]\s*\d{3,4})/i);
+        const rangeMatch = clause.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-\u2013to]+\s*\d{3,4}\s*(?:am|pm)?|\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-\u2013to]+\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)?|\d{1,2}\s*[-\u2013]\s*\d{3,4})/i);
         let range = rangeMatch ? parseRangeWithPm(rangeMatch[1], preferPm) : null;
         if (!range && task === "School") range = parseLooseRange("6-1430");
         if (!range && task === "Football") range = { start: "17:00", end: "18:30" };
         if (!range) return;
 
-        // School hours like 6-1430 should stay morning–afternoon, not force PM
         if (task === "School") {
             let [sh, sm] = range.start.split(":").map(Number);
             let [eh, em] = range.end.split(":").map(Number);
-            // If someone wrote 6-2 meaning 6am-2pm
             if (eh < sh && eh <= 12) eh += 12;
             range = { start: toHM(sh, sm), end: toHM(eh, em) };
         }
 
         if (task === "__SCIENCE_MATHS__") {
-            // Same slot — one combined block is clearer than two overlapping
             addFixed("Science & Maths", range, ds);
         } else {
             addFixed(task, range, ds);
         }
     });
 
-    // Fallback: whole-text school if no school clause produced blocks
     const anySchool = orderedDays.some((d) => (week[d] || []).some((b) => /school/i.test(b.task)));
     if (!anySchool && /\bschool\b|\bcollege\b/.test(text)) {
-        const range = parseLooseRange((text.match(/(\d{1,2}\s*[-–]\s*\d{3,4})/) || [])[1] || "6-1430") || parseLooseRange("6-1430");
+        const range = parseLooseRange((text.match(/(\d{1,2}\s*[-\u2013]\s*\d{3,4})/) || [])[1] || "6-1430") || parseLooseRange("6-1430");
         let ds = daysFromPhrase(text);
         if (!ds.length) ds = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
         if (ds.length === 2 && ds[0] === "Monday" && ds[1] === "Saturday") {
@@ -3010,7 +2933,6 @@ function buildWeekFromNotes(notes) {
         addFixed("School", range, ds);
     }
 
-    // Sleep / wake
     let wake = "06:30", sleep = "22:30";
     const wakeM = text.match(/wake[^\d]{0,12}(\d{1,2})(?::(\d{2}))?/);
     if (wakeM) wake = toHM(+wakeM[1], wakeM[2] ? +wakeM[2] : 0);
@@ -3019,7 +2941,7 @@ function buildWeekFromNotes(notes) {
         let h = +sleepM[1];
         let min = sleepM[2] ? +sleepM[2] : 0;
         if (h <= 12 && /pm|night|evening/.test(text)) h = h === 12 ? 12 : h + 12;
-        if (h < 12 && !sleepM[2] && h <= 11) h = h + 12; // 10 -> 22
+        if (h < 12 && !sleepM[2] && h <= 11) h = h + 12;
         sleep = toHM(h % 24, min);
     }
 
@@ -3090,7 +3012,7 @@ function runRuleBasedWeek(style, notes) {
             if (typeof setPreviewFooterMode === "function") setPreviewFooterMode("full");
         } catch (e) {}
         const n = (preview[DAYS[0]] || []).length;
-        return `✅ Draft ready — **${n}** blocks on the first day (${total} total). Review days in the preview, then press **Accept week** to apply.`;
+        return `✅ Draft ready, **${n}** blocks on the first day (${total} total). Review days in the preview, then press **Accept week** to apply.`;
     } catch (e) {
         return "Week build failed: " + (e.message || e);
     }
@@ -3111,7 +3033,6 @@ function runSilentMomentoAction(act) {
     const a = String(act.momento_action).toLowerCase().replace(/\s+/g, "_");
     const args = act.args || {};
     try {
-        // --- navigation / pages ---
         if (a === "day_flex" || a === "flex_day" || a === "reshape_day") {
             if (typeof runDayFlex === "function") {
                 const r = runDayFlex();
@@ -3126,7 +3047,6 @@ function runSilentMomentoAction(act) {
                 else if (typeof openCratesModal === "function") { openCratesModal(); opened = true; }
                 else if (typeof showCrates === "function") { showCrates(); opened = true; }
             } catch (e) {}
-            // Force visible if page exists but stayed hidden
             try {
                 const page = document.getElementById("crates-page");
                 if (page) {
@@ -3183,7 +3103,6 @@ function runSilentMomentoAction(act) {
             return { ok: true };
         }
 
-        // --- day navigation ---
         if (a === "goto_day" || a === "set_day") {
             const day = String(args.day || args.name || "").toLowerCase();
             const map = { mon:0, monday:0, tue:1, tues:1, tuesday:1, wed:2, wednesday:2, thu:3, thur:3, thursday:3, fri:4, friday:4, sat:5, saturday:5, sun:6, sunday:6 };
@@ -3202,7 +3121,6 @@ function runSilentMomentoAction(act) {
             return { ok: true, message: "Showing today." };
         }
 
-        // --- themes / sound ---
         if (a === "set_theme" && args.theme) {
             if (typeof applyTheme === "function") applyTheme(args.theme);
             else if (typeof setTheme === "function") setTheme(args.theme);
@@ -3216,14 +3134,12 @@ function runSilentMomentoAction(act) {
             return { ok: true };
         }
 
-        // --- presets ---
         if (a === "apply_preset" && args.name) {
             if (typeof applyPresetByName === "function") applyPresetByName(args.name);
             else if (typeof applyPreset === "function") applyPreset(args.name);
             return { ok: true, message: "Applied preset " + args.name };
         }
 
-        // --- todos ---
         if (a === "add_todo" || a === "create_todo") {
             const text = String(args.text || args.title || args.todo || "").trim();
             if (!text) return { ok: false, message: "Missing to-do text." };
@@ -3233,7 +3149,7 @@ function runSilentMomentoAction(act) {
             const maxTodos = 5 + (Number(data.todoSlotBonus) || 0);
             const active = data.todos.filter((x) => !x.completed).length;
             if (active >= maxTodos) {
-                return { ok: false, message: "Sorry — to-do limit reached (" + maxTodos + "). Complete some or buy extra slots in App Customiser." };
+                return { ok: false, message: "Sorry, to-do limit reached (" + maxTodos + "). Complete some or buy extra slots in App Customiser." };
             }
             let due = args.due || args.dueDate || null;
             if (!due) {
@@ -3259,7 +3175,6 @@ function runSilentMomentoAction(act) {
             return { ok: false, message: "To-do not found." };
         }
 
-        // --- schedule blocks ---
         if (a === "add_block" || a === "add_task") {
             const dayName = args.day || (typeof DAYS !== "undefined" ? DAYS[data.currentDay] : "Monday");
             const task = String(args.task || args.name || "Block");
@@ -3295,13 +3210,11 @@ function runSilentMomentoAction(act) {
             return { ok: false, message: "Block not found." };
         }
 
-        // --- crates ---
         if (a === "open_crate_tier" && args.tier && typeof openCrateTier === "function") {
             openCrateTier(args.tier);
             return { ok: true };
         }
 
-        // --- week builder ---
         if (a === "start_week_builder" || a === "generate_study_week") {
             if (typeof processNLPIntent === "function") processNLPIntent("generate study week");
             return { ok: true, message: "Opening week builder." };
@@ -3358,14 +3271,12 @@ async function callPersonalChatbot(userText) {
             } else kept.push(line);
         }
         let out = kept.join("\n").trim();
-        // Strip model fluff that only announces an action we already ran
         if (actionNotes.length) {
             const note = actionNotes.map(function (n) {
                 const t = String(n).trim();
                 if (/^\*/.test(t)) return t;
                 return "*" + t.replace(/\.$/, "") + ".*";
             }).join(" ");
-            // If model only said "sure opening..." keep the clean note
             if (!out || /^(sure|ok|okay|done|opening|here|i'?ll)\b/i.test(out) && out.length < 120) {
                 return note;
             }
@@ -3521,7 +3432,6 @@ function speechFriendlyText(s) {
     t = t.replace(/^\s*[-•]\s+/gm, "");
     t = t.replace(/\r/g, "");
     t = t.replace(/\n+/g, ". ");
-    // Strip symbols TTS might spell out
     t = t.replace(/[/*\\{}[\]<>]/g, " ");
     t = t.replace(/\s{2,}/g, " ");
     t = t.replace(/(\s*\.\s*)+/g, ". ");

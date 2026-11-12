@@ -1550,7 +1550,6 @@ function countScheduleBlocks(schedules) {
     return n;
 }
 
-/** True when blob looks like real user progress (not empty defaults). */
 function isMeaningfulAppData(obj) {
     if (!obj || typeof obj !== "object") return false;
     if (Number(obj.xp) > 0) return true;
@@ -1578,7 +1577,6 @@ function readLocalUserPayload(username) {
 
 function applyProfileData(parsed) {
     if (!parsed || typeof parsed !== "object") return;
-    // Never let an empty cloud/file blob wipe a richer in-memory or local save
     try {
         if (!isMeaningfulAppData(parsed) && isMeaningfulAppData(typeof data !== "undefined" ? data : null)) {
             console.warn("[applyProfileData] ignored empty profile payload to protect local data");
@@ -2171,7 +2169,7 @@ function checkAutoWeeklyReset() {
     if (data.lastResetWeek && data.lastResetWeek !== currentWeek) {
         data.lastResetWeek = currentWeek;
         saveData();
-        setTimeout(() => showSavedMessage("New week — completed blocks and XP kept."), 1000);
+        setTimeout(() => showSavedMessage("New week, completed blocks and XP kept."), 1000);
     } else if (data.lastResetWeek !== currentWeek) {
         data.lastResetWeek = currentWeek;
         saveData();
@@ -2282,7 +2280,6 @@ function loadData() {
                 applyAppDataObject(JSON.parse(saved));
                 loadedOk = true;
             } else {
-                // Fresh account only — do not clobber if in-memory already has progress
                 if (!isMeaningfulAppData(data)) resetToDefaultAppData();
                 loadedOk = false;
             }
@@ -2298,7 +2295,6 @@ function loadData() {
         }
     } catch (error) {
         console.error("Could not load Momento data:", error);
-        // Parse failure: keep existing in-memory data if it looks real; never write defaults over a good local key blindly
         if (!isMeaningfulAppData(data)) resetToDefaultAppData();
         loadedOk = false;
     }
@@ -2318,7 +2314,6 @@ function loadData() {
             if (typeof updateClock === "function") updateClock();
         }
     } catch (e) {}
-    // Only persist after a successful load or first-time defaults for an empty account
     if (loadedOk || !isMeaningfulAppData(readLocalUserPayload(currentUser))) {
         try { saveData(); } catch (e) {}
     }
@@ -2994,11 +2989,9 @@ function createTaskRow(task, index) {
         e.stopPropagation();
         const day = DAYS[data.currentDay];
         
-        if (task.completed && !task.isSleep && (task.xpAwarded || task.xpAmount)) {
-            if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
-            task.xpAwarded = true;
-            revokeXPForTask(task);
-            showToast(`🗑️ Block deleted, −${task.xpAmount || 0} XP revoked`, "warn");
+        if (task.completed && !task.isSleep && isXPAwardedToday(task)) {
+            const revoked = revokeXPForTask(task);
+            showToast(`🗑️ Block deleted, −${revoked} XP revoked`, "warn");
         }
         data.schedules[day].splice(index, 1);
         saveData();
@@ -4205,6 +4198,7 @@ function awardXPForTask(task) {
     data.totalTasksCompleted = (data.totalTasksCompleted || 0) + 1;
     task.xpAwarded = true;
     task.xpAmount = xpGain;
+    task.xpAwardedOn = new Date().toDateString();
     try { if (typeof trackQuestProgress === "function") trackQuestProgress("blocks", 1); } catch (e) {}
 
     const todayStr = new Date().toDateString();
@@ -4341,6 +4335,10 @@ function calcTaskXP(task) {
     return Math.round(base * mult);
 }
 
+function isXPAwardedToday(task) {
+    return !!task && !!task.xpAwarded && task.xpAwardedOn === new Date().toDateString();
+}
+
 function revokeXPForTask(task) {
     const xpLoss = task.xpAmount || calcTaskXP(task);
     const infoBefore = getLevelInfo(data.xp || 0);
@@ -4360,6 +4358,7 @@ function revokeXPForTask(task) {
         showLevelDown(infoBefore.rank, infoAfter.rank);
         enforceLocksAfterXPChange();
     }
+    return xpLoss;
 }
 
 function canCompleteTaskInOrder(day, task) {
@@ -4480,9 +4479,6 @@ function showToast(msg, kind) {
         }
     } catch (e) {}
 
-    // Raw browser network errors ("TypeError: Failed to fetch") are noise and misleading.
-    // Offline: the dedicated "You're offline" notice already covers it, so stay silent.
-    // Online: show a friendly line instead of the raw error.
     if (isNetworkErrorLike(msg)) {
         console.warn("[toast suppressed]", msg);
         if (typeof navigator !== "undefined" && navigator.onLine === false) return;
@@ -4635,7 +4631,6 @@ function clearWeekSchedules() {
 let _momentoAudioCtx = null;
 function playBeepFallback() {
     try {
-        // Tiny WAV (short sine) as data URI — works even when WebAudio is quirky
         const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZURE=");
         audio.volume = 0.35;
         const p = audio.play();
@@ -4674,7 +4669,6 @@ function getSfxVolumeScale(kind) {
 function playRewardSound(kind, forcePreview) {
     if (typeof isOldManMode === "function" && isOldManMode()) return;
     if (!forcePreview && data.sfxEnabled === false && kind !== "down") return;
-    // Complete/levelup always allowed when sfx on (ignore transition-notif toggle)
     if (!forcePreview && kind !== "down" && kind !== "complete" && kind !== "levelup" && !data.notificationsEnabled) return;
     if (kind === "levelup" && data.levelUpSoundEnabled === false && !forcePreview) return;
     let tone = kind;
@@ -4744,7 +4738,6 @@ function playRewardSound(kind, forcePreview) {
             playTone(120, 0.2, 0.15, "sawtooth", 0.15);
             playTone(200, 0.3, 0.2, "triangle", 0.1);
         } else {
-            // default complete chime via shared ctx (not a new suspended context)
             playTone(587.33, 0, 0.12, "sine", 0.22);
             playTone(880, 0.12, 0.22, "sine", 0.18);
         }
@@ -4757,7 +4750,6 @@ function playRewardSound(kind, forcePreview) {
             return;
         }
         if (ctx.state === "suspended") {
-            // First gesture: resume then play; also fire fallback so first check is never silent
             playBeepFallback();
             ctx.resume().then(() => schedule(ctx)).catch(() => { try { schedule(ctx); } catch (e2) {} });
         } else {
@@ -4799,7 +4791,6 @@ function updateXPDisplay() {
 }
 
 const CLOCK_THEMES = [
-    // Rank unlocks — gated so early ranks stay sparse
     { id: "plain", name: "Plain", desc: "Bare numbers", atLevel: 0 },
     { id: "flap", name: "Page-turner", desc: "Flap-card digits", atLevel: 6 },
     { id: "digital", name: "Digital", desc: "Boxed mono readout", atLevel: 12 },
@@ -4810,7 +4801,6 @@ const CLOCK_THEMES = [
     { id: "orbit", name: "Orbit Ring", desc: "Time inside a ring", atLevel: 36 },
     { id: "binary", name: "Binary", desc: "Dot columns H:M", atLevel: 40 },
     { id: "chrono", name: "Chronograph", desc: "Bezel + subdial", atLevel: 44 },
-    // Crate-only specials
     { id: "celestial", name: "Celestial", desc: "Starfield analog", crateOnly: true, crateId: "clock_crate_celestial" },
     { id: "crystal", name: "Crystal", desc: "Faceted digital frame", crateOnly: true, crateId: "clock_crate_crystal" },
     { id: "ember", name: "Ember", desc: "Warm flame accents", crateOnly: true, crateId: "clock_crate_ember" },
@@ -4875,7 +4865,6 @@ function buildClockShell(type) {
             '<text class="roman-mark" x="82" y="52" text-anchor="middle">III</text>' +
             '<text class="roman-mark" x="50" y="88" text-anchor="middle">VI</text>' +
             '<text class="roman-mark" x="18" y="52" text-anchor="middle">IX</text>');
-        // roman marks need to be inside svg — rebuild
         clock.innerHTML = `<div class="analog-wrap analog-roman"><svg viewBox="0 0 100 100" aria-hidden="true">
             <circle class="analog-face" cx="50" cy="50" r="42"/>
             <text class="roman-mark" x="50" y="20" text-anchor="middle" fill="var(--muted-color)" font-size="8" font-family="Georgia,serif">XII</text>
@@ -4938,7 +4927,6 @@ function buildClockShell(type) {
         clock.innerHTML = '<div class="chrono-clock"><span class="chrono-bezel"></span><span class="chrono-time" data-flap="time">12:00</span><span class="plain-ampm" data-flap="ampm">' + am + "</span></div>";
         return;
     }
-    // flap
     clock.innerHTML = `
       <div class="flap-digit" data-flap="h1"><span class="flap-card">1</span></div>
       <div class="flap-digit" data-flap="h2"><span class="flap-card">2</span></div>
@@ -4994,7 +4982,6 @@ function renderClockThemePicker() {
         } else if (t.id === "orbit" || t.id === "chrono") {
             preview = '<div class="cts-preview preview-orbit">' + sample + "</div>";
         } else {
-            // analog family
             preview = '<div class="cts-preview preview-analog"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="var(--surface)" stroke="var(--accent-color)" stroke-width="3"/><line x1="50" y1="50" x2="50" y2="26" stroke="var(--text-color)" stroke-width="3" stroke-linecap="round"/><line x1="50" y1="50" x2="74" y2="50" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round"/><circle cx="50" cy="50" r="3" fill="var(--accent-color)"/></svg></div>';
         }
         return '<button type="button" class="clock-type-swatch ' + (isActive ? "active" : "") + " " + (unlocked ? "" : "locked") + '"' +
@@ -5077,7 +5064,7 @@ function openProgressPanel() {
             const cls = reached ? "rank-done" : working ? "rank-current" : "rank-locked";
             const icon = reached ? "✓" : working ? "▶" : "·";
             const rewards = rewardByLevel[i] || [];
-            let rewardHtml = `<span class="rank-reward-empty">—</span>`;
+            let rewardHtml = `<span class="rank-reward-empty">-</span>`;
             if (rewards.length) {
                 rewardHtml = rewards.map(r => {
                     const unlocked = isRewardUnlockedByRank(r);
@@ -5537,7 +5524,7 @@ function renderPreviewDay() {
             const end = String(t.end || "?").slice(0, 5);
             const task = String(t.task || "Block").replace(/"/g, "&quot;");
             return '<div class="preview-block-row" data-i="' + i + '">' +
-                '<span class="preview-time">' + start + " – " + end + "</span>" +
+                '<span class="preview-time">' + start + " - " + end + "</span>" +
                 '<input type="text" value="' + task + '" data-i="' + i + '" class="preview-task-input" />' +
                 '<button type="button" class="preview-del" data-i="' + i + '" title="Remove">✕</button>' +
                 "</div>";
@@ -5594,7 +5581,6 @@ function keepPreview() {
         if (typeof showToast === "function") showToast("Finish the week first, then accept", "info");
         return;
     }
-    // Guard: never wipe the week with an empty draft
     const dayNames = typeof DAYS !== "undefined" ? DAYS : Object.keys(_previewWeek);
     let totalBlocks = 0;
     dayNames.forEach((d) => { totalBlocks += ((_previewWeek[d] || []).length); });
@@ -5610,16 +5596,13 @@ function keepPreview() {
     dayNames.forEach((day, i) => {
         if (!applyAll && i < todayIdx) return;
         const incoming = _previewWeek[day] || [];
-        // Skip days with no blocks in the preview — keep existing schedule
         if (!incoming.length) return;
 
         const prev = (data.schedules[day] || []).slice();
-        // NEVER claw back XP on Accept — user keeps earned XP
         data.schedules[day] = incoming.map((t) => {
             const start = String(t.start || "09:00").slice(0, 5);
             const end = String(t.end || "10:00").slice(0, 5);
             const name = String(t.task || "Block");
-            // Preserve completion if same task name + overlapping time existed
             const match = prev.find((p) =>
                 String(p.task || "").toLowerCase() === name.toLowerCase() &&
                 p.start === start &&
@@ -5658,7 +5641,6 @@ function keepPreview() {
             : "Generated"));
     window._previewApplyAllDays = false;
     window._previewRoutineLabel = null;
-    // XP must not drop from Accept
     if ((data.xp || 0) < xpBefore) data.xp = xpBefore;
     saveData();
     renderCurrentDay();
@@ -6258,7 +6240,7 @@ async function authSignup(username, password) {
 
     const key = username.toLowerCase();
     if (!/^[a-z0-9_]{3,24}$/i.test(username)) {
-        throw new Error("Use letters, numbers, underscore only (3–24 chars)");
+        throw new Error("Use letters, numbers, underscore only (3-24 chars)");
     }
     if (!password || password.length < 4) {
         throw new Error("Password must be at least 4 characters");
@@ -6340,7 +6322,6 @@ async function authLogin(username, password) {
         if (res.ok && body && body.token) {
             setSession({ username: key, token: body.token, cloud: false, localFile: true });
             currentUser = key;
-            // Load local first so empty server payloads cannot wipe progress
             loadData();
             const serverData = body.data;
             if (serverData && isMeaningfulAppData(serverData)) {
@@ -6617,8 +6598,8 @@ function showNowPlaying(title, artist, source) {
     _npWantVisible = true;
     const t = document.getElementById("np-title");
     const a = document.getElementById("np-artist");
-    if (t) t.textContent = title || "—";
-    if (a) a.textContent = artist || (source === "local" ? "Local file" : "—");
+    if (t) t.textContent = title || "-";
+    if (a) a.textContent = artist || (source === "local" ? "Local file" : "-");
     _npSource = source;
     updateNpPlayBtn();
     startNpTimer();
@@ -7470,7 +7451,7 @@ function renderTimelinePage() {
             if (t.isSleep) return;
             items.push(`
                 <div class="tl-legend-item">
-                    <span class="tl-legend-time">${t.start}–${t.end}</span>
+                    <span class="tl-legend-time">${t.start}-${t.end}</span>
                     <span class="tl-legend-name">${t.task || "Untitled"}${t.completed ? " ✓" : ""}</span>
                     <button type="button" class="tl-legend-del" onclick="timelineRemoveBlock(${i})" title="Remove">✕</button>
                 </div>`);
@@ -7508,11 +7489,9 @@ function timelineRemoveBlock(index) {
     if (index < 0 || index >= tasks.length) return;
     if (tasks[index].isSleep) return;
     const task = tasks[index];
-    if (task.completed && (task.xpAwarded || task.xpAmount)) {
-        if (!task.xpAmount) task.xpAmount = calcTaskXP(task);
-        task.xpAwarded = true;
-        revokeXPForTask(task);
-        showToast(`🗑️ Block deleted, XP revoked`, "warn");
+    if (task.completed && isXPAwardedToday(task)) {
+        const revoked = revokeXPForTask(task);
+        showToast(`🗑️ Block deleted, −${revoked} XP revoked`, "warn");
     }
     tasks.splice(index, 1);
     saveData();
@@ -7631,7 +7610,6 @@ function updateFocusTimerDisplay() {
         const el = document.getElementById(id);
         if (el) el.textContent = startText;
     });
-    // Any extra timer faces rendered by widgets
     try {
         document.querySelectorAll(".music-focus-panel .focus-timer, #focus-modal .focus-timer").forEach(function (el) {
             if (el && el.textContent !== text) el.textContent = text;
@@ -7678,7 +7656,6 @@ function advanceFocusPhase() {
 
 function ensureFocusTicker() {
     if (_focusTimerInterval) clearInterval(_focusTimerInterval);
-    // 250ms tick so the UI feels live even if the main process throttles 1s timers
     _focusTimerInterval = setInterval(function focusTick() {
         if (!_focusIsRunning) return;
         syncFocusFromDeadline();
@@ -7713,7 +7690,6 @@ function toggleFocusTimer() {
                 if (_focusSecondsLeft <= 0) advanceFocusPhase();
                 else updateFocusTimerDisplay();
             });
-            // Keep ticking while window is visible
             window.addEventListener("focus", function () {
                 if (!_focusIsRunning) return;
                 syncFocusFromDeadline();
@@ -7794,7 +7770,6 @@ function skipFocusPhase() {
 function completeFocusTask() {
     if (!_focusTaskRef) return;
     const { task, day } = _focusTaskRef;
-    // Live timer already credits each full minute; only bank a partial minute if any
     try {
         if (!_focusIsBreak && typeof _focusQuestTick === "number" && _focusQuestTick >= 30) {
             if (typeof trackQuestProgress === "function") trackQuestProgress("focus", 1);
@@ -7906,11 +7881,9 @@ function getTodoQuickDateOptions() {
         { label: "Tomorrow", date: formatLocalYMD(addDaysLocal(now, 1)) },
         { label: "Day after tomorrow", date: formatLocalYMD(addDaysLocal(now, 2)) }
     ];
-    // Next Monday — skip when today is already Monday (same as "Next Monday" +7)
     if (dow !== 1) {
         opts.push({ label: "Next Monday", date: formatLocalYMD(nextWeekdayLocal(1)) });
     }
-    // Next <today's weekday> in a week — skip when Monday to avoid duplicate label/date
     if (dow !== 1) {
         opts.push({ label: "Next " + curName, date: formatLocalYMD(addDaysLocal(now, 7)) });
     } else {
@@ -8260,11 +8233,11 @@ function renderTimeline() {
         block.className = "tl-vblock" + (task.completed ? " tl-done" : "") + (isTaskActive(task) ? " tl-active" : "");
         block.style.top = (s * PX_PER_MIN) + "px";
         block.style.height = Math.max(dur * PX_PER_MIN, 28) + "px";
-        block.title = `${task.start}–${task.end}: ${task.task || "Untitled"}`;
+        block.title = `${task.start}-${task.end}: ${task.task || "Untitled"}`;
         block.innerHTML = `
             <div class="tl-vhandle tl-vhandle-top" data-mode="resize-start"></div>
             <div class="tl-vlabel">
-                <strong>${task.start}–${task.end}</strong>
+                <strong>${task.start}-${task.end}</strong>
                 <span>${task.task || "Untitled"}</span>
             </div>
             <div class="tl-vhandle tl-vhandle-bot" data-mode="resize-end"></div>
@@ -8752,15 +8725,15 @@ function renderCalDayPanel() {
         html += `<div class="cal-gantt-row cal-gantt-clickable" onclick="calOpenEditEvent('${ev.id}')">
             <div class="cal-gantt-label" title="${safeTitle}">
                 <strong>${safeTitle}${ev.yearly ? " 🔁" : ""}</strong>
-                <small>${ev.start || "?"} – ${ev.end || "?"}</small>
+                <small>${ev.start || "?"} - ${ev.end || "?"}</small>
                 <div class="row-actions">
                     <button type="button" onclick="event.stopPropagation();calOpenEditEvent('${ev.id}')">Reschedule</button>
                     <button type="button" class="danger" onclick="event.stopPropagation();calRemoveEvent('${ev.id}')">Remove</button>
                 </div>
             </div>
             <div class="cal-gantt-track">
-                <div class="cal-gantt-bar" style="left:${leftPct}%;width:${widthPct}%;" title="${safeTitle}: ${ev.start}–${ev.end}">
-                    <span>${ev.start}–${ev.end}</span>
+                <div class="cal-gantt-bar" style="left:${leftPct}%;width:${widthPct}%;" title="${safeTitle}: ${ev.start}-${ev.end}">
+                    <span>${ev.start}-${ev.end}</span>
                 </div>
             </div>
         </div>`;
@@ -8858,7 +8831,6 @@ function calRemoveEvent(id) {
     showToast("Event removed", "info");
 }
 
-/* ---- Overdue todo penalties (scaled by rank step cost) ---- */
 function checkOverdueTodosOnLogin() {
     data.todos = data.todos || [];
     const today = new Date(); today.setHours(0,0,0,0);
@@ -8919,7 +8891,6 @@ function closeOverdueModal() {
 }
 window.closeOverdueModal = closeOverdueModal;
 
-/* ---- App Customiser ---- */
 function openAppCustomiser() {
     if (typeof isOldManMode === "function" && isOldManMode()) { if (typeof showToast === "function") showToast("Hidden in Old man mode", "info"); return; }
     try { renderClockThemePicker(); } catch (e) {}
@@ -9070,7 +9041,6 @@ function applyActiveCosmetics() {
     } catch (e) {}
 }
 
-/* Enhance updateXPDisplay with rank divisions (hook) */
 (function patchUpdateXPDisplay() {
     const orig = typeof updateXPDisplay === "function" ? updateXPDisplay : null;
     if (!orig) return;
@@ -9089,7 +9059,6 @@ function applyActiveCosmetics() {
     };
 })();
 
-/* Call overdue check after auth finishes */
 (function patchFinishAuth() {
     const orig = typeof finishAuth === "function" ? finishAuth : null;
     if (!orig) return;
@@ -9102,7 +9071,6 @@ function applyActiveCosmetics() {
     };
 })();
 
-/* ---- Calendar urgency badge + missed-event prompt ---- */
 let _calUrgencyTimer = null;
 
 let _calYearlyEditId = null;
@@ -9259,7 +9227,7 @@ function showMissedCalendarEventPopup(ev) {
             <div class="xp-popup-title">Scheduled task ended</div>
             <div class="xp-popup-task" style="margin:10px 0;font-size:1rem;">
                 Hey ${name}, it looks like <strong>${safeTitle}</strong>
-                (${ev.start || "?"}–${ev.end || "?"} on ${ev.date}) has already ended.
+                (${ev.start || "?"}-${ev.end || "?"} on ${ev.date}) has already ended.
                 Were you able to complete it?
             </div>
             <div class="missed-event-actions">
@@ -9327,10 +9295,6 @@ setTimeout(() => {
         }
     } catch (e) {}
 }, 1500);
-
-/* ============================================================
-   UI Widget layout customiser
-   ============================================================ */
 
 const WIDGET_SCENES = {
     main: {
@@ -9653,7 +9617,6 @@ setTimeout(() => {
     } catch (e) {}
 }, 1200);
 
-/* ---- Offline detection + cloud offline file sync ---- */
 let _wasOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 let _offlineBannerShown = false;
 
@@ -9785,10 +9748,6 @@ function initOfflineGuards() {
 
 setTimeout(initOfflineGuards, 400);
 setTimeout(() => { try { applyMusicLoopState(); } catch (e) {} }, 800);
-
-/* ============================================================
-   CRATES · KEYS · BOOSTERS · MYTHICAL UNLOCKS
-   ============================================================ */
 
 const CRATE_TIERS = [
     {
@@ -10224,7 +10183,6 @@ function grantCrateLoot(rarity, loot) {
         data.crateKeys = (Number(data.crateKeys) || 0) + (Number(loot.amount) || 0);
         updateCrateKeysBadge();
     } else if (loot.type === "booster") {
-        // Duration is ONLY tier-based. Multiplier is free (luck toward higher).
         const dur = ({
             rare: { min: 12, max: 36 },
             legendary: { min: 18, max: 48 },
@@ -10232,14 +10190,13 @@ function grantCrateLoot(rarity, loot) {
             uncommon: { min: 8, max: 24 },
             common: { min: 4, max: 12 }
         })[rarity] || { min: 12, max: 36 };
-        // Mult: not locked to tier — any drop can roll a wide range; higher tiers only nudge the floor slightly
         const multFloor = ({ common: 1.05, uncommon: 1.1, rare: 1.1, legendary: 1.15, mythical: 1.2 })[rarity] || 1.1;
         const multCeil = 5.0;
         const luckH = 1 - Math.pow(1 - Math.random(), 2);
         const luckM = 1 - Math.pow(1 - Math.random(), 2);
         const hours = Math.round(dur.min + (dur.max - dur.min) * luckH);
         let mult = multFloor + (multCeil - multFloor) * luckM;
-        mult = Math.round(mult * 20) / 20; // nearest 0.05
+        mult = Math.round(mult * 20) / 20;
         if (mult < 1.05) mult = 1.05;
         if (mult > 5) mult = 5;
         const label = mult + "× XP Booster (" + hours + "h)";
@@ -10251,7 +10208,6 @@ function grantCrateLoot(rarity, loot) {
             label: label,
             obtainedAt: Date.now()
         });
-        // so history shows real label
         loot = Object.assign({}, loot, { label: label, mult: mult, hours: hours });
     } else if (loot.type === "cosmetic") {
         if (!data.crateUnlocks.includes(loot.id)) data.crateUnlocks.push(loot.id);
@@ -10494,12 +10450,8 @@ window.applyCrateTheme = applyCrateTheme;
 window.applyCrateChime = applyCrateChime;
 window.activateCrateCosmetic = activateCrateCosmetic;
 
-/* ============================================================
-   DEVICE CONFIG + TUTORIAL + CHANGELOG + KEY SINKS
-   ============================================================ */
-
 const DEVICE_CONFIG_LS_KEY = "Momento_deviceConfig_v1";
-const CHANGELOG_VERSION = "9.4.1";
+const CHANGELOG_VERSION = "9.4.2";
 
 const DEFAULT_DEVICE_CONFIG = {
     openedFirstTime: true,
@@ -10561,7 +10513,7 @@ async function saveDeviceConfig(patch) {
 const TUTORIAL_STEPS = [
     {
         title: "Welcome to Momento",
-        body: "Momento is a weekly time-block planner with XP, ranks, and light gamification so planning feels worth opening. This short tour shows the main pieces — you can skip anytime and reopen help later.",
+        body: "Momento is a weekly time-block planner with XP, ranks, and light gamification so planning feels worth opening. This short tour shows the main pieces, you can skip anytime and reopen help later.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
   <rect width="360" height="160" rx="16" fill="#0d0a14"/>
   <g class="tut-anim tut-pulse">
@@ -10583,15 +10535,15 @@ const TUTORIAL_STEPS = [
   </g>
   <g class="tut-anim tut-bounce" style="animation-delay:0.2s">
     <rect x="24" y="60" width="310" height="28" rx="8" fill="#1a1528" stroke="#3d2f6b"/>
-    <text x="36" y="78" fill="#a78bfa" font-size="10" font-family="system-ui">09:00–10:30  Study</text>
+    <text x="36" y="78" fill="#a78bfa" font-size="10" font-family="system-ui">09:00-10:30  Study</text>
     <rect x="24" y="96" width="310" height="28" rx="8" fill="#1a1528" stroke="#3d2f6b"/>
-    <text x="36" y="114" fill="#a78bfa" font-size="10" font-family="system-ui">10:30–12:00  School</text>
+    <text x="36" y="114" fill="#a78bfa" font-size="10" font-family="system-ui">10:30-12:00  School</text>
   </g>
 </svg>`
     },
     {
         title: "XP, ranks & streaks",
-        body: "Finishing blocks earns XP and pushes your rank (Starter → Mythic). Keep a streak by completing something each day. Rank rewards can include crate keys — open crates for themes, chimes, and boosters.",
+        body: "Finishing blocks earns XP and pushes your rank (Starter → Mythic). Keep a streak by completing something each day. Rank rewards can include crate keys, open crates for themes, chimes, and boosters.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
   <rect width="360" height="160" rx="16" fill="#0d0a14"/>
   <g class="tut-anim tut-pulse">
@@ -10609,7 +10561,7 @@ const TUTORIAL_STEPS = [
   <g class="tut-anim tut-fade">
     <rect x="30" y="30" width="180" height="100" rx="12" fill="#1a1528" stroke="#2d2250"/>
     <text x="42" y="52" fill="#a7f3d0" font-size="11" font-family="system-ui">Any fixed classes?</text>
-    <text x="42" y="72" fill="#9a96b0" font-size="10" font-family="system-ui">School Mon–Sat 6:30–14:30</text>
+    <text x="42" y="72" fill="#9a96b0" font-size="10" font-family="system-ui">School Mon-Sat 6:30-14:30</text>
   </g>
   <g class="tut-anim tut-bounce">
     <circle cx="280" cy="80" r="36" fill="#6c5ce7"/>
@@ -10684,7 +10636,7 @@ const TUTORIAL_STEPS = [
     },
     {
         title: "Settings & personal AI",
-        body: "The gear (bottom-right) opens settings: AI routing, system tray, start with Windows/Mac, personal API keys (e.g. Groq), volume mixer, and optional system-prompt edits. Save after changes — closing without save asks you to confirm.",
+        body: "The gear (bottom-right) opens settings: AI routing, system tray, start with Windows/Mac, personal API keys (e.g. Groq), volume mixer, and optional system-prompt edits. Save after changes, closing without save asks you to confirm.",
         visual: `<svg viewBox="0 0 360 160" xmlns="http://www.w3.org/2000/svg" class="tutorial-svg">
   <rect width="360" height="160" rx="16" fill="#0d0a14"/>
   <g class="tut-anim tut-pulse">
@@ -10768,19 +10720,25 @@ const CHANGELOG_9_2_1 = [
 ];
 
 const CHANGELOG_9_2_2 = [
-    "Old man mode — hide all gamification (XP UI, crates, customiser, reward popups); progress still saved",
+    "Old man mode, hide all gamification (XP UI, crates, customiser, reward popups); progress still saved",
     "Version watermark moved so it no longer sits under the settings gear",
     "Changelog shower for v9.2.2"
 ];
 
 const CHANGELOG_9_3_0 = [
-    "Week apply only claws XP from today — other weekdays keep past progress",
+    "Week apply only claws XP from today, other weekdays keep past progress",
     "Anti-dupe claim ledger for crate keys only: re-applying a week cannot re-roll keys for already-claimed blocks that day",
     "If a full day was already key-claimed, extra blocks on re-apply still grant no keys (XP still works; silent)"
 ];
 
+const CHANGELOG_9_4_2 = [
+    "Deleting a completed block only revokes its XP when the block is from today",
+    "Delete toast now shows the actual XP revoked instead of 0",
+    "XP is recorded with the day it was earned, so revocation uses the real calendar date"
+];
+
 const CHANGELOG_9_4_1 = [
-    "Data restore points in Settings — per account, under Momento/backup",
+    "Data restore points in Settings, per account, under Momento/backup",
     "Completed blocks stay checked; applying a week no longer removes XP",
     "Focus timer keeps running when you leave the page, minimize, or tray",
     "Quest XP scales with rank; dailies/weeklies only refresh at period end",
@@ -10862,7 +10820,20 @@ function openChangelog() {
     const title = document.getElementById("changelog-title");
     if (title) title.textContent = "Momento " + CHANGELOG_VERSION;
     if (body) {
-        const cl = (typeof CHANGELOG_9_4_1 !== "undefined") ? CHANGELOG_9_4_1 : ((typeof CHANGELOG_9_4_0 !== "undefined") ? CHANGELOG_9_4_0 : ((typeof CHANGELOG_9_3_1 !== "undefined") ? CHANGELOG_9_3_1 : ((typeof CHANGELOG_9_3_0 !== "undefined") ? CHANGELOG_9_3_0 : ((typeof CHANGELOG_9_2_2 !== "undefined") ? CHANGELOG_9_2_2 : ((typeof CHANGELOG_9_2_1 !== "undefined") ? CHANGELOG_9_2_1 : ((typeof CHANGELOG_9_2_0 !== "undefined") ? CHANGELOG_9_2_0 : ((typeof CHANGELOG_9_1_1 !== "undefined") ? CHANGELOG_9_1_1 : ((typeof CHANGELOG_9_0 !== "undefined") ? CHANGELOG_9_0 : (typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : CHANGELOG_8_0)))))))));
+        const cl = [
+            typeof CHANGELOG_9_4_2 !== "undefined" ? CHANGELOG_9_4_2 : null,
+            typeof CHANGELOG_9_4_1 !== "undefined" ? CHANGELOG_9_4_1 : null,
+            typeof CHANGELOG_9_4_0 !== "undefined" ? CHANGELOG_9_4_0 : null,
+            typeof CHANGELOG_9_3_1 !== "undefined" ? CHANGELOG_9_3_1 : null,
+            typeof CHANGELOG_9_3_0 !== "undefined" ? CHANGELOG_9_3_0 : null,
+            typeof CHANGELOG_9_2_2 !== "undefined" ? CHANGELOG_9_2_2 : null,
+            typeof CHANGELOG_9_2_1 !== "undefined" ? CHANGELOG_9_2_1 : null,
+            typeof CHANGELOG_9_2_0 !== "undefined" ? CHANGELOG_9_2_0 : null,
+            typeof CHANGELOG_9_1_1 !== "undefined" ? CHANGELOG_9_1_1 : null,
+            typeof CHANGELOG_9_0 !== "undefined" ? CHANGELOG_9_0 : null,
+            typeof CHANGELOG_8_1 !== "undefined" ? CHANGELOG_8_1 : null,
+            CHANGELOG_8_0
+        ].find(list => Array.isArray(list));
         body.innerHTML = "<ul>" + cl.map(x => `<li>${x}</li>`).join("") + "</ul>";
     }
     if (el) {
@@ -10883,6 +10854,7 @@ async function closeChangelog() {
         showedCL7_0: true,
         showedCL8_0: true,
         showedCL8_1: true,
+        showedCL9_4_2: true,
         changelogVersionShown: CHANGELOG_VERSION
     };
     await saveDeviceConfig(patch);
@@ -10927,7 +10899,7 @@ const PERSONALIZE_QUESTIONS = [
         q: "When do you usually wake up on weekdays?",
         options: [
             { v: "early", l: "Before 6:30" },
-            { v: "normal", l: "6:30 – 8:00" },
+            { v: "normal", l: "6:30 - 8:00" },
             { v: "late", l: "After 8:00" }
         ]
     },
@@ -10936,7 +10908,7 @@ const PERSONALIZE_QUESTIONS = [
         q: "When do you usually go to sleep?",
         options: [
             { v: "early", l: "Before 10:00 pm" },
-            { v: "normal", l: "10:00 – 11:30 pm" },
+            { v: "normal", l: "10:00 - 11:30 pm" },
             { v: "late", l: "After 11:30 pm" }
         ]
     },
@@ -11061,9 +11033,9 @@ const PERSONALIZE_QUESTIONS = [
         id: "intensity",
         q: "How packed should a default day feel?",
         options: [
-            { v: "light", l: "Light — plenty of free time" },
+            { v: "light", l: "Light, plenty of free time" },
             { v: "balanced", l: "Balanced" },
-            { v: "packed", l: "Packed — use the day fully" }
+            { v: "packed", l: "Packed, use the day fully" }
         ]
     }
 ];
@@ -11218,7 +11190,6 @@ try { window.openPersonalizeIntro = openPersonalizeIntro; window.maybeShowPerson
 function maybeShowPersonalization() {
     try {
         if (!needsPersonalizationPrompt()) return;
-        // Don't stack on tutorial/changelog
         const tut = document.getElementById("tutorial-overlay");
         const cl = document.getElementById("changelog-overlay");
         if (tut && !tut.classList.contains("hidden")) return;
@@ -11379,7 +11350,7 @@ When the user asks you to DO something in the app, end your reply with ONE silen
 {"momento_action":"check_block","args":{"day":"Monday","task":"Homework"}}
 {"momento_action":"set_theme","args":{"theme":"..."}}
 {"momento_action":"start_week_builder","args":{}}
-Only emit that JSON when you are actually performing an action. If a limit blocks it, say so in plain language — never invent success.
+Only emit that JSON when you are actually performing an action. If a limit blocks it, say so in plain language, never invent success.
 Reply in clear markdown.`;
 
 const DEFAULT_APP_SETTINGS = {
@@ -12204,7 +12175,7 @@ try { document.addEventListener("DOMContentLoaded", bindMusicBetaTooltip); } cat
 setTimeout(bindMusicBetaTooltip, 800);
 
 (function setupVersionWatermark() {
-    var FALLBACK = "9.4.1";
+    var FALLBACK = "9.4.2";
     function setLabel(v) {
         if (!v) return;
         var el = document.getElementById("momento-version-watermark");
@@ -12533,7 +12504,6 @@ function fillTtsVoiceSelect(settings) {
 }
 
 function previewTtsVoice() {
-    // pull current dropdown without requiring Save
     try {
         const uri = (document.getElementById("set-tts-voice") || {}).value || "";
         const rate = parseFloat((document.getElementById("set-tts-rate") || {}).value) || 1.15;
@@ -12559,14 +12529,13 @@ async function _speak(text) {
         const ok = await speakCloudTts(text);
         if (ok) return;
         if (engine === "cloud" && typeof showToast === "function") {
-            showToast("Cloud TTS unavailable — using system voice.", "info");
+            showToast("Cloud TTS unavailable, using system voice.", "info");
         }
     }
     try {
         if (!window.speechSynthesis) return;
         window.speechSynthesis.cancel();
         let t = String(text || "");
-        // Pronunciation helpers (system voices misread these)
         t = t.replace(/\bXP\b/gi, "experience points");
         t = t.replace(/\bAPI\b/g, "A P I");
         t = t.replace(/\bAI\b/g, "A I");
@@ -12577,7 +12546,6 @@ async function _speak(text) {
         t = t.replace(/\s+/g, " ").trim();
         if (!t) return;
         const u = new SpeechSynthesisUtterance(t);
-        // Slightly steadier than default; avoid very high rates (causes choppiness)
         let rate = Number(s.ttsRate) || 1.05;
         if (rate > 1.2) rate = 1.15;
         u.rate = rate;
@@ -12585,12 +12553,10 @@ async function _speak(text) {
         u.volume = Math.max(0, Math.min(1, window._voiceVolume != null ? window._voiceVolume : 1));
         const voice = getPreferredTtsVoice();
         if (voice) u.voice = voice;
-        // One utterance = fewer gaps than sentence chaining
         window.speechSynthesis.speak(u);
     } catch (e) {}
 }
 
-// Voices often load async on Windows
 try {
     if (window.speechSynthesis) {
         window.speechSynthesis.onvoiceschanged = function () {
@@ -12622,7 +12588,6 @@ function stopVoiceListen(finalizeRecord) {
     try { if (_voiceRec) _voiceRec.stop(); } catch (e) {}
     if (finalizeRecord && _voiceRecorder && _voiceRecorder.state === "recording") {
         try { _voiceRecorder.stop(); } catch (e) {}
-        // onstop will transcribe
         return;
     }
     try {
@@ -12635,7 +12600,6 @@ function stopVoiceListen(finalizeRecord) {
 }
 
 async function startVoiceListen() {
-    // Prefer MediaRecorder + Whisper when personal API is configured (works in Electron)
     const creds = _personalApiCreds();
     if (creds && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
@@ -12683,11 +12647,9 @@ async function startVoiceListen() {
                 if (typeof showToast === "function") showToast("Mic blocked. Allow microphone for Momento.", "error");
                 return;
             }
-            // fall through to Web Speech
         }
     }
 
-    // Web Speech API (works in Chrome browser; often broken in Electron → network error)
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
         if (typeof showToast === "function") {
@@ -12738,7 +12700,7 @@ async function startVoiceListen() {
                 );
             }
         } else if (err === "no-speech") {
-            if (typeof showToast === "function") showToast("Didn’t catch that — try again.", "info");
+            if (typeof showToast === "function") showToast("Didn’t catch that, try again.", "info");
         } else if (err !== "aborted") {
             if (typeof showToast === "function") showToast("Voice error: " + err, "warn");
         }
@@ -12768,7 +12730,6 @@ function voiceCompleteCurrentOrNext() {
     if (!target) target = tasks.filter(t => !t.completed).slice(-1)[0];
     if (!target) return { ok: false, msg: "Nothing left to complete today." };
 
-    // Prefer clicking the matching checkbox so XP path runs the same as UI
     const rows = document.querySelectorAll(".task-row");
     const today = getTodayIndex();
     if (data.currentDay !== today) {
@@ -12812,7 +12773,6 @@ function handleVoiceCommand(raw) {
     if (!text) return;
     try { stopVoiceListen(false); } catch (e) {}
 
-    // Always: silent AI pipeline — no chat UI, no "sent to AI" toast
     (async function () {
         let reply = "";
         try {
@@ -12821,7 +12781,6 @@ function handleVoiceCommand(raw) {
             } else if (typeof processNLPIntentSilent === "function") {
                 reply = await processNLPIntentSilent(text);
             } else if (typeof processNLPIntent === "function") {
-                // last resort (may touch UI — avoid if possible)
                 processNLPIntent(text);
                 reply = "";
             }
@@ -12840,15 +12799,12 @@ function handleVoiceCommand(raw) {
     })();
 }
 
-/* Day Echo removed in v9 */
-
 function setBodyModalLock(on) {
     try {
         document.body.classList.toggle("modal-open", !!on);
     } catch (e) {}
 }
 
-// Patch common open/close modal patterns: observe overlays
 (function watchModalScrollLock() {
     function sync() {
         const open = !!document.querySelector(".modal-overlay:not(.hidden)");
@@ -12866,10 +12822,6 @@ function setBodyModalLock(on) {
     }
 })();
 
-/* ============================================================
-   DAY FLEX (v9) — reshape the rest of today around what is left
-   ============================================================ */
-
 function minutesToTime(mins) {
     mins = Math.max(0, Math.min(24 * 60 - 1, Math.round(mins)));
     const h = Math.floor(mins / 60);
@@ -12881,12 +12833,10 @@ function isAnchorBlock(t) {
     if (!t) return false;
     if (t.isSleep || t.anchor || t.isFixed || t.fixed) return true;
     const name = String(t.task || "").toLowerCase();
-    // Treat school / class / work shifts as immovable by default
     if (/\b(school|class|lecture|lab|work|shift|exam|college|university)\b/.test(name)) return true;
     return false;
 }
 
-/** Shift incomplete non-anchor blocks of the current/today day to fit from "now". */
 function runDayFlex(opts) {
     opts = opts || {};
     const dayIdx = (opts.dayIndex != null) ? opts.dayIndex : (typeof getTodayIndex === "function" ? getTodayIndex() : data.currentDay);
@@ -12901,7 +12851,6 @@ function runDayFlex(opts) {
         return { ok: false, message: "Nothing to flex." };
     }
 
-    // Sort by start
     list.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
     const keptDone = [];
@@ -12914,13 +12863,11 @@ function runDayFlex(opts) {
             return;
         }
         const end = timeToMinutes(t.end);
-        // Missed non-anchor blocks get rescheduled; anchors that already ended stay as historical
         if (isAnchorBlock(t)) {
             anchors.push(t);
             return;
         }
         if (end <= nowM && !opts.includePastFlexible) {
-            // drop pure-past flexible blocks from the active plan (still show as skipped by not keeping)
             return;
         }
         flexible.push(Object.assign({}, t));
@@ -12931,7 +12878,6 @@ function runDayFlex(opts) {
         return { ok: false, message: "No flexible blocks left." };
     }
 
-    // Build occupied ranges from anchors that still matter (end after now, or all anchors for conflict check)
     const occupied = anchors
         .map(t => ({ start: timeToMinutes(t.start), end: timeToMinutes(t.end), t }))
         .filter(r => r.end > r.start);
@@ -12944,7 +12890,6 @@ function runDayFlex(opts) {
     }
 
     let cursor = nowM;
-    // Small breathing room so flex doesn't start mid-second
     if (cursor % 5 !== 0) cursor = cursor + (5 - (cursor % 5));
 
     const placed = [];
@@ -12954,7 +12899,6 @@ function runDayFlex(opts) {
         const dur = Math.max(10, timeToMinutes(t.end) - timeToMinutes(t.start));
         let start = Math.max(cursor, nowM);
         let end = start + dur;
-        // Push past anchors
         let guard = 0;
         while (guard++ < 30) {
             const hit = collides(start, end);
@@ -12963,7 +12907,6 @@ function runDayFlex(opts) {
             end = start + dur;
         }
         if (end > dayEnd) {
-            // compress to fit
             end = dayEnd;
             start = Math.max(nowM, end - dur);
             const hit = collides(start, end);
@@ -12981,7 +12924,6 @@ function runDayFlex(opts) {
         cursor = end + 5;
     });
 
-    // Rebuild day: done + anchors + placed flex, sorted
     const next = keptDone.concat(anchors).concat(placed);
     next.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
     data.schedules[day] = next;
@@ -13115,10 +13057,10 @@ function refreshTodayModeUi() {
     const sub = document.getElementById("tlb-sub");
     if (info.current) {
         if (title) title.textContent = info.current.task || "Current block";
-        if (sub) sub.textContent = (info.current.start || "") + " – " + (info.current.end || "") + " · in progress";
+        if (sub) sub.textContent = (info.current.start || "") + " - " + (info.current.end || "") + " · in progress";
     } else if (info.next) {
         if (title) title.textContent = "Up next: " + (info.next.task || "Block");
-        if (sub) sub.textContent = (info.next.start || "") + " – " + (info.next.end || "");
+        if (sub) sub.textContent = (info.next.start || "") + " - " + (info.next.end || "");
     } else {
         if (title) title.textContent = "Nothing left today";
         if (sub) sub.textContent = "Open recap when you are done";
@@ -13200,7 +13142,6 @@ function todayModeAction(action) {
         }
         task.start = fromMinutesHM(s);
         task.end = fromMinutesHM(e);
-        // Cascade: push later unfinished blocks so times don't overlap
         const ordered = list
             .map((b, i) => ({ b, i }))
             .filter(x => x.b && !x.b.isSleep && !x.b.completed && !x.b.skipped && x.i !== idx)
@@ -13337,7 +13278,7 @@ function showRecoveryModal() {
     const box = modal.querySelector("#recovery-list");
     if (box) {
         box.innerHTML = prev.remaining.slice(0, 8).map((b) =>
-            "<div><strong>" + String(b.task).replace(/</g, "&lt;") + "</strong> · was " + b.start + "–" + b.end + " · will be refit after now</div>"
+            "<div><strong>" + String(b.task).replace(/</g, "&lt;") + "</strong> · was " + b.start + "-" + b.end + " · will be refit after now</div>"
         ).join("");
     }
     modal.classList.remove("hidden");
@@ -13390,7 +13331,6 @@ function questLevel() {
     } catch (e) { return 1; }
 }
 
-/** Scales with rank. No XP multipliers. Soft caps so it never explodes. */
 function questXpReward(kind, difficulty) {
     const lv = Math.max(1, questLevel());
     const d = Math.max(1, Math.min(3, difficulty || 1));
@@ -13483,10 +13423,8 @@ function rollQuestsIfNeeded() {
     const week = isoWeekKey();
     const lv = questLevel();
     const now = Date.now();
-    // Only strip rows that are past expiry. Never re-roll mid-day / mid-week.
     data.quests.daily = (data.quests.daily || []).filter(q => q && Number(q.expiresAt) > now);
     data.quests.weekly = (data.quests.weekly || []).filter(q => q && Number(q.expiresAt) > now);
-    // Locked for the calendar day — even if the user claimed everything
     if (String(data.quests.lastDailyRoll || "") !== today) {
         data.quests.daily = pickDailyQuests(lv);
         data.quests.lastDailyRoll = today;
@@ -13537,7 +13475,6 @@ function claimQuest(id) {
         return false;
     }
     q.claimed = true;
-    // Pay out at current rank so climbing ranks increases quest XP
     let xp = Math.max(1, Math.round(q.xp || 0));
     try {
         const live = questXpReward(q.kind === "weekly" ? "weekly" : "daily", q.difficulty || 1);
@@ -13710,7 +13647,6 @@ async function createDataRestorePoint() {
         if (typeof showToast === "function") showToast((r && r.error) || "Backup failed", "warn");
         return;
     }
-    // Browser fallback: download JSON scoped to account
     try {
         const blob = new Blob([JSON.stringify({ momentoBackup: 1, account, name, createdAt: new Date().toISOString(), data }, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
@@ -13769,7 +13705,7 @@ async function restoreDataFromBackup(file) {
         return;
     }
     if (sanitizeAccountCheck(r.account) !== sanitizeAccountCheck(account)) {
-        if (typeof showToast === "function") showToast("Backup account mismatch — blocked", "warn");
+        if (typeof showToast === "function") showToast("Backup account mismatch, blocked", "warn");
         return;
     }
     try {
@@ -13782,7 +13718,7 @@ async function restoreDataFromBackup(file) {
         try { renderTodos(); } catch (e) {}
         if (typeof showToast === "function") showToast("Restored \"" + (r.name || file) + "\"", "success");
     } catch (e) {
-        if (typeof showToast === "function") showToast("Restore applied partially — reload Momento", "warn");
+        if (typeof showToast === "function") showToast("Restore applied partially, reload Momento", "warn");
     }
 }
 

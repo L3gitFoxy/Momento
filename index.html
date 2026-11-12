@@ -76,7 +76,7 @@
         
         <div class="schedule-info-banner">
             <span id="applied-routine-label">Routine: Custom</span>
-            <span id="applied-date-label">Date: --</span>
+            <span id="applied-date-label">Date: -</span>
         </div>
 
         
@@ -120,7 +120,7 @@
             <p>
                 Momento turns your week into something you actually want to open.
                 Time blocks feel like game levels, checking them off drops XP, and ranks climb
-                from Starter to Mythic — that little hit of progress is intentional.
+                from Starter to Mythic, that little hit of progress is intentional.
                 Streaks, unlockable themes, a focus mode with ambient sound, and a persistent
                 to-do list keep the loop going without feeling like another boring planner.
             </p>
@@ -133,7 +133,6 @@
     </div>
 
     
-    <!-- crates entry injected via JS if needed -->
     <div id="preset-sidebar" class="preset-sidebar" data-widget="tools-sidebar">
         <button type="button" id="sidebar-toggle-btn" class="sidebar-toggle-btn" data-widget="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Presets">
             <span id="sidebar-arrow">&#9664;</span> Tools
@@ -426,7 +425,7 @@
                     <button type="button" class="btn-info" onclick="document.getElementById('local-audio-input').click()">+ Add files</button>
                 </div>
                 <ul id="local-track-list" class="local-track-list">
-                    <li class="music-track-label">No tracks yet — add some files</li>
+                    <li class="music-track-label">No tracks yet, add some files</li>
                 </ul>
             </section>
 
@@ -461,8 +460,8 @@
     
     <div id="now-playing-bar" class="now-playing-bar hidden" data-widget="now-playing">
         <div class="np-info">
-            <div class="np-title" id="np-title">—</div>
-            <div class="np-artist" id="np-artist">—</div>
+            <div class="np-title" id="np-title">-</div>
+            <div class="np-artist" id="np-artist">-</div>
             <div class="np-time"><span id="np-current">0:00</span> / <span id="np-duration">0:00</span></div>
         </div>
         <div class="np-controls">
@@ -489,14 +488,13 @@
                 <div class="crates-stat"><span>Opened</span><strong id="crate-opened-count">0</strong></div>
             </div>
             <div class="crates-tier-grid" id="crates-tier-grid">
-                <!-- filled by JS -->
             </div>
             <div class="crates-info-card">
                 <h4>How crates work</h4>
                 <ul>
                     <li><strong>Keys:</strong> 5% chance when you complete a daily schedule block · 10% when you complete a to-do</li>
                     <li><strong>Tiers:</strong> higher key cost = better minimum rarity and luckier odds</li>
-                    <li><strong>Standard (1):</strong> classic odds — common through mythical</li>
+                    <li><strong>Standard (1):</strong> classic odds, common through mythical</li>
                     <li><strong>VIP (3):</strong> improved odds of higher tiers</li>
                     <li><strong>Deluxe (7):</strong> Uncommon or above only</li>
                     <li><strong>Elite (10):</strong> Rare or above only</li>
@@ -511,7 +509,6 @@
         </div>
     </div>
 
-    <!-- Full-screen crate spin overlay (on top of crates page) -->
     <div id="crate-spin-overlay" class="crate-spin-overlay hidden" aria-hidden="true">
         <div class="crate-spin-backdrop"></div>
         <div class="crate-spin-panel">
@@ -547,7 +544,7 @@
             <strong>📋 Persistent To-Dos</strong>
             <button onclick="toggleTodoDrawer()" class="close-btn">&#10005;</button>
         </div>
-        <p class="todo-drawer-hint">These stay until you complete them — penalty for late completion</p>
+        <p class="todo-drawer-hint">These stay until you complete them, penalty for late completion</p>
         <ul id="todo-list"></ul>
         <div class="todo-add-row todo-add-row-ext">
             <input type="text" id="todo-input" placeholder="Add a lasting to-do..." onkeydown="if(event.key==='Enter')addTodo()">
@@ -632,7 +629,7 @@
                 <button type="button" onclick="closeCalYearlyModal()" class="close-btn">&#10005;</button>
             </div>
             <div class="modal-body cal-event-body">
-                <p class="theme-hint" style="margin:0 0 8px">All-day · repeats every year on this date (no times — won’t trigger “task ended”)</p>
+                <p class="theme-hint" style="margin:0 0 8px">All-day · repeats every year on this date (no times, won’t trigger “task ended”)</p>
                 <label class="cal-field-label" for="cal-yearly-title">Title</label>
                 <input type="text" id="cal-yearly-title" class="cal-input" placeholder="e.g. Mom's birthday">
                 <label class="cal-field-label" for="cal-yearly-date">Date</label>
@@ -675,7 +672,7 @@
                 <div class="sidebar-group">
                     <label>&#127911; Completion Chimes</label>
                     <div class="chime-swatches" id="chime-swatches"></div>
-                    <p class="theme-hint">Special chimes unlock via ranks — click to preview</p>
+                    <p class="theme-hint">Special chimes unlock via ranks, click to preview</p>
                 </div>
                 <hr class="sidebar-divider">
                 <div class="sidebar-group">
@@ -785,13 +782,11 @@
     </div>
 
 
-    <!-- Version watermark (auto from package.json / Electron) -->
     <div id="momento-version-watermark" class="momento-version-watermark" aria-hidden="true">v…</div>
 
     <script src="./src/script.js"></script>
     <script src="./src/ai-chatbot.js"></script>
 
-    <!-- First-run tutorial -->
     <div id="tutorial-overlay" class="onboard-overlay hidden" aria-hidden="true">
         <div class="onboard-panel onboard-panel--tutorial">
             <div class="onboard-kicker">Welcome to Momento</div>
@@ -809,7 +804,6 @@
         </div>
     </div>
 
-    <!-- One-time changelog -->
     <div id="changelog-overlay" class="onboard-overlay hidden" aria-hidden="true">
         <div class="onboard-panel">
             <div class="onboard-kicker">What&rsquo;s new</div>
@@ -823,7 +817,6 @@
 
 
 
-    <!-- Personalisation quiz (synced in app_data / Supabase) -->
     <div id="personalize-overlay" class="onboard-overlay hidden" aria-hidden="true">
         <div class="onboard-panel onboard-panel--personalize">
             <div class="onboard-kicker">Personalise Momento</div>
@@ -861,7 +854,6 @@
     </div>
 
 
-        <!-- App settings (bottom-right gear) -->
     <button type="button" id="app-settings-btn" class="app-settings-btn" title="Settings" onclick="toggleAppSettings()" aria-label="Settings">⚙</button>
     <div id="app-settings-panel" class="app-settings-panel hidden" aria-hidden="true">
         <div class="app-settings-header">
@@ -905,7 +897,7 @@
 
             <label class="app-settings-check">
                 <input type="checkbox" id="set-run-background" data-settings-field />
-                Keep app in system tray (desktop) — tray appears on startup when on
+                Keep app in system tray (desktop), tray appears on startup when on
             </label>
             <label class="app-settings-check">
                 <input type="checkbox" id="set-open-at-login" data-settings-field />
@@ -916,7 +908,7 @@
                 <input type="checkbox" id="set-old-man-mode" data-settings-field />
                 Old man mode (no gamification)
             </label>
-            <p class="app-settings-hint">Hides XP pill, crates, customiser, boosters, and reward popups. Schedules, todos, AI, focus &amp; calendar stay. XP/keys are still stored — just invisible.</p>
+            <p class="app-settings-hint">Hides XP pill, crates, customiser, boosters, and reward popups. Schedules, todos, AI, focus &amp; calendar stay. XP/keys are still stored, just invisible.</p>
 
             <hr class="app-settings-hr" />
             <label class="app-settings-label">Personal model (optional)</label>

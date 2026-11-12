@@ -16,8 +16,6 @@
     --input-bg: #120f1d;
     --title-color: var(--title-color, #c3a9f8);
     --heading-color: var(--heading-color, #9569ee);
-
-    /* Layout scale — desktop defaults */
     --ui-pad-y: 40px;
     --ui-pad-x: 20px;
     --card-pad: 24px 28px;
@@ -88,7 +86,6 @@
         gap: 4px !important;
         border-radius: 14px !important;
     }
-    /* Hide "left" text noise; keep rank + bar */
     .xp-pill-fixed .xp-pill-pct { display: none !important; }
 }
 
@@ -1037,7 +1034,6 @@ button:hover {
 }
 .preview-block-row { flex-shrink: 0; }
 
-
 .modal-footer {
     display: flex;
     justify-content: flex-end;
@@ -1164,8 +1160,6 @@ body.auth-visible #ai-chat-widget {
     font-size: 0.85rem;
     line-height: 1.3;
 }
-
-/* Subtle sequential bouncing dots — AI / week-builder thinking */
 .ai-typing-dots {
     display: inline-flex;
     align-items: center;
@@ -1323,8 +1317,6 @@ body.auth-visible #ai-chat-widget {
     max-width: 480px;
     width: 95%;
 }
-
-/* Block-detail overlay */
 .block-detail-box {
     max-width: 640px;
     width: min(96vw, 640px);
@@ -3561,7 +3553,7 @@ body.fx-complete .task-row.completed {
 .auth-error.hidden { display: none; }
 .auth-submit {
     margin-top: 4px;
-    margin-left: 18px; /* nudge Google button a bit to the right */
+    margin-left: 18px;
     border: none;
     border-radius: 12px;
     padding: 14px;
@@ -3580,8 +3572,6 @@ body.fx-complete .task-row.completed {
 }
 .auth-submit:hover { filter: brightness(1.08); }
 .auth-submit:disabled { opacity: 0.6; cursor: wait; }
-
-/* —— Local offline account under Google —— */
 .local-auth-wrap {
     margin-top: 14px;
     width: 100%;
@@ -3747,9 +3737,6 @@ body.auth-locked .modal-overlay {
 .preset-item-row.preset-item-hidden {
     opacity: 0.75;
 }
-
-
-/* ===== Calendar page ===== */
 .calendar-page {
     position: fixed; inset: 0;
     background: var(--bg-color, #120f1d);
@@ -3798,7 +3785,7 @@ body.auth-locked .modal-overlay {
     overflow: visible;
     box-sizing: border-box;
 }
-.cal-month-title { display: none; } /* month name is in nav */
+.cal-month-title { display: none; }
 .cal-weekdays {
     display: grid; grid-template-columns: repeat(7, 1fr);
     gap: 4px; margin-bottom: 6px;
@@ -3860,8 +3847,6 @@ body.auth-locked .modal-overlay {
     display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;
 }
 .cal-day-header h3 { margin: 0; font-size: 1.05rem; color: var(--text-color); }
-
-/* Horizontal Gantt-style day visualizer */
 .cal-day-timeline.cal-gantt {
     position: relative;
     min-height: 0;
@@ -3973,8 +3958,6 @@ body.auth-locked .modal-overlay {
 @media (max-width: 900px) {
     .calendar-layout { grid-template-columns: 1fr; }
 }
-
-/* Todo improvements */
 .todo-add-row-ext {
     display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
     flex-shrink: 0;
@@ -4007,8 +3990,6 @@ body.auth-locked .modal-overlay {
     min-height: 0;
     max-height: none;
 }
-
-/* XP pill mid + divisions */
 .xp-pill-mid {
     display: flex; flex-direction: row; align-items: center; gap: 0;
     position: relative;
@@ -4017,7 +3998,7 @@ body.auth-locked .modal-overlay {
     position: relative;
 }
 .xp-pill-divisions {
-    display: none; /* ticks drawn on the bar via box-shadow / overlay */
+    display: none;
 }
 .xp-pill-bar {
     position: relative;
@@ -4039,8 +4020,6 @@ body.auth-locked .modal-overlay {
 .xp-pill-fixed .xp-pill-bar {
     width: 160px !important;
 }
-
-/* App customiser */
 .customiser-box { max-width: 560px !important; }
 .customiser-toggles { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 .toggle-row {
@@ -4083,8 +4062,6 @@ body.auth-locked .modal-overlay {
 .cosmetic-row .cos-badge.unlocked-badge {
     background: rgba(0,184,148,0.2); color: #00b894;
 }
-
-/* Overdue modal */
 #overdue-penalty-body { font-size: 0.92rem; line-height: 1.5; color: var(--text-color); }
 #overdue-penalty-body .penalty-item {
     padding: 8px 10px; margin: 6px 0;
@@ -4096,9 +4073,6 @@ body.auth-locked .modal-overlay {
     .calendar-layout { grid-template-columns: 1fr; }
     .cal-year-grid { grid-template-columns: repeat(2, 1fr); }
 }
-
-
-/* Calendar urgency */
 .calendar-btn { position: relative; }
 .calendar-btn.has-urgent::after {
     content: "!";
@@ -4122,8 +4096,6 @@ body.auth-locked .modal-overlay {
     25% { transform: translateX(-2px) rotate(-4deg); }
     75% { transform: translateX(2px) rotate(4deg); }
 }
-
-/* Missed calendar event popup (same family as xp-popup) */
 .missed-event-popup {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.65);
@@ -4148,9 +4120,6 @@ body.auth-locked .modal-overlay {
     background: transparent; color: var(--muted-color);
     border: 1px solid var(--border-color) !important;
 }
-
-
-/* Preset delete compact row */
 .preset-delete-row {
     display: flex;
     gap: 8px;
@@ -4184,8 +4153,6 @@ body.auth-locked .modal-overlay {
     box-sizing: border-box;
     white-space: normal;
 }
-
-/* Progress ranks: wider horizontal feel */
 .ranks-ladder {
     display: grid !important;
     grid-template-columns: 1fr 1fr;
@@ -4221,9 +4188,6 @@ body.auth-locked .modal-overlay {
     position: relative;
     z-index: 0;
 }
-
-
-/* Add Event modal — themed */
 .cal-event-box {
     max-width: 440px !important;
     width: min(440px, 94vw);
@@ -4273,8 +4237,6 @@ body.auth-locked .modal-overlay {
     color: var(--muted-color);
     margin: 10px 0 4px;
 }
-
-/* Pure timeline gantt improvements */
 .cal-day-timeline.cal-gantt {
     flex: 1;
     min-height: 220px;
@@ -4409,7 +4371,6 @@ body.auth-locked .modal-overlay {
     font-size: 0.9rem;
 }
 
-
 .cal-gantt-row.cal-gantt-clickable {
     cursor: pointer;
 }
@@ -4440,9 +4401,6 @@ body.auth-locked .modal-overlay {
     border-color: #ff7675;
     color: #ff7675;
 }
-
-
-/* Widget customiser */
 .widget-customiser-box { max-width: 520px !important; }
 .widget-scene-tabs {
     display: flex;
@@ -4488,8 +4446,6 @@ body.auth-locked .modal-overlay {
     gap: 8px;
     margin-bottom: 8px;
 }
-
-/* Drag mode */
 body.widget-drag-mode [data-widget] {
     outline: 2px dashed var(--accent-color) !important;
     outline-offset: 3px;
@@ -4504,9 +4460,6 @@ body.widget-drag-mode [data-widget].widget-dragging {
 [data-widget].widget-repositioned {
     position: fixed !important;
 }
-
-
-/* Todo due-today urgency */
 .todo-item {
     position: relative;
 }
@@ -4549,8 +4502,6 @@ body.widget-drag-mode [data-widget].widget-dragging {
     25% { transform: translateX(-3px) rotate(-10deg); }
     75% { transform: translateX(3px) rotate(10deg); }
 }
-
-/* Drag mode: disable clicks / hover on interactive children */
 body.widget-drag-mode button,
 body.widget-drag-mode a,
 body.widget-drag-mode input,
@@ -4577,9 +4528,6 @@ body.widget-drag-mode #widget-drag-fab * {
     pointer-events: auto !important;
     cursor: pointer !important;
 }
-
-
-/* ! on To-Dos quick action when due today */
 .quick-action-btn {
     position: relative;
 }
@@ -4610,9 +4558,6 @@ body.widget-drag-mode #widget-drag-fab * {
 .todo-due-input.required-empty {
     border-color: #ff7675 !important;
 }
-
-
-/* Merged ranks + rewards */
 .ranks-rewards-header {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -4682,8 +4627,6 @@ body.widget-drag-mode #widget-drag-fab * {
 .rank-reward-check {
     margin-right: 2px;
 }
-
-/* XP particles */
 .xp-particle-layer {
     position: fixed;
     inset: 0;
@@ -4704,8 +4647,6 @@ body.widget-drag-mode #widget-drag-fab * {
     0% { transform: translate(0, 0) scale(1); opacity: 1; }
     100% { transform: translate(var(--dx, 40px), -120px) scale(0.3); opacity: 0; }
 }
-
-/* Block glow cosmetic */
 body.cos-glow .task-row.active-now {
     box-shadow: 0 0 0 2px var(--accent-color), 0 0 18px var(--accent-light, rgba(108,92,231,0.45));
     animation: blockGlowPulse 2s ease-in-out infinite;
@@ -4725,7 +4666,6 @@ body.cos-glow .task-row.active-now {
 .cal-yearly-row {
     margin: 12px 0 4px !important;
 }
-
 
 .cal-day-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .cal-yearly-list {
@@ -4762,9 +4702,6 @@ body.cos-glow .task-row.active-now {
     font-family: inherit;
     font-weight: 600;
 }
-
-
-/* Fix class used by renderMusicResults */
 .music-search-result-item {
     display: flex;
     justify-content: space-between;
@@ -4803,7 +4740,6 @@ body.cos-glow .task-row.active-now {
     background: var(--accent-light, rgba(108,92,231,0.12));
 }
 
-
 .np-loop-btn {
     border: 1px solid var(--border-color);
     background: var(--bg-color);
@@ -4826,9 +4762,6 @@ body.cos-glow .task-row.active-now {
     color: #fff;
     box-shadow: 0 0 0 2px var(--accent-light, rgba(108,92,231,0.35));
 }
-
-
-/* Crates & Boosters */
 .crates-page, .boosters-page {
     position: fixed;
     inset: 0;
@@ -4992,9 +4925,6 @@ body.cos-glow .task-row.active-now {
     padding: 0 4px;
 }
 .crate-reel-wrap.hidden { display: none !important; }
-
-
-/* Crate reel tiles — gaps + rarity glow */
 .crate-reel {
     gap: 10px;
     padding: 8px 0;
@@ -5027,7 +4957,6 @@ body.cos-glow .task-row.active-now {
     box-shadow: 0 0 26px rgba(239,68,68,0.9), 0 0 48px rgba(239,68,68,0.4), inset 0 0 12px rgba(239,68,68,0.2);
     border-width: 5px !important;
 }
-
 
 .crate-reel {
     display: flex;
@@ -5069,9 +4998,6 @@ body.cos-glow .task-row.active-now {
 .crate-reel-window {
     padding: 4px;
 }
-
-
-/* Overdue penalty modal — always show Got it */
 .overdue-penalty-box {
     max-width: 420px;
     width: min(420px, 92vw);
@@ -5104,8 +5030,6 @@ body.cos-glow .task-row.active-now {
     width: 100%;
     z-index: 2;
 }
-
-/* ===== Multi-tier crates ===== */
 .crates-tier-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 2fr));
@@ -5150,8 +5074,6 @@ body.cos-glow .task-row.active-now {
     opacity: 0.75;
     line-height: 1.3;
 }
-
-/* Tile horns for legendary / mythical */
 .crate-tile {
     position: relative;
     overflow: visible;
@@ -5200,8 +5122,6 @@ body.cos-glow .task-row.active-now {
     border-color: transparent transparent #ef4444 transparent;
     filter: drop-shadow(0 0 6px rgba(239,68,68,0.9));
 }
-
-/* Glow: all rarities except rare */
 .crate-tile.rarity-common {
     box-shadow: 0 0 10px rgba(34,197,94,0.45), 0 0 18px rgba(34,197,94,0.2);
 }
@@ -5220,8 +5140,6 @@ body.cos-glow .task-row.active-now {
     border-width: 4px;
     box-shadow: 0 0 22px rgba(239,68,68,0.8), 0 0 44px rgba(239,68,68,0.4), inset 0 0 12px rgba(239,68,68,0.2);
 }
-
-/* Result card horns hint */
 .crate-result-card.has-horns {
     position: relative;
 }
@@ -5238,8 +5156,6 @@ body.cos-glow .task-row.active-now {
 }
 .crate-result-card.rarity-legendary.has-horns::before { color: #ea580c; }
 .crate-result-card.rarity-mythical.has-horns::before { color: #ef4444; }
-
-/* Copy day modal grid */
 .copy-day-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -5249,14 +5165,10 @@ body.cos-glow .task-row.active-now {
 .copy-day-btn {
     width: 100%;
 }
-
-/* Slightly taller reel for horns */
 .crate-reel-window {
     height: 110px;
     padding-top: 12px;
 }
-
-/* Completed-block cosmetics (crate + rank) */
 body.cos-stardust .task-row.completed,
 body.cos-stardust .task-item.completed,
 body.cos-checkmark .task-row.completed,
@@ -5322,8 +5234,6 @@ body.cos-orbit .task-item.completed::after {
     50% { opacity: 1; }
     100% { opacity: 0.8; filter: hue-rotate(40deg); }
 }
-
-/* Block glow always available */
 body.cos-glow .task-row.active-now,
 body.cos-glow .task-item.active-now {
     box-shadow: 0 0 0 1px var(--accent-color), 0 0 16px var(--accent-light);
@@ -5333,9 +5243,6 @@ body.cos-glow .task-item.active-now {
     0%, 100% { box-shadow: 0 0 0 1px var(--accent-color), 0 0 12px var(--accent-light); }
     50% { box-shadow: 0 0 0 2px var(--accent-color), 0 0 22px var(--accent-light); }
 }
-
-
-/* ===== Crate spin full-screen overlay ===== */
 .crate-spin-overlay {
     position: fixed;
     inset: 0;
@@ -5393,8 +5300,6 @@ body.cos-glow .task-item.active-now {
     border-radius: 14px;
     padding: 10px 8px;
 }
-
-/* ===== Legendary / Mythical tile decorations (replace ugly horns) ===== */
 .crate-tile-deco {
     position: absolute;
     top: 6px;
@@ -5442,8 +5347,6 @@ body.cos-glow .task-item.active-now {
     0%, 100% { opacity: 0.7; transform: scale(0.9); }
     50% { opacity: 1; transform: scale(1.15); }
 }
-
-/* Stronger card frames for high tiers */
 .crate-tile.rarity-legendary {
     background: linear-gradient(160deg, rgba(234,88,12,0.12), rgba(0,0,0,0.2));
     border-width: 3px;
@@ -5454,8 +5357,6 @@ body.cos-glow .task-item.active-now {
     border-width: 3px;
     box-shadow: 0 0 22px rgba(239,68,68,0.65), 0 0 40px rgba(239,68,68,0.3), inset 0 0 22px rgba(239,68,68,0.12);
 }
-
-/* Result card decorations */
 .crate-result-card.deco-legendary,
 .crate-result-card.deco-mythical {
     position: relative;
@@ -5484,8 +5385,6 @@ body.cos-glow .task-item.active-now {
     color: #fca5a5;
     text-shadow: 0 0 10px #ef4444;
 }
-
-/* Pending to-do dot on calendar days */
 .cal-day {
     position: relative;
 }
@@ -5507,9 +5406,6 @@ body.cos-glow .task-item.active-now {
     border-color: #f59e0b !important;
     background: rgba(245, 158, 11, 0.12);
 }
-
-
-/* Text on solid accent fills — themes set --accent-on for contrast */
 .btn-primary,
 .btn-save,
 .btn-save-final,
@@ -5522,7 +5418,6 @@ button.btn-yes {
     border-color: var(--accent-color);
     color: var(--accent-on, #ffffff);
 }
-/* Customiser crate buttons often use accent as background via theme */
 #app-customiser-panel .preset-btn {
     color: var(--text-color);
 }
@@ -5531,8 +5426,6 @@ button.btn-yes {
     border-color: var(--accent-color);
     color: var(--accent-on, #ffffff);
 }
-
-/* Onboarding / changelog overlays */
 .onboard-overlay {
     position: fixed;
     inset: 0;
@@ -5600,8 +5493,6 @@ button.btn-yes {
     gap: 10px;
 }
 .onboard-nav { display: flex; gap: 8px; }
-
-/* Key sinks */
 .crate-sinks-list { display: flex; flex-direction: column; gap: 8px; }
 .crate-sink-row {
     display: flex;
@@ -5615,9 +5506,6 @@ button.btn-yes {
 }
 .crate-sink-name { font-weight: 700; font-size: 0.92rem; }
 .crate-sink-desc { font-size: 0.78rem; color: var(--muted-color); margin-top: 2px; }
-
-
-/* Tutorial illustrations */
 .onboard-panel--tutorial {
     width: min(520px, 96vw);
 }
@@ -5639,9 +5527,6 @@ button.btn-yes {
     display: block;
     max-height: 180px;
 }
-
-
-/* Discord OAuth button */
 .discord-signin-btn {
     margin-top: 10px;
     background: #5865F2 !important;
@@ -5673,8 +5558,6 @@ button.btn-yes {
     flex-shrink: 0;
     display: block;
 }
-
-/* Safety: hidden full-screen layers never steal clicks */
 .modal-overlay.hidden,
 #xp-popup.hidden,
 #crate-spin-overlay.hidden,
@@ -5683,9 +5566,6 @@ button.btn-yes {
     display: none !important;
     pointer-events: none !important;
 }
-
-
-/* Personalisation MCQ */
 .onboard-panel--personalize { max-width: 480px; }
 .personalize-options {
   display: flex;
@@ -5801,8 +5681,6 @@ button.btn-yes {
   background: rgba(0,0,0,0.25);
   color: var(--text, #e2def8);
 }
-
-/* Tutorial looping animations */
 .tutorial-svg .tut-anim { animation-duration: 2.4s; animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
 .tutorial-svg .tut-slide { animation-name: tutSlide; }
 .tutorial-svg .tut-pulse { animation-name: tutPulse; }
@@ -6103,9 +5981,6 @@ button.btn-yes {
   padding: 4px 8px;
   text-align: left;
 }
-
-
-/* Now playing — always on top, default away from settings gear */
 .now-playing-bar {
   position: fixed !important;
   bottom: 18px !important;
@@ -6117,8 +5992,6 @@ button.btn-yes {
 }
 .now-playing-bar.dragging { cursor: grabbing; opacity: 0.92; }
 .now-playing-bar.hidden { display: none !important; }
-
-/* Settings extras */
 .personal-model-options.is-disabled {
   opacity: 0.35;
   pointer-events: none;
@@ -6218,8 +6091,6 @@ button.btn-yes {
   color: #a78bfa;
   text-align: right;
 }
-
-/* Tutorial animation polish */
 .tutorial-svg { width: 100%; height: auto; border-radius: 12px; }
 .tut-anim.tut-pulse { animation: tutPulse 1.6s ease-in-out infinite; }
 .tut-anim.tut-bounce { animation: tutBounce 1.4s ease-in-out infinite; }
@@ -6247,8 +6118,6 @@ button.btn-yes {
   50% { stroke-dashoffset: 0; }
   100% { stroke-dashoffset: 40; }
 }
-
-
 
 .music-search-heading { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .beta-tag {
@@ -6285,7 +6154,6 @@ button.btn-yes {
 .music-search-heading:hover + .beta-tooltip,
 .beta-tag:hover ~ .beta-tooltip,
 .beta-tooltip:hover { display: block; }
-/* ensure hover works: put tooltip after tag in same panel */
 .music-panel:has(.beta-tag:hover) .beta-tooltip,
 .music-panel:has(.music-search-heading:hover) .beta-tooltip { display: block; }
 
@@ -6313,8 +6181,6 @@ button.btn-yes {
 .app-footer-links a:hover { color: var(--accent-on, #fff); text-decoration: underline; filter: brightness(1.15); }
 .app-footer-links .footer-sep { color: var(--muted, #7a7590); opacity: 0.75; }
 body.auth-visible .app-footer-links { display: none; }
-
-/* Clock themes */
 .clock-theme-plain .flap-card {
   background: #1e1e24;
   border: 1px solid #333;
@@ -6357,7 +6223,6 @@ body.auth-visible .app-footer-links { display: none; }
   box-shadow: 0 0 8px rgba(22,163,74,0.35);
 }
 .clock-theme-flap .flap-card {
-  /* classic page-turner look */
   background: linear-gradient(180deg, var(--surface-hover, #2a2438) 0%, var(--surface, #1a1528) 50%, var(--bg-color, #120f1d) 100%);
   border: 1px solid var(--border-color, #3d315f);
 }
@@ -6371,9 +6236,6 @@ body.auth-visible .app-footer-links { display: none; }
 }
 .clock-theme-row.locked { opacity: 0.45; cursor: not-allowed; }
 .clock-theme-row.active { border-color: var(--accent-color); background: rgba(108,92,231,0.15); }
-
-
-/* ===== Live clock types (colors from theme vars) ===== */
 .live-clock {
   display: inline-flex;
   align-items: center;
@@ -6475,8 +6337,6 @@ body.auth-visible .app-footer-links { display: none; }
 .live-clock.clock-type-analog .analog-hub {
   fill: var(--accent-color, #6c5ce7);
 }
-
-/* Clock theme picker — match chime/theme swatch style */
 .clock-theme-picker {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
@@ -6555,7 +6415,6 @@ body.auth-visible .app-footer-links { display: none; }
   font-size: 0.65rem;
   color: #9a96b0;
 }
-
 
 .live-clock .clock-decor.star {
   position: absolute;
@@ -6679,9 +6538,6 @@ body.auth-visible .app-footer-links { display: none; }
   font-size: 1.05rem;
 }
 .live-clock.clock-type-aurora .plain-time { font-size: 1.75rem; font-weight: 650; }
-
-
-/* Hands visible on every analog-style clock (roman / celestial / voidgate / analog) */
 .live-clock .analog-wrap .analog-face,
 .live-clock.clock-type-analog .analog-face,
 .live-clock.clock-type-roman .analog-face {
@@ -6766,10 +6622,6 @@ body.auth-visible .app-footer-links { display: none; }
   opacity: 1;
   box-shadow: 0 0 6px color-mix(in srgb, var(--accent-color) 50%, transparent);
 }
-
-
-/* ===== Voice + Day Echo ===== */
-/* Stack with AI robot: same left/size, above it */
 .voice-fab, .day-echo-fab {
   position: fixed;
   left: 25px;
@@ -6790,7 +6642,6 @@ body.auth-visible .app-footer-links { display: none; }
   padding: 0;
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
-/* FAB stack from bottom: bot ~25, quests 87, mic 149 */
 .quests-fab { bottom: 87px; }
 .voice-fab { bottom: 149px; }
 .voice-fab:hover, .day-echo-fab:hover, .quests-fab:hover {
@@ -7095,9 +6946,6 @@ body.auth-visible .day-echo-fab { display: none; }
 .day-echo-block .deb-name { font-weight: 600; }
 .day-echo-block .deb-state { font-size: 0.72rem; color: #9a96b0; }
 .day-echo-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
-
-
-/* Prevent background scroll when a modal is open */
 body.modal-open {
   overflow: hidden !important;
   overscroll-behavior: none;
@@ -7110,7 +6958,6 @@ body.modal-open {
 .modal-overlay .modal-body {
   overscroll-behavior: contain;
 }
-
 
 .day-tabs-row {
   display: flex;
@@ -7272,9 +7119,6 @@ body.cos-streakfire #progress-streak {
 #now-playing-bar.dragging {
   cursor: default !important;
 }
-
-
-/* ===== Desktop auto-update card ===== */
 .update-card{position:fixed;right:18px;bottom:18px;z-index:2147483645;width:min(340px,calc(100vw - 36px));
   background:var(--card-bg,var(--card,#1a1528));color:var(--text-color,var(--text,#e2def8));
   border:1px solid color-mix(in srgb, var(--accent-color, #6c5ce7) 35%, var(--border, #2d2250));
@@ -7290,9 +7134,6 @@ body.cos-streakfire #progress-streak {
 .update-card-actions button.secondary{background:transparent;color:var(--muted,#9a96b8);border:1px solid color-mix(in srgb, var(--accent-color, #6c5ce7) 30%, transparent)}
 .app-settings-update{display:flex;align-items:center;gap:12px;margin:14px 0}
 .app-settings-update.hidden{display:none}
-
-
-/* Version watermark — bottom-left (avoids settings gear on the right) */
 .momento-version-watermark {
     position: fixed;
     left: 12px;
@@ -7322,8 +7163,6 @@ body.auth-visible .momento-version-watermark,
 body.auth-locked .momento-version-watermark {
     opacity: 0.35;
 }
-
-/* ===== Old man mode — hide all gamification UI ===== */
 body.old-man-mode #xp-pill,
 body.old-man-mode .xp-pill-fixed,
 body.old-man-mode #progress-panel,
@@ -7353,15 +7192,10 @@ body.old-man-mode .vol-row[data-vol-key="complete"] {
     pointer-events: none !important;
     visibility: hidden !important;
 }
-/* Hide whole card sections that only exist for cosmetics/crates when possible */
 body.old-man-mode .preset-card:has([data-gamify="1"]),
 body.old-man-mode .sidebar-card:has([data-gamify="1"]) {
     display: none !important;
 }
-
-
-
-/* Streak fire on XP pill */
 .xp-streak-fire {
   display: inline-flex;
   align-items: center;
@@ -7391,9 +7225,6 @@ body.old-man-mode .sidebar-card:has([data-gamify="1"]) {
   from { transform: translateY(1px) scale(1); filter: drop-shadow(0 0 3px rgba(255,100,0,0.7)) brightness(1); }
   to { transform: translateY(-2px) scale(1.18); filter: drop-shadow(0 0 7px rgba(255,160,0,1)) brightness(1.25); }
 }
-
-
-/* Account backups in settings */
 .backup-list {
   display: flex;
   flex-direction: column;

@@ -1,11 +1,18 @@
 # Momento Changelog
 
-## v9.4.1
+# Momento v9.4.2
 
 ### For you
-* **Restore points** in Settings — name a backup, save under `Momento/backup` for **this account only**
+* Deleting a completed block only revokes its XP when the block is from today
+* Delete toast now shows the actual XP revoked instead of 0
+* XP is recorded with the day it was earned, so revocation uses the real calendar date
+
+# Momento v9.4.1
+
+### For you
+* **Restore points** in Settings, name a backup, save under `Momento/backup` for **this account only**
 * Restore only works for that same account; other profiles cannot see or apply them
-* **Completed blocks stay checked** — no unchecking, no AI uncheck
+* **Completed blocks stay checked**, no unchecking, no AI uncheck
 * **Applying a week or preset no longer removes XP**; completed blocks are kept when schedules change
 * **Focus timer** keeps running when you leave Focus & Music, minimize, or tray (confirm to keep or stop on close)
 * Focus quest minutes tick while the timer runs

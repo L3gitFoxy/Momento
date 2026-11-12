@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="Momento — Plan the day. Play the day." width="100%" />
+  <img src="assets/banner.svg" alt="Momento, Plan the day. Play the day." width="100%" />
 </p>
 
 <p align="center">
-  <strong>Offline-first gamified schedule app</strong> — time blocks, XP, ranks, crates, voice, and an optional AI week builder.
+  <strong>Offline-first gamified schedule app</strong>, time blocks, XP, ranks, crates, voice, and an optional AI week builder.
 </p>
 
 <p align="center">
